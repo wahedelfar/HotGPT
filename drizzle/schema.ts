@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, longtext, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -20,7 +20,26 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  freeAnswersUsed: int("freeAnswersUsed").default(0).notNull(),
+  tokenBalance: int("tokenBalance").default(0).notNull(),
 });
+
+export const paymentRequests = mysqlTable("payment_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["vodafone_cash", "paypal"]).notNull(),
+  packageTokens: int("packageTokens").notNull(),
+  amountEgp: int("amountEgp").notNull(),
+  transferReference: varchar("transferReference", { length: 200 }),
+  screenshotData: longtext("screenshotData").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewedAt"),
+  reviewedBy: varchar("reviewedBy", { length: 320 }),
+});
+
+export type PaymentRequest = typeof paymentRequests.$inferSelect;
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
