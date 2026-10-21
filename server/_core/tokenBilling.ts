@@ -137,7 +137,7 @@ export function registerTokenBillingRoutes(app: Express) {
     try {
       res.setHeader("Cache-Control", "no-store");
       const requests = await db.listPaymentRequests();
-      res.json({ requests: requests.map(item => ({ ...item, screenshotData: item.screenshotData })) });
+      res.json({ requests });
     } catch (error) {
       console.error("[Billing] Payment list failed", error instanceof Error ? error.message : "unknown");
       res.status(503).json({ error: "payment_list_failed" });
