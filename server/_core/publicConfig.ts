@@ -1,10 +1,13 @@
-// Only these public values may reach the browser. Never serialize process.env.
+// Only browser-safe values are exposed. Secret/service-role keys must never be serialized.
 export function publicPlatformConfig(env: NodeJS.ProcessEnv = process.env) {
   return {
+    // Retained for the optional Maps integration; never used for authentication.
     projectId: env.MANUS_PROJECT_ID ?? "",
-    oauthPortalUrl: env.MANUS_OAUTH_PORTAL_URL ?? "",
+    oauthPortalUrl: "",
     apiUrl: env.MANUS_API_URL ?? "",
     apiBrowserKey: env.MANUS_API_BROWSER_KEY ?? "",
+    supabaseUrl: (env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\\/+$/, ""),
+    supabaseAnonKey: env.SUPABASE_ANON_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.SUPABASE_PUBLISHABLE_KEY || "",
   };
 }
 
