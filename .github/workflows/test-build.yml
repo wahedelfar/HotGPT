@@ -1,4 +1,5 @@
 name: Test HotGPT build
+# Temporary final preview verification trigger.
 on:
   push:
     branches:
