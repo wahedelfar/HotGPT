@@ -34,7 +34,7 @@ export default function AuthPage() {
         const result = await signUp(email, password, name);
         if (result.confirmationRequired) {
           setSuccess(true);
-          setNotice("تم إنشاء الحساب. إذا كان تأكيد البريد مفعّلًا في Supabase، افتح رسالة التأكيد ثم ارجع لتسجيل الدخول.");
+          setNotice("تم إنشاء الحساب. إذا طلب Supabase تأكيد البريد، افتح رسالة التأكيد؛ سيُستعاد تسجيل الدخول تلقائيًا عند الرجوع إلى الموقع.");
           return;
         }
       } else {
