@@ -12,12 +12,13 @@ export function useAuth(options?: UseAuthOptions) {
     setLoading(true);
     try {
       const response = await authFetch("/api/auth");
-      if (!response.ok) {
+      if (response.status === 401) {
         clearSession();
         setUser(null);
         setError(null);
         return null;
       }
+      if (!response.ok) throw new Error("auth_unavailable");
       const payload = await response.json() as HotGPTUser;
       setUser(payload);
       setError(null);
