@@ -45,26 +45,7 @@ const starters = [
   { icon: "◌", label: "ساعدني في تحسين الكود" },
 ];
 
-const initialConversations: Conversation[] = [
-  {
-    id: "1",
-    title: "أفكار المنتج الأولية",
-    preview: "كيف أبدأ بناء منصة...",
-    date: "اليوم",
-  },
-  {
-    id: "2",
-    title: "خطة المحتوى",
-    preview: "أحتاج تقويمًا عمليًا...",
-    date: "أمس",
-  },
-  {
-    id: "3",
-    title: "مراجعة الكود",
-    preview: "هل يمكنك مراجعة هذا...",
-    date: "الأحد",
-  },
-];
+const initialConversations: Conversation[] = [];
 
 function formatTime() {
   return new Intl.DateTimeFormat("ar", {
@@ -397,7 +378,9 @@ export default function Home() {
   const [activeConversation, setActiveConversation] = useState<string | null>(
     null
   );
-  const [conversations, setConversations] = useState(initialConversations);
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
+  const [isRestored, setIsRestored] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [extended, setExtended] = useState(false);
@@ -406,8 +389,46 @@ export default function Home() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    textareaRef.current?.focus();
+    try {
+      const saved = localStorage.getItem("hotgpt.chat.v1");
+      if (saved) {
+        const data = JSON.parse(saved) as {
+          conversations?: Conversation[];
+          messagesByConversation?: Record<string, ChatMessage[]>;
+          activeConversation?: string | null;
+        };
+        const restoredConversations = Array.isArray(data.conversations) ? data.conversations : [];
+        setConversations(restoredConversations);
+        const activeId = data.activeConversation && restoredConversations.some(item => item.id === data.activeConversation)
+          ? data.activeConversation
+          : null;
+        setActiveConversation(activeId);
+        setMessages(activeId ? data.messagesByConversation?.[activeId] ?? [] : []);
+      }
+    } catch {
+      localStorage.removeItem("hotgpt.chat.v1");
+    } finally {
+      setIsRestored(true);
+      textareaRef.current?.focus();
+    }
   }, []);
+
+  useEffect(() => {
+    if (!isRestored) return;
+    try {
+      const saved = localStorage.getItem("hotgpt.chat.v1");
+      const data = saved ? JSON.parse(saved) as { messagesByConversation?: Record<string, ChatMessage[]> } : {};
+      const messagesByConversation = data.messagesByConversation ?? {};
+      if (activeConversation) messagesByConversation[activeConversation] = messages;
+      localStorage.setItem("hotgpt.chat.v1", JSON.stringify({
+        conversations,
+        messagesByConversation,
+        activeConversation,
+      }));
+    } catch {
+      setRequestError("تعذر حفظ سجل المحادثات في هذا المتصفح. تحقق من مساحة التخزين المتاحة.");
+    }
+  }, [isRestored, conversations, messages, activeConversation]);
 
   const title = useMemo(
     () =>
@@ -428,45 +449,77 @@ export default function Home() {
   const sendMessage = async (value = draft) => {
     const trimmed = value.trim();
     if (!trimmed || isSending) return;
+
     setActiveView("chat");
     setDraft("");
+    setRequestError(null);
     setIsSending(true);
-    setMessages(current => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: trimmed,
-        timestamp: formatTime(),
-      },
-    ]);
+
+    const conversationId = activeConversation ?? crypto.randomUUID();
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: trimmed,
+      timestamp: formatTime(),
+    };
+    const requestMessages = [...messages, userMessage].map(message => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    setActiveConversation(conversationId);
+    setMessages([...messages, userMessage]);
     if (!activeConversation) {
-      const id = crypto.randomUUID();
-      setActiveConversation(id);
-      setConversations(current => [
-        {
-          id,
-          title: trimmed.slice(0, 28),
-          preview: trimmed.slice(0, 32),
-          date: "الآن",
-        },
-        ...current,
-      ]);
+      setConversations(current => [{
+        id: conversationId,
+        title: trimmed.slice(0, 28),
+        preview: trimmed.slice(0, 32),
+        date: "الآن",
+      }, ...current]);
+    } else {
+      setConversations(current => current.map(item => item.id === conversationId
+        ? { ...item, preview: trimmed.slice(0, 32), date: "الآن" }
+        : item));
     }
-    await new Promise(resolve => setTimeout(resolve, 700));
-    setMessages(current => [
-      ...current,
-      {
+
+    try {
+      const response = await fetch("/api/model/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: requestMessages, extended }),
+        signal: AbortSignal.timeout(65000),
+      });
+      const payload = await response.json().catch(() => ({})) as {
+        content?: string;
+        error?: string;
+      };
+      if (!response.ok || typeof payload.content !== "string" || !payload.content.trim()) {
+        const errors: Record<string, string> = {
+          provider_not_configured: "لم يتم إعداد مزود الذكاء الاصطناعي على الخادم بعد. أضف إعدادات النموذج في Vercel.",
+          messages_required: "الرسالة فارغة أو غير صالحة.",
+          invalid_messages: "تعذر إرسال المحادثة بسبب تنسيق الرسائل.",
+          rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
+          provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
+          provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
+        };
+        throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
+      }
+      setMessages(current => [...current, {
         id: crypto.randomUUID(),
         role: "assistant",
+        content: payload.content!,
         timestamp: formatTime(),
-        notice: true,
-        content: extended
-          ? "وضع الاستجابة الموسعة مفعّل. أضف مزيدًا من التفاصيل لنرتب الفكرة معًا."
-          : "أضف مزيدًا من التفاصيل لنرتب الفكرة معًا ونحوّلها إلى خطوة واضحة.",
-      },
-    ]);
-    setIsSending(false);
+      }]);
+    } catch (error) {
+      const message = error instanceof Error && error.name === "TimeoutError"
+        ? "انتهت مهلة الاتصال بالنموذج. حاول مرة أخرى."
+        : error instanceof Error
+          ? error.message
+          : "حدث خطأ غير متوقع أثناء إرسال الرسالة.";
+      setRequestError(message);
+    } finally {
+      setIsSending(false);
+    }
   };
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -491,6 +544,14 @@ export default function Home() {
           activeId={activeConversation}
           onSelect={id => {
             setActiveConversation(id);
+            try {
+              const saved = localStorage.getItem("hotgpt.chat.v1");
+              const data = saved ? JSON.parse(saved) as { messagesByConversation?: Record<string, ChatMessage[]> } : {};
+              setMessages(data.messagesByConversation?.[id] ?? []);
+            } catch {
+              setMessages([]);
+            }
+            setRequestError(null);
             setActiveView("chat");
             setSidebarOpen(false);
           }}
@@ -588,6 +649,7 @@ export default function Home() {
                 </div>
               )}
             </div>
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>تعذر إكمال الطلب</strong><p>{requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label="إخفاء رسالة الخطأ"><X size={15} /></button></div>}
             <div className="composer-area">
               <div
                 className={
