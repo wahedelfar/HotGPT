@@ -1,10 +1,9 @@
 import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState } from "../../shared/const";
 import { parse, serialize } from "cookie";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sdk } from "../../server/_core/sdk";
 import * as db from "../../server/db";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
