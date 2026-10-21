@@ -8,6 +8,9 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { getProviderStatus, requestProviderCompletion } from "./modelProvider";
+import { sdk } from "./sdk";
+import * as db from "../db";
+import { registerTokenBillingRoutes } from "./tokenBilling";
 
 async function startServer() {
   const app = express();
@@ -67,10 +70,35 @@ async function startServer() {
     if (!validMessages || totalCharacters > 80_000 || (extended !== undefined && typeof extended !== "boolean")) {
       return res.status(400).json({ error: "invalid_messages" });
     }
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch {
+      return res.status(401).json({ error: "login_required" });
+    }
+    if (!user || user.id < 1 || !user.email) {
+      return res.status(401).json({ error: "login_required" });
+    }
+
+    let credit: "free" | "paid" | null = null;
+    try {
+      credit = await db.consumeAnswerCredit(user.id);
+    } catch (error) {
+      console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "billing_unavailable" });
+    }
+    if (!credit) {
+      let wallet = null;
+      try { wallet = await db.getWallet(user.id); } catch {}
+      return res.status(402).json({ error: "insufficient_credits", wallet });
+    }
+
     try {
       const content = await requestProviderCompletion(messages, extended === true);
-      return res.json({ content });
+      const wallet = await db.getWallet(user.id);
+      return res.json({ content, wallet });
     } catch (error) {
+      await db.refundAnswerCredit(user.id, credit);
       if (error instanceof Error && error.name === "ProviderNotConfigured") {
         return res.status(503).json({ error: "provider_not_configured" });
       }
@@ -82,6 +110,7 @@ async function startServer() {
     }
   });
   registerOAuthRoutes(app);
+  registerTokenBillingRoutes(app);
   app.use(
     "/api/trpc",
     createExpressMiddleware({ router: appRouter, createContext })
