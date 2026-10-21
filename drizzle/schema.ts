@@ -24,6 +24,12 @@ export const users = mysqlTable("users", {
   tokenBalance: int("tokenBalance").default(0).notNull(),
 });
 
+export const adminCredentials = mysqlTable("admin_credentials", {
+  email: varchar("email", { length: 320 }).primaryKey(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const paymentRequests = mysqlTable("payment_requests", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
