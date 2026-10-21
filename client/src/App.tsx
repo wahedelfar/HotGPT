@@ -11,7 +11,7 @@ import AdminBillingPage from "./pages/AdminBilling";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={Home} />\n      <Route path="/auth" component={AuthPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/admin" component={AdminBillingPage} />
       <Route path="/admin/login" component={AdminBillingPage} />
