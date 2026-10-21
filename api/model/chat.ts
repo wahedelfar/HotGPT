@@ -22,11 +22,14 @@ export default async function handler(req: any, res: any) {
   const body = req.body ?? {};
   const messages = body.messages;
   const extended = body.extended === true;
+  const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
 
   if (
     !Array.isArray(messages) ||
     messages.length === 0 ||
     messages.length > 40 ||
+    messages[messages.length - 1]?.role !== "user" ||
     !messages.every((m: any) =>
       m &&
       (m.role === "user" || m.role === "assistant") &&
@@ -100,8 +103,9 @@ export default async function handler(req: any, res: any) {
       return res.status(502).json({ error: "provider_empty_response" });
     }
 
+    await db.saveChatExchange(user.id, conversationId, messages[messages.length - 1].content, content.trim());
     const wallet = await db.getWallet(user.id);
-    return res.status(200).json({ content: content.trim(), wallet });
+    return res.status(200).json({ content: content.trim(), wallet, conversationId });
   } catch (error: any) {
     if (credit) await db.refundAnswerCredit(user.id, credit);
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
