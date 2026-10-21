@@ -1,5 +1,5 @@
-import { requireMember } from "../../server/_core/vercelAuth";
-import * as db from "../../server/db";
+import { requireMember } from "../../server/_core/vercelAuth.js";
+import * as db from "../../server/db.js";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
