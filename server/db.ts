@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, paymentRequests, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,3 +89,137 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // TODO: add feature queries here as your schema grows.
+
+
+function affectedRowsOf(result: unknown): number {
+  const first = Array.isArray(result) ? result[0] : result;
+  return typeof first === "object" && first !== null && "affectedRows" in first
+    ? Number((first as { affectedRows: unknown }).affectedRows)
+    : 0;
+}
+
+export async function getWallet(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({
+    freeAnswersUsed: users.freeAnswersUsed,
+    tokenBalance: users.tokenBalance,
+  }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!rows[0]) throw new Error("User not found");
+  return { ...rows[0], freeAnswersRemaining: Math.max(0, 2 - rows[0].freeAnswersUsed) };
+}
+
+/** Atomically consume one answer credit. Free answers are used before paid credits. */
+export async function consumeAnswerCredit(userId: number): Promise<"free" | "paid" | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const freeResult = await db.update(users)
+    .set({ freeAnswersUsed: sql`${users.freeAnswersUsed} + 1` })
+    .where(and(eq(users.id, userId), lt(users.freeAnswersUsed, 2)));
+  if (affectedRowsOf(freeResult) === 1) return "free";
+
+  const paidResult = await db.update(users)
+    .set({ tokenBalance: sql`${users.tokenBalance} - 1` })
+    .where(and(eq(users.id, userId), gt(users.tokenBalance, 0)));
+  if (affectedRowsOf(paidResult) === 1) return "paid";
+  return null;
+}
+
+export async function refundAnswerCredit(userId: number, kind: "free" | "paid") {
+  const db = await getDb();
+  if (!db) return;
+  if (kind === "free") {
+    await db.update(users)
+      .set({ freeAnswersUsed: sql`GREATEST(0, ${users.freeAnswersUsed} - 1)` })
+      .where(eq(users.id, userId));
+  } else {
+    await db.update(users)
+      .set({ tokenBalance: sql`${users.tokenBalance} + 1` })
+      .where(eq(users.id, userId));
+  }
+}
+
+export async function listWalletUsers() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+    tokenBalance: users.tokenBalance,
+    freeAnswersUsed: users.freeAnswersUsed,
+    createdAt: users.createdAt,
+  }).from(users).orderBy(desc(users.createdAt)).limit(500);
+}
+
+export async function setTokenBalanceByEmail(email: string, balance: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await db.select({ id: users.id, email: users.email })
+    .from(users).where(eq(users.email, normalizedEmail)).limit(1);
+  if (!existing[0]) return null;
+  await db.update(users).set({ tokenBalance: balance }).where(eq(users.id, existing[0].id));
+  const updated = await db.select({
+    id: users.id, name: users.name, email: users.email,
+    tokenBalance: users.tokenBalance, freeAnswersUsed: users.freeAnswersUsed,
+  }).from(users).where(eq(users.id, existing[0].id)).limit(1);
+  return updated[0] ?? null;
+}
+
+export async function submitPaymentRequest(input: {
+  userId: number;
+  email: string;
+  paymentMethod: "vodafone_cash" | "paypal";
+  packageTokens: number;
+  amountEgp: number;
+  transferReference?: string;
+  screenshotData: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const result = await db.insert(paymentRequests).values({
+    ...input,
+    transferReference: input.transferReference?.trim() || null,
+    status: "pending",
+  });
+  const header = Array.isArray(result) ? result[0] : result;
+  return { id: Number((header as { insertId?: number }).insertId ?? 0), status: "pending" as const };
+}
+
+export async function listPaymentRequests() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.select().from(paymentRequests).orderBy(desc(paymentRequests.createdAt)).limit(200);
+}
+
+export async function reviewPaymentRequest(
+  paymentId: number,
+  approve: boolean,
+  reviewedBy: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  return db.transaction(async tx => {
+    const rows = await tx.select().from(paymentRequests)
+      .where(eq(paymentRequests.id, paymentId)).limit(1);
+    const payment = rows[0];
+    if (!payment) throw new Error("Payment request not found");
+    if (payment.status !== "pending") throw new Error("Payment request already reviewed");
+
+    const updateResult = await tx.update(paymentRequests).set({
+      status: approve ? "approved" : "rejected",
+      reviewedAt: new Date(),
+      reviewedBy,
+    }).where(and(eq(paymentRequests.id, paymentId), eq(paymentRequests.status, "pending")));
+    if (affectedRowsOf(updateResult) !== 1) throw new Error("Payment request already reviewed");
+
+    if (approve) {
+      await tx.update(users)
+        .set({ tokenBalance: sql`${users.tokenBalance} + ${payment.packageTokens}` })
+        .where(eq(users.id, payment.userId));
+    }
+    return { ...payment, status: approve ? "approved" as const : "rejected" as const };
+  });
+}
