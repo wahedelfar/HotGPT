@@ -30,6 +30,7 @@ import { Streamdown } from "streamdown";
 import { Button } from "@/components/ui/button";
 import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { authFetch } from "@/lib/auth";
 
 type ChatMessage = {
   id: string;
@@ -379,7 +380,6 @@ export default function Home() {
     null
   );
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
-  const [isRestored, setIsRestored] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -389,46 +389,30 @@ export default function Home() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("hotgpt.chat.v1");
-      if (saved) {
-        const data = JSON.parse(saved) as {
-          conversations?: Conversation[];
-          messagesByConversation?: Record<string, ChatMessage[]>;
-          activeConversation?: string | null;
-        };
-        const restoredConversations = Array.isArray(data.conversations) ? data.conversations : [];
-        setConversations(restoredConversations);
-        const activeId = data.activeConversation && restoredConversations.some(item => item.id === data.activeConversation)
-          ? data.activeConversation
-          : null;
-        setActiveConversation(activeId);
-        setMessages(activeId ? data.messagesByConversation?.[activeId] ?? [] : []);
-      }
-    } catch {
-      localStorage.removeItem("hotgpt.chat.v1");
-    } finally {
-      setIsRestored(true);
-      textareaRef.current?.focus();
+    if (auth.loading) return;
+    let cancelled = false;
+    setActiveConversation(null);
+    setMessages([]);
+    if (!auth.isAuthenticated) {
+      setConversations([]);
+      try { localStorage.removeItem("hotgpt.chat.v1"); } catch {}
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    if (!isRestored) return;
-    try {
-      const saved = localStorage.getItem("hotgpt.chat.v1");
-      const data = saved ? JSON.parse(saved) as { messagesByConversation?: Record<string, ChatMessage[]> } : {};
-      const messagesByConversation = data.messagesByConversation ?? {};
-      if (activeConversation) messagesByConversation[activeConversation] = messages;
-      localStorage.setItem("hotgpt.chat.v1", JSON.stringify({
-        conversations,
-        messagesByConversation,
-        activeConversation,
-      }));
-    } catch {
-      setRequestError("تعذر حفظ سجل المحادثات في هذا المتصفح. تحقق من مساحة التخزين المتاحة.");
-    }
-  }, [isRestored, conversations, messages, activeConversation]);
+    void authFetch("/api/conversations").then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "conversations_unavailable");
+      if (cancelled) return;
+      setConversations((payload.conversations ?? []).map((item: any) => ({
+        id: String(item.id),
+        title: String(item.title || "محادثة جديدة"),
+        preview: String(item.preview || ""),
+        date: item.date ? new Date(item.date).toLocaleDateString("ar-EG", { month: "short", day: "numeric" }) : "",
+      })));
+    }).catch(error => {
+      if (!cancelled) setRequestError(error instanceof Error ? "تعذر تحميل محادثاتك المحفوظة." : "تعذر تحميل المحادثات.");
+    });
+    return () => { cancelled = true; };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   const title = useMemo(
     () =>
@@ -449,44 +433,59 @@ export default function Home() {
   const sendMessage = async (value = draft) => {
     const trimmed = value.trim();
     if (!trimmed || isSending) return;
+    if (!auth.isAuthenticated) {
+      setRequestError("سجّل الدخول أولًا حتى تُحفظ محادثاتك ويُربط الرصيد بحسابك.");
+      window.location.assign("/auth");
+      return;
+    }
 
     setActiveView("chat");
     setDraft("");
     setRequestError(null);
     setIsSending(true);
-
-    const conversationId = activeConversation ?? crypto.randomUUID();
+    let conversationId = activeConversation;
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content: trimmed,
       timestamp: formatTime(),
     };
-    const requestMessages = [...messages, userMessage].map(message => ({
-      role: message.role,
-      content: message.content,
-    }));
-
-    setActiveConversation(conversationId);
-    setMessages([...messages, userMessage]);
-    if (!activeConversation) {
-      setConversations(current => [{
-        id: conversationId,
-        title: trimmed.slice(0, 28),
-        preview: trimmed.slice(0, 32),
-        date: "الآن",
-      }, ...current]);
-    } else {
-      setConversations(current => current.map(item => item.id === conversationId
-        ? { ...item, preview: trimmed.slice(0, 32), date: "الآن" }
-        : item));
-    }
 
     try {
-      const response = await fetch("/api/model/chat", {
+      if (!conversationId) {
+        const createResponse = await authFetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: trimmed.slice(0, 80) }),
+        });
+        const created = await createResponse.json().catch(() => ({}));
+        if (!createResponse.ok || !created.conversation?.id) {
+          throw new Error("تعذر إنشاء محادثة محفوظة. حاول تسجيل الدخول مرة أخرى.");
+        }
+        conversationId = String(created.conversation.id);
+        setActiveConversation(conversationId);
+      }
+
+      const requestMessages = [...messages, userMessage].map(message => ({
+        role: message.role,
+        content: message.content,
+      }));
+      setMessages(current => [...current, userMessage]);
+      setConversations(current => {
+        const existing = current.some(item => item.id === conversationId);
+        const next: Conversation = {
+          id: conversationId!,
+          title: activeConversation ? (current.find(item => item.id === conversationId)?.title || trimmed.slice(0, 28)) : trimmed.slice(0, 28),
+          preview: trimmed.slice(0, 32),
+          date: "الآن",
+        };
+        return existing ? current.map(item => item.id === conversationId ? { ...item, ...next } : item) : [next, ...current];
+      });
+
+      const response = await authFetch("/api/model/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: requestMessages, extended }),
+        body: JSON.stringify({ messages: requestMessages, extended, conversationId }),
         signal: AbortSignal.timeout(65000),
       });
       const payload = await response.json().catch(() => ({})) as {
@@ -498,12 +497,14 @@ export default function Home() {
           provider_not_configured: "لم يتم إعداد مزود الذكاء الاصطناعي على الخادم بعد. أضف إعدادات النموذج في Vercel.",
           messages_required: "الرسالة فارغة أو غير صالحة.",
           invalid_messages: "تعذر إرسال المحادثة بسبب تنسيق الرسائل.",
+          invalid_conversation_id: "المحادثة غير صالحة. أنشئ محادثة جديدة وحاول مرة أخرى.",
           rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
           provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
           provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
-          login_required: "سجّل الدخول أولًا حتى تُحفظ إجاباتك المجانية ورصيدك على حسابك.",
+          login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
           insufficient_credits: "انتهت الإجابات المجانية ورصيد التوكينات غير كافٍ. افتح الباقات لشحن رصيدك.",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
+          conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
         throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
       }
@@ -513,6 +514,9 @@ export default function Home() {
         content: payload.content!,
         timestamp: formatTime(),
       }]);
+      setConversations(current => current.map(item => item.id === conversationId
+        ? { ...item, preview: payload.content!.slice(0, 32), date: "الآن" }
+        : item));
     } catch (error) {
       const message = error instanceof Error && error.name === "TimeoutError"
         ? "انتهت مهلة الاتصال بالنموذج. حاول مرة أخرى."
@@ -547,16 +551,21 @@ export default function Home() {
           activeId={activeConversation}
           onSelect={id => {
             setActiveConversation(id);
-            try {
-              const saved = localStorage.getItem("hotgpt.chat.v1");
-              const data = saved ? JSON.parse(saved) as { messagesByConversation?: Record<string, ChatMessage[]> } : {};
-              setMessages(data.messagesByConversation?.[id] ?? []);
-            } catch {
-              setMessages([]);
-            }
+            setMessages([]);
             setRequestError(null);
             setActiveView("chat");
             setSidebarOpen(false);
+            void authFetch(`/api/conversations?id=${encodeURIComponent(id)}`).then(async response => {
+              const payload = await response.json().catch(() => ({}));
+              if (!response.ok) throw new Error("conversation_load_failed");
+              if (String(payload.conversation?.id) !== id) return;
+              setMessages((payload.messages ?? []).map((item: any) => ({
+                id: String(item.id),
+                role: item.role,
+                content: String(item.content),
+                timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
+              })));
+            }).catch(() => setRequestError("تعذر فتح المحادثة المحفوظة. حاول مرة أخرى."));
           }}
           onNew={startNew}
           onSettings={() => {
@@ -602,7 +611,7 @@ export default function Home() {
           </div>
           <div className="topbar-actions">
             <a href="/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">الباقات</a>
-            {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => { try { startLogin(); } catch { setRequestError("تسجيل الدخول غير مُهيأ على الخادم. راجع إعدادات Manus OAuth في Vercel."); } }}>تسجيل الدخول</button>}
+            {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => startLogin()}>تسجيل الدخول</button>}
             <button className="icon-button" aria-label="الإشعارات">
               <Bell size={17} />
             </button>
