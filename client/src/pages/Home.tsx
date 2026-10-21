@@ -466,7 +466,7 @@ export default function Home() {
         setActiveConversation(conversationId);
       }
 
-      const requestMessages = [...messages, userMessage].map(message => ({
+      const requestMessages = [...messages, userMessage].slice(-40).map(message => ({
         role: message.role,
         content: message.content,
       }));
