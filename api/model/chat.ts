@@ -104,7 +104,8 @@ export default async function handler(req: any, res: any) {
     }
 
     await db.saveChatExchange(user.id, conversationId, messages[messages.length - 1].content, content.trim());
-    const wallet = await db.getWallet(user.id);
+    let wallet = null;
+    try { wallet = await db.getWallet(user.id); } catch { /* The generated answer is already persisted; do not charge twice. */ }
     return res.status(200).json({ content: content.trim(), wallet, conversationId });
   } catch (error: any) {
     if (credit) await db.refundAnswerCredit(user.id, credit);
