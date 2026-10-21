@@ -1,3 +1,6 @@
+import { requireMember } from "../_lib/auth";
+import * as db from "../../server/db";
+
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export default async function handler(req: any, res: any) {
@@ -47,6 +50,21 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: "provider_https_required" });
   }
 
+  const user = await requireMember(req, res);
+  if (!user) return;
+  let credit: "free" | "paid" | null = null;
+  try {
+    credit = await db.consumeAnswerCredit(user.id);
+  } catch (error) {
+    console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
+    return res.status(503).json({ error: "billing_unavailable" });
+  }
+  if (!credit) {
+    let wallet = null;
+    try { wallet = await db.getWallet(user.id); } catch {}
+    return res.status(402).json({ error: "insufficient_credits", wallet });
+  }
+
   try {
     const upstream = await fetch(endpoint, {
       method: "POST",
@@ -66,6 +84,7 @@ export default async function handler(req: any, res: any) {
     const payload: any = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
       console.error("[DadGPT] Provider returned HTTP", upstream.status);
+      await db.refundAnswerCredit(user.id, credit);
       return res.status(502).json({ error: "provider_request_failed" });
     }
 
@@ -77,11 +96,14 @@ export default async function handler(req: any, res: any) {
         : "";
 
     if (!content.trim()) {
+      await db.refundAnswerCredit(user.id, credit);
       return res.status(502).json({ error: "provider_empty_response" });
     }
 
-    return res.status(200).json({ content: content.trim() });
+    const wallet = await db.getWallet(user.id);
+    return res.status(200).json({ content: content.trim(), wallet });
   } catch (error: any) {
+    if (credit) await db.refundAnswerCredit(user.id, credit);
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
     return res.status(timeout ? 504 : 502).json({
       error: timeout ? "provider_timeout" : "provider_request_failed",
