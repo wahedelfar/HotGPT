@@ -3,7 +3,7 @@
  * on the server; never import this module into browser code.
  */
 const supabaseUrl = () => (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
-const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
+const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 function config() {
   const url = supabaseUrl();
@@ -20,7 +20,7 @@ async function rest(path: string, init: RequestInit = {}) {
       apikey: key,
       authorization: `Bearer ${key}`,
       "content-type": "application/json",
-      ...(init.headers || {}),
+      ...Object.fromEntries(new Headers(init.headers).entries()),
     },
     cache: "no-store",
   });
@@ -119,7 +119,7 @@ export async function setTokenBalanceByEmail(email: string, balance: number) {
 }
 
 export async function listPaymentRequests() {
-  return await rest("payment_requests?select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,status,created_at,reviewed_at,reviewed_by&order=created_at.desc&limit=200");
+  const rows = await rest("payment_requests?select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,status,created_at,reviewed_at,reviewed_by&order=created_at.desc&limit=200");\n  return (rows || []).map((row: any) => ({ id: row.id, userId: row.user_id, email: row.email, paymentMethod: row.payment_method, packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp), transferReference: row.transfer_reference, status: row.status, createdAt: row.created_at, reviewedAt: row.reviewed_at, reviewedBy: row.reviewed_by }));
 }
 
 export async function getPaymentProofById(paymentId: string) {
