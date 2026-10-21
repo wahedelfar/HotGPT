@@ -69,6 +69,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    await db.saveUserMessage(user.id, conversationId, messages[messages.length - 1].content);
     const upstream = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -87,7 +88,7 @@ export default async function handler(req: any, res: any) {
     const payload: any = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
       console.error("[DadGPT] Provider returned HTTP", upstream.status);
-      await db.refundAnswerCredit(user.id, credit);
+      try { await db.refundAnswerCredit(user.id, credit); } catch (refundError) { console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
       return res.status(502).json({ error: "provider_request_failed" });
     }
 
@@ -99,16 +100,16 @@ export default async function handler(req: any, res: any) {
         : "";
 
     if (!content.trim()) {
-      await db.refundAnswerCredit(user.id, credit);
+      try { await db.refundAnswerCredit(user.id, credit); } catch (refundError) { console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
       return res.status(502).json({ error: "provider_empty_response" });
     }
 
-    await db.saveChatExchange(user.id, conversationId, messages[messages.length - 1].content, content.trim());
+    await db.saveAssistantMessage(user.id, conversationId, content.trim());
     let wallet = null;
     try { wallet = await db.getWallet(user.id); } catch { /* The generated answer is already persisted; do not charge twice. */ }
     return res.status(200).json({ content: content.trim(), wallet, conversationId });
   } catch (error: any) {
-    if (credit) await db.refundAnswerCredit(user.id, credit);
+    if (credit) { try { await db.refundAnswerCredit(user.id, credit); } catch (refundError) { console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown"); } }
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
     return res.status(timeout ? 504 : 502).json({
       error: timeout ? "provider_timeout" : "provider_request_failed",
