@@ -1,5 +1,5 @@
-import { requireMember } from "../../server/_core/vercelAuth";
-import * as db from "../../server/db";
+import { requireMember } from "../../server/_core/vercelAuth.js";
+import * as db from "../../server/db.js";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
