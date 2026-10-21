@@ -98,12 +98,19 @@ export async function submitPaymentRequest(input: {
 }
 
 export async function listWalletUsers() {
-  const rows = await rest("profiles?select=id,email,display_name,role,created_at,wallets(free_answers_used,token_balance)&order=created_at.desc&limit=500");
-  return (rows || []).map((row: any) => ({
-    id: row.id, name: row.display_name, email: row.email, role: row.role,
-    tokenBalance: Number(row.wallets?.token_balance || 0),
-    freeAnswersUsed: Number(row.wallets?.free_answers_used || 0), createdAt: row.created_at,
-  }));
+  const profiles = await rest("profiles?select=id,email,display_name,role,created_at&order=created_at.desc&limit=500");
+  if (!profiles?.length) return [];
+  const ids = profiles.map((row: any) => String(row.id));
+  const wallets = await rest(`wallets?user_id=in.(${ids.join(",")})&select=user_id,free_answers_used,token_balance`);
+  const walletByUser = new Map((wallets || []).map((row: any) => [String(row.user_id), row]));
+  return profiles.map((row: any) => {
+    const wallet: any = walletByUser.get(String(row.id));
+    return {
+      id: String(row.id), name: row.display_name, email: row.email, role: row.role,
+      tokenBalance: Number(wallet?.token_balance || 0),
+      freeAnswersUsed: Number(wallet?.free_answers_used || 0), createdAt: row.created_at,
+    };
+  });
 }
 
 export async function setTokenBalanceByEmail(email: string, balance: number) {
