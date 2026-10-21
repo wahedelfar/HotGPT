@@ -26,7 +26,7 @@ function sign(value: string) {
 }
 export async function loginAdmin(emailInput: string, password: string) {
   const email = emailInput.trim().toLowerCase();
-  if (email !== adminEmail() || !password) return false;
+  if (!email || email !== adminEmail() || !password) return false;
   const database = await getDb();
   if (!database) throw new Error("Database is not available");
   let rows = await database.select().from(adminCredentials).where(eq(adminCredentials.email, email)).limit(1);
