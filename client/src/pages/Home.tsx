@@ -599,7 +599,7 @@ export default function Home() {
           </div>
           <div className="topbar-actions">
             <a href="/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">الباقات</a>
-            {auth.user?.role === "admin" && <a href="/admin/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">لوحة الإدارة</a>}
+            <a href="/admin/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">لوحة الإدارة</a>
             {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => startLogin()}>تسجيل الدخول</button>}
             <button className="icon-button" aria-label="الإشعارات">
               <Bell size={17} />
