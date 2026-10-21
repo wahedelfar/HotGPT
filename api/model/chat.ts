@@ -1,4 +1,4 @@
-import { requireMember } from "../_lib/auth";
+import { requireMember } from "../../server/_core/vercelAuth";
 import * as db from "../../server/db";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
