@@ -41,6 +41,23 @@ function saveSession(payload: any): StoredSession | null {
   return session;
 }
 
+export function consumeAuthRedirect(): boolean {
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+  if (!hash) return false;
+  const params = new URLSearchParams(hash);
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return false;
+  saveSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: Number(params.get("expires_in") || 3600),
+    token_type: params.get("token_type") || "bearer",
+  });
+  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  return true;
+}
+
 export function clearSession() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
@@ -70,11 +87,11 @@ async function authRequest(path: string, body: Record<string, unknown>, accessTo
 }
 
 export async function signUp(email: string, password: string, displayName: string) {
-  const payload = await authRequest("signup", {
+  const redirectTo = encodeURIComponent(`${window.location.origin}/auth`);
+  const payload = await authRequest(`signup?redirect_to=${redirectTo}`, {
     email: email.trim().toLowerCase(),
     password,
     data: { display_name: displayName.trim() },
-    gotrue_meta_security: {},
   });
   const session = saveSession(payload);
   return { session, confirmationRequired: !session };
