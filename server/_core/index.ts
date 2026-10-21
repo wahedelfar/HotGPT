@@ -15,7 +15,7 @@ async function startServer() {
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ limit: "100kb", extended: true }));
   app.get("/api/health", (_req, res) =>
-    res.json({ status: "ok", app: "nexachat" })
+    res.json({ status: "ok", app: "hotgpt" })
   );
   app.get("/api/platform/config.js", (_req, res) => {
     res
