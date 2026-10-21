@@ -24,8 +24,8 @@ export default function BillingPage() {
 
   async function load() {
     const [configResponse, accountResponse] = await Promise.all([
-      fetch("/api/billing/config", { cache: "no-store" }),
-      authFetch("/api/billing/me", { cache: "no-store" }),
+      fetch("/api/billing?action=config", { cache: "no-store" }),
+      authFetch("/api/billing?action=me", { cache: "no-store" }),
     ]);
     if (configResponse.ok) setConfig(await configResponse.json());
     if (accountResponse.ok) setAccount(await accountResponse.json());
@@ -54,7 +54,7 @@ export default function BillingPage() {
     if (!selected || !screenshotData) { setMessage("اختر الباقة وارفع صورة إثبات الدفع أولًا."); return; }
     setBusy(true); setMessage("");
     try {
-      const response = await authFetch("/api/billing/payment", {
+      const response = await authFetch("/api/billing?action=payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ packageTokens, paymentMethod, screenshotData, transferReference }),
