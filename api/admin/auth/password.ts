@@ -1,4 +1,4 @@
-import { changeAdminPassword, readAdminSession, createAdminCookie } from "../../../server/_core/adminSession";
+import { changeAdminPassword, readAdminSession, createAdminCookie } from "../../../server/_core/adminSession.js";
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
