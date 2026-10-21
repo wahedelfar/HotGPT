@@ -1,5 +1,5 @@
 import { sdk } from "./sdk.js";
-import { readAdminSession } from "./adminSession";
+import { readAdminSession } from "./adminSession.js";
 
 export async function requireMember(req: any, res: any) {
   try {
