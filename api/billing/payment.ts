@@ -1,5 +1,5 @@
 import { requireMember } from "../../server/_core/vercelAuth.ts";
-import * as db from "../../server/db.ts";
+import * as db from "../../server/supabaseBilling.ts";
 
 const PACKAGES: Record<number, number> = { 500: 300, 800: 500, 1000: 700 };
 
