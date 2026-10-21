@@ -119,7 +119,60 @@ export async function setTokenBalanceByEmail(email: string, balance: number) {
 }
 
 export async function listPaymentRequests() {
-  const rows = await rest("payment_requests?select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,status,created_at,reviewed_at,reviewed_by&order=created_at.desc&limit=200");\n  return (rows || []).map((row: any) => ({ id: row.id, userId: row.user_id, email: row.email, paymentMethod: row.payment_method, packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp), transferReference: row.transfer_reference, status: row.status, createdAt: row.created_at, reviewedAt: row.reviewed_at, reviewedBy: row.reviewed_by }));
+  const rows = await rest("payment_requests?select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,status,created_at,reviewed_at,reviewed_by&order=created_at.desc&limit=200");
+  return (rows || []).map((row: any) => ({
+    id: row.id, userId: row.user_id, email: row.email, paymentMethod: row.payment_method,
+    packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp),
+    transferReference: row.transfer_reference, status: row.status, createdAt: row.created_at,
+    reviewedAt: row.reviewed_at, reviewedBy: row.reviewed_by,
+  }));
+}
+
+export async function listConversations(userId: string) {
+  const rows = await rest(`conversations?user_id=eq.${encodeURIComponent(userId)}&select=id,title,created_at,updated_at,messages(content,created_at)&order=updated_at.desc&limit=100&messages.order=created_at.desc&messages.limit=1`);
+  return (rows || []).map((row: any) => ({
+    id: String(row.id), title: String(row.title || "محادثة جديدة"),
+    preview: String(row.messages?.[0]?.content || ""), date: row.updated_at || row.created_at,
+  }));
+}
+
+export async function getConversation(userId: string, conversationId: string) {
+  const rows = await rest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,title,created_at,updated_at&limit=1`);
+  const row = rows?.[0];
+  if (!row) return null;
+  const messages = await rest(`messages?conversation_id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,role,content,created_at&order=created_at.asc&limit=500`);
+  return {
+    conversation: { id: String(row.id), title: String(row.title || "محادثة جديدة"), createdAt: row.created_at, updatedAt: row.updated_at },
+    messages: (messages || []).map((message: any) => ({ id: String(message.id), role: message.role, content: String(message.content), createdAt: message.created_at })),
+  };
+}
+
+export async function createConversation(userId: string, title: string) {
+  const rows = await rest("conversations?select=id,title,created_at,updated_at", {
+    method: "POST", headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ user_id: userId, title: title.slice(0, 120) || "محادثة جديدة" }),
+  });
+  const row = rows?.[0];
+  if (!row) throw new Error("conversation_create_failed");
+  return { id: String(row.id), title: String(row.title), createdAt: row.created_at, updatedAt: row.updated_at };
+}
+
+export async function saveChatExchange(userId: string, conversationId: string, userContent: string, assistantContent: string) {
+  const owners = await rest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,title&limit=1`);
+  const conversation = owners?.[0];
+  if (!conversation) throw new Error("conversation_not_found");
+  await rest("messages?select=id", {
+    method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify([
+      { conversation_id: conversationId, user_id: userId, role: "user", content: userContent },
+      { conversation_id: conversationId, user_id: userId, role: "assistant", content: assistantContent },
+    ]),
+  });
+  const nextTitle = conversation.title === "محادثة جديدة" ? userContent.slice(0, 80) : conversation.title;
+  await rest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ title: nextTitle, updated_at: new Date().toISOString() }),
+  });
 }
 
 export async function getPaymentProofById(paymentId: string) {
