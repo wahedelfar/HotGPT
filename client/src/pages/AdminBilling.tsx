@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-type Member = { id: number; name: string | null; email: string | null; role: string; tokenBalance: number; freeAnswersUsed: number; createdAt: string };
-type Payment = { id: number; userId: number; email: string; paymentMethod: "vodafone_cash" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string };
+type Member = { id: string; name: string | null; email: string | null; role: string; tokenBalance: number; freeAnswersUsed: number; createdAt: string };
+type Payment = { id: string; userId: string; email: string; paymentMethod: "vodafone_cash" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string };
 
 function AdminDashboard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [proofs, setProofs] = useState<Record<number, string>>({});
-  const [proofLoadingId, setProofLoadingId] = useState<number | null>(null);
+  const [proofs, setProofs] = useState<Record<string, string>>({});
+  const [proofLoadingId, setProofLoadingId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [balance, setBalance] = useState("0");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<number | null>(null);
+  const [busyId, setBusyId] = useState<string | number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -56,20 +56,20 @@ function AdminDashboard() {
     finally { setBusyId(null); }
   }
 
-  async function loadProof(id: number) {
+  async function loadProof(id: string) {
     setProofLoadingId(id);
     try {
       const response = await fetch(`/api/admin/billing/payment-proof?id=${id}`, { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || typeof payload.screenshotData !== "string") throw new Error("تعذر تحميل صورة إثبات الدفع.");
-      setProofs(current => ({ ...current, [id]: payload.screenshotData }));
+      if (!response.ok || typeof payload.proofUrl !== "string") throw new Error("تعذر تحميل صورة إثبات الدفع.");
+      setProofs(current => ({ ...current, [id]: payload.proofUrl }));
     } catch (error) { setMessage(error instanceof Error ? error.message : "تعذر تحميل الصورة."); }
     finally { setProofLoadingId(null); }
   }
 
   async function review(payment: Payment, decision: "approve" | "reject") {
     const action = decision === "approve" ? "الموافقة وإضافة التوكينات" : "رفض الطلب";
-    if (!window.confirm(`هل تريد ${action} للطلب #${payment.id}؟`)) return;
+    if (!window.confirm(`هل تريد ${action} للطلب #${payment.id.slice(0, 8)}؟`)) return;
     setBusyId(payment.id); setMessage("");
     try {
       const response = await fetch(`/api/admin/billing/payments/${payment.id}/${decision}`, { method: "POST" });
@@ -99,7 +99,7 @@ function AdminDashboard() {
         <h2 className="text-xl font-bold">طلبات الدفع وإثباتات التحويل</h2>
         {loading ? <p className="py-8 text-slate-400">جارٍ تحميل البيانات...</p> : payments.length === 0 ? <p className="py-8 text-slate-400">لا توجد طلبات دفع حتى الآن.</p> :
           <div className="mt-4 grid gap-4 lg:grid-cols-2">{payments.map(payment => <article key={payment.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-bold">طلب #{payment.id} · {payment.packageTokens} توكين</h3><p className="mt-1 text-sm text-slate-400">{payment.email}</p><p className="mt-1 text-sm">{payment.amountEgp} جنيه · {payment.paymentMethod === "vodafone_cash" ? "فودافون كاش" : "PayPal"}</p>{payment.transferReference && <p className="mt-1 text-xs text-slate-400">رقم العملية: {payment.transferReference}</p>}</div><span className={`rounded-full px-3 py-1 text-xs ${payment.status === "pending" ? "bg-amber-300/10 text-amber-200" : payment.status === "approved" ? "bg-emerald-300/10 text-emerald-200" : "bg-red-300/10 text-red-200"}`}>{payment.status === "pending" ? "قيد المراجعة" : payment.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span></div>
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-bold">طلب #{payment.id.slice(0, 8)} · {payment.packageTokens} توكين</h3><p className="mt-1 text-sm text-slate-400">{payment.email}</p><p className="mt-1 text-sm">{payment.amountEgp} جنيه · {payment.paymentMethod === "vodafone_cash" ? "فودافون كاش" : "PayPal"}</p>{payment.transferReference && <p className="mt-1 text-xs text-slate-400">رقم العملية: {payment.transferReference}</p>}</div><span className={`rounded-full px-3 py-1 text-xs ${payment.status === "pending" ? "bg-amber-300/10 text-amber-200" : payment.status === "approved" ? "bg-emerald-300/10 text-emerald-200" : "bg-red-300/10 text-red-200"}`}>{payment.status === "pending" ? "قيد المراجعة" : payment.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span></div>
             {proofs[payment.id] ? <img src={proofs[payment.id]} alt={`إثبات الدفع للطلب ${payment.id}`} className="mt-4 max-h-80 w-full rounded-lg border border-white/10 bg-black/30 object-contain" /> : <Button variant="outline" className="mt-4" disabled={proofLoadingId === payment.id} onClick={() => void loadProof(payment.id)}>{proofLoadingId === payment.id ? "جارٍ تحميل الصورة..." : "عرض صورة إثبات الدفع"}</Button>}
             {payment.status === "pending" && <div className="mt-4 flex gap-3"><Button disabled={busyId === payment.id} onClick={() => void review(payment, "approve")}>موافقة وإضافة التوكينات</Button><Button variant="outline" disabled={busyId === payment.id} onClick={() => void review(payment, "reject")}>رفض الطلب</Button></div>}
           </article>)}</div>}
@@ -125,7 +125,7 @@ export default function AdminBillingPage() {
 
   async function checkSession() {
     try {
-      const response = await fetch("/api/admin/auth/me", { cache: "no-store" });
+      const response = await fetch("/api/admin/auth?action=me", { cache: "no-store" });
       setAuthenticated(response.ok);
     } catch { setAuthenticated(false); }
   }
@@ -134,7 +134,7 @@ export default function AdminBillingPage() {
   async function login(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/admin/auth/login", {
+      const response = await fetch("/api/admin/auth?action=login", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
@@ -148,7 +148,7 @@ export default function AdminBillingPage() {
   async function changePassword(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
-      const response = await fetch("/api/admin/auth/password", {
+      const response = await fetch("/api/admin/auth?action=password", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
@@ -162,7 +162,7 @@ export default function AdminBillingPage() {
   }
 
   async function logout() {
-    await fetch("/api/admin/auth/logout", { method: "POST" });
+    await fetch("/api/admin/auth?action=logout", { method: "POST" });
     setAuthenticated(false);
   }
 
