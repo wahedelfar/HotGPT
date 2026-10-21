@@ -19,6 +19,11 @@ import {
   Settings,
   Sparkles,
   Upload,
+  Terminal,
+  Shield,
+  Wifi,
+  Cpu,
+  Lock,
   X,
 } from "lucide-react";
 import { Streamdown } from "streamdown";
@@ -40,9 +45,10 @@ type Conversation = {
 };
 
 const starters = [
-  { icon: "✦", label: "اكتب لي خطة واضحة لمشروع جديد" },
-  { icon: "⌘", label: "حلّل هذا المفهوم بطريقة مبسطة" },
-  { icon: "◌", label: "ساعدني في تحسين الكود" },
+  { icon: Shield, label: "VULN_SCAN", description: "افحص الكود بحثًا عن الثغرات الأمنية", prompt: "راجع الكود الذي سأرسله بحثًا عن الثغرات الأمنية، واشرح المخاطر وطرق الإصلاح الدفاعية." },
+  { icon: Wifi, label: "NET_RECON", description: "تحليل الشبكات والأصول المصرح بفحصها", prompt: "ساعدني في إعداد خطة آمنة لجرد أصول شبكتي المصرح لي بإدارتها والتحقق من إعداداتها." },
+  { icon: Cpu, label: "CODE_LAB", description: "تحليل الكود والتعلم العملي", prompt: "ساعدني في تحليل الكود وتحسينه مع شرح الحل خطوة بخطوة." },
+  { icon: Lock, label: "CRYPTO_OPS", description: "التشفير والتجزئة وأفضل الممارسات", prompt: "اشرح لي أفضل الممارسات لتطبيق التشفير وتجزئة كلمات المرور بأمان." },
 ];
 
 const initialConversations: Conversation[] = [];
@@ -56,15 +62,11 @@ function formatTime() {
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="brand-mark" aria-label="NexaChat">
+    <div className="brand-mark" aria-label="HotGPT">
       <span className="brand-mark-icon">
-        <span />
+        <Terminal size={compact ? 15 : 17} />
       </span>
-      {!compact && (
-        <span className="brand-wordmark">
-          Nexa<span>Chat</span>
-        </span>
-      )}
+      {!compact && <span className="brand-wordmark">Hot<span>GPT</span></span>}
     </div>
   );
 }
@@ -183,7 +185,7 @@ function Sidebar({
         <button className="profile-row">
           <span className="profile-avatar">م</span>
           <span>
-            <strong>مستخدم Nexa</strong>
+            <strong>مستخدم HotGPT</strong>
             <small>الحساب الشخصي</small>
           </span>
           <ChevronDown size={15} />
@@ -226,7 +228,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
       <div className="message-body">
         <div className="message-meta">
-          <strong>{message.role === "user" ? "أنت" : "Nexa"}</strong>
+          <strong>{message.role === "user" ? "أنت" : "HotGPT"}</strong>
           <span>{message.timestamp}</span>
         </div>
         <div className="message-content">
@@ -239,33 +241,26 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
   return (
-    <div className="welcome-state">
-      <div className="welcome-orbit">
-        <div className="orbit-ring ring-one" />
-        <div className="orbit-ring ring-two" />
-        <div className="welcome-glyph">
-          <Sparkles size={25} />
-        </div>
+    <div className="welcome-state hotgpt-welcome">
+      <div className="welcome-orbit hotgpt-orbit">
+        <div className="welcome-glyph hotgpt-glyph"><Terminal size={29} /></div>
       </div>
-      <p className="eyebrow">NEXA / مساحة العمل</p>
-      <h1>
-        ما الذي تريد <span>إنجازه</span> اليوم؟
-      </h1>
-      <p className="welcome-copy">
-        مساحتك الذكية للتفكير، الكتابة، وصناعة الخطوة التالية.
-      </p>
-      <div className="starter-grid">
-        {starters.map(starter => (
-          <button
-            className="starter-card"
-            key={starter.label}
-            onClick={() => onStarter(starter.label)}
-          >
-            <span className="starter-icon">{starter.icon}</span>
-            <span>{starter.label}</span>
-            <ArrowUp size={14} />
-          </button>
-        ))}
+      <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
+      <h1>Hot<span>GPT</span></h1>
+      <p className="welcome-copy">ماذا يمكنني مساعدتك فيه اليوم؟<br />مساعدك الذكي للبرمجة والتحليل والأمن الرقمي.</p>
+      <div className="starter-grid hotgpt-starter-grid">
+        {starters.map(starter => {
+          const Icon = starter.icon;
+          return (
+            <button className="starter-card hotgpt-starter-card" key={starter.label} onClick={() => onStarter(starter.prompt)}>
+              <span className="starter-icon hotgpt-starter-icon"><Icon size={22} /></span>
+              <span className="starter-copy">
+                <strong>{starter.label}</strong>
+                <small>{starter.description}</small>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -334,7 +329,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="settings-quote">
         <Sparkles size={17} />
         <span>
-          صممت NexaChat لتبقى الفكرة في المقدمة، وكل ما عداها في الخلفية.
+          صممت HotGPT لتبقى الفكرة في المقدمة، وكل ما عداها في الخلفية.
         </span>
       </div>
     </div>
