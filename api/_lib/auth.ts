@@ -14,7 +14,7 @@ export async function requireMember(req: any, res: any) {
   }
 }
 
-export async function requireAdmin(req: VercelRequest, res: any) {
+export async function requireAdmin(req: any, res: any) {
   const user = await requireMember(req, res);
   if (!user) return null;
   const allowlist = (process.env.HOTGPT_ADMIN_EMAILS ?? "")
@@ -26,7 +26,7 @@ export async function requireAdmin(req: VercelRequest, res: any) {
   return user;
 }
 
-export function methodNotAllowed(res: VercelResponse, method: string) {
+export function methodNotAllowed(res: any, method: string) {
   res.setHeader("Allow", method);
   res.status(405).json({ error: "method_not_allowed" });
 }
