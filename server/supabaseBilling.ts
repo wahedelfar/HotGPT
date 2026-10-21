@@ -157,21 +157,31 @@ export async function createConversation(userId: string, title: string) {
   return { id: String(row.id), title: String(row.title), createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-export async function saveChatExchange(userId: string, conversationId: string, userContent: string, assistantContent: string) {
+export async function saveUserMessage(userId: string, conversationId: string, content: string) {
   const owners = await rest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,title&limit=1`);
   const conversation = owners?.[0];
   if (!conversation) throw new Error("conversation_not_found");
   await rest("messages?select=id", {
     method: "POST", headers: { Prefer: "return=minimal" },
-    body: JSON.stringify([
-      { conversation_id: conversationId, user_id: userId, role: "user", content: userContent },
-      { conversation_id: conversationId, user_id: userId, role: "assistant", content: assistantContent },
-    ]),
+    body: JSON.stringify({ conversation_id: conversationId, user_id: userId, role: "user", content }),
   });
-  const nextTitle = conversation.title === "محادثة جديدة" ? userContent.slice(0, 80) : conversation.title;
+  const title = conversation.title === "محادثة جديدة" ? content.slice(0, 80) : conversation.title;
   await rest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}`, {
     method: "PATCH", headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({ title: nextTitle, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ title, updated_at: new Date().toISOString() }),
+  });
+}
+
+export async function saveAssistantMessage(userId: string, conversationId: string, content: string) {
+  const owners = await rest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`);
+  if (!owners?.[0]) throw new Error("conversation_not_found");
+  await rest("messages?select=id", {
+    method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ conversation_id: conversationId, user_id: userId, role: "assistant", content }),
+  });
+  await rest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ updated_at: new Date().toISOString() }),
   });
 }
 
