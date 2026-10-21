@@ -1,4 +1,4 @@
-import { requireAdmin } from "../../_lib/auth";
+import { requireAdmin } from "../../../server/_core/vercelAuth";
 import * as db from "../../../server/db";
 
 export default async function handler(req: any, res: any) {
