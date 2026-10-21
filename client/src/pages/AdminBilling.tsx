@@ -19,8 +19,8 @@ function AdminDashboard() {
     setLoading(true);
     try {
       const [usersRes, paymentsRes] = await Promise.all([
-        fetch("/api/admin/billing/users", { cache: "no-store" }),
-        fetch("/api/admin/billing/payments", { cache: "no-store" }),
+        fetch("/api/admin/billing?action=users", { cache: "no-store" }),
+        fetch("/api/admin/billing?action=payments", { cache: "no-store" }),
       ]);
       if (usersRes.status === 401 || usersRes.status === 403 || paymentsRes.status === 401 || paymentsRes.status === 403) {
         setMessage("الدخول للوحة يتطلب حساب مسؤول (admin). اضبط HOTGPT_ADMIN_EMAILS في Vercel أو امنح حسابك دور admin.");
@@ -44,7 +44,7 @@ function AdminDashboard() {
     if (!email.trim() || !Number.isInteger(parsed) || parsed < 0) { setMessage("أدخل بريدًا صحيحًا ورصيدًا صحيحًا لا يقل عن صفر."); return; }
     setBusyId(-1); setMessage("");
     try {
-      const response = await fetch("/api/admin/billing/balance", {
+      const response = await fetch("/api/admin/billing?action=balance", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), tokenBalance: parsed }),
       });
@@ -59,7 +59,7 @@ function AdminDashboard() {
   async function loadProof(id: string) {
     setProofLoadingId(id);
     try {
-      const response = await fetch(`/api/admin/billing/payment-proof?id=${id}`, { cache: "no-store" });
+      const response = await fetch(`/api/admin/billing?action=proof&id=${encodeURIComponent(id)}`, { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || typeof payload.proofUrl !== "string") throw new Error("تعذر تحميل صورة إثبات الدفع.");
       setProofs(current => ({ ...current, [id]: payload.proofUrl }));
@@ -72,7 +72,7 @@ function AdminDashboard() {
     if (!window.confirm(`هل تريد ${action} للطلب #${payment.id.slice(0, 8)}؟`)) return;
     setBusyId(payment.id); setMessage("");
     try {
-      const response = await fetch(`/api/admin/billing/payments/${payment.id}/${decision}`, { method: "POST" });
+      const response = await fetch(`/api/admin/billing?action=review&id=${encodeURIComponent(payment.id)}&decision=${decision}`, { method: "POST" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error === "payment_already_reviewed" ? "تمت مراجعة الطلب بالفعل." : "تعذرت مراجعة طلب الدفع.");
       setMessage(decision === "approve" ? `تمت الموافقة وإضافة ${payment.packageTokens} توكين إلى ${payment.email}.` : "تم رفض طلب الدفع.");
