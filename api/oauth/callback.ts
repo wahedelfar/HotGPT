@@ -1,5 +1,5 @@
 import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState } from "../../shared/const";
-import { parse, serialize } from "cookie";
+import { parse } from "cookie";
 import { sdk } from "../../server/_core/sdk";
 import * as db from "../../server/db";
 
@@ -36,8 +36,8 @@ export default async function handler(req: any, res: any) {
       expiresInMs: ONE_YEAR_MS,
     });
     res.setHeader("Set-Cookie", [
-      serialize(COOKIE_NAME, sessionToken, { httpOnly: true, path: "/", sameSite: "none", secure: true, maxAge: Math.floor(ONE_YEAR_MS / 1000) }),
-      serialize(OAUTH_STATE_COOKIE, "", { path: "/", sameSite: "none", secure: true, maxAge: 0 }),
+      `${COOKIE_NAME}=${sessionToken}; Path=/; Max-Age=${Math.floor(ONE_YEAR_MS / 1000)}; HttpOnly; Secure; SameSite=None`,
+      `${OAUTH_STATE_COOKIE}=; Path=/; Max-Age=0; Secure; SameSite=None`,
     ]);
     return res.redirect(302, "/");
   } catch (error) {
