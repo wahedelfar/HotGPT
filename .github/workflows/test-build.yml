@@ -32,3 +32,20 @@ jobs:
         run: pnpm check
       - name: Production build
         run: pnpm build
+      - name: Smoke test client routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort >/tmp/hotgpt-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/auth -o /tmp/hotgpt-auth.html; then break; fi
+            sleep 1
+          done
+          for route in / /auth /billing /admin; do
+            status=$(curl -sS -o /tmp/hotgpt-route.html -w '%{http_code}' "http://127.0.0.1:4173$route")
+            test "$status" = "200"
+            grep -q 'id="root"' /tmp/hotgpt-route.html
+          done
+          curl -fsS http://127.0.0.1:4173/api/platform/config.js | grep -q 'supabaseUrl'
