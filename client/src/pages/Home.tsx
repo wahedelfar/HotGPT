@@ -82,6 +82,7 @@ function Sidebar({
   onGuide,
   activeView,
   onClose,
+  displayName,
 }: {
   conversations: Conversation[];
   activeId: string | null;
@@ -91,6 +92,7 @@ function Sidebar({
   onGuide: () => void;
   activeView: string;
   onClose?: () => void;
+  displayName: string;
 }) {
   return (
     <aside className="sidebar">
@@ -185,9 +187,9 @@ function Sidebar({
           <ArrowUp size={13} />
         </div>
         <button className="profile-row">
-          <span className="profile-avatar">م</span>
+          <span className="profile-avatar">{displayName.trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}</span>
           <span>
-            <strong>مستخدم HotGPT</strong>
+            <strong>{displayName}</strong>
             <small>الحساب الشخصي</small>
           </span>
           <ChevronDown size={15} />
@@ -567,6 +569,7 @@ export default function Home() {
           }}
           activeView={activeView}
           onClose={() => setSidebarOpen(false)}
+          displayName={auth.user?.name || auth.user?.email || "مستخدم HotGPT"}
         />
       </div>
       <main className="main-shell">
@@ -599,16 +602,15 @@ export default function Home() {
           </div>
           <div className="topbar-actions">
             <a href="/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">الباقات</a>
-            <a href="/admin/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">لوحة الإدارة</a>
-            {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => startLogin()}>تسجيل الدخول</button>}
+            {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => { try { startLogin(); } catch { setRequestError("تسجيل الدخول غير مُهيأ على الخادم. راجع إعدادات Manus OAuth في Vercel."); } }}>تسجيل الدخول</button>}
             <button className="icon-button" aria-label="الإشعارات">
               <Bell size={17} />
             </button>
             <button className="icon-button" aria-label="المساعدة">
               <CircleHelp size={17} />
             </button>
-            <button className="topbar-avatar" aria-label="الحساب الشخصي">
-              م
+            <button className="topbar-avatar" aria-label="الحساب الشخصي" title={auth.user?.name || auth.user?.email || "الحساب الشخصي"}>
+              {(auth.user?.name || auth.user?.email || "مستخدم HotGPT").trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}
             </button>
           </div>
         </header>
