@@ -1,5 +1,5 @@
 import { requireMember } from "../../server/_core/vercelAuth.ts";
-import * as db from "../../server/db.ts";
+import * as db from "../../server/supabaseBilling.ts";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
