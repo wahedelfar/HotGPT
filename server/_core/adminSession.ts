@@ -6,8 +6,8 @@ import { adminCredentials } from "../../drizzle/schema.js";
 
 export const ADMIN_COOKIE = "hotgpt_admin_session";
 const SESSION_SECONDS = 12 * 60 * 60;
-const adminEmail = () => (process.env.HOTGPT_ADMIN_EMAILS || "waheid0@gmail.com").split(",")[0].trim().toLowerCase();
-const secret = () => process.env.ADMIN_SESSION_SECRET || process.env.MANUS_JWT_SECRET || "";
+const adminEmail = () => (process.env.HOTGPT_ADMIN_EMAILS || "").split(",")[0].trim().toLowerCase();
+const secret = () => process.env.ADMIN_SESSION_SECRET || "";
 
 function hashPassword(password: string, salt = randomBytes(16).toString("hex")) {
   return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;
@@ -31,7 +31,8 @@ export async function loginAdmin(emailInput: string, password: string) {
   if (!database) throw new Error("Database is not available");
   let rows = await database.select().from(adminCredentials).where(eq(adminCredentials.email, email)).limit(1);
   if (!rows.length) {
-    const initial = process.env.ADMIN_INITIAL_PASSWORD || "admin";
+    const initial = process.env.ADMIN_INITIAL_PASSWORD;
+    if (!initial || initial.length < 10) throw new Error("ADMIN_INITIAL_PASSWORD must be set to at least 10 characters before first admin login");
     if (password !== initial) return false;
     try {
       await database.insert(adminCredentials).values({ email, passwordHash: hashPassword(initial) });
