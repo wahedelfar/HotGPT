@@ -1,7 +1,6 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sdk } from "../../server/_core/sdk";
 
-export async function requireMember(req: VercelRequest, res: VercelResponse) {
+export async function requireMember(req: any, res: any) {
   try {
     const user = await sdk.authenticateRequest(req as any);
     if (!user || user.id < 1 || !user.email) {
@@ -15,7 +14,7 @@ export async function requireMember(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-export async function requireAdmin(req: VercelRequest, res: VercelResponse) {
+export async function requireAdmin(req: VercelRequest, res: any) {
   const user = await requireMember(req, res);
   if (!user) return null;
   const allowlist = (process.env.HOTGPT_ADMIN_EMAILS ?? "")
