@@ -1,5 +1,5 @@
-import { requireMember } from "../../server/_core/vercelAuth";
-import * as db from "../../server/db";
+import { requireMember } from "../../server/_core/vercelAuth.js";
+import * as db from "../../server/db.js";
 
 const PACKAGES: Record<number, number> = { 500: 300, 800: 500, 1000: 700 };
 
