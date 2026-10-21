@@ -1,0 +1,34 @@
+name: Test HotGPT build
+on:
+  push:
+    branches:
+      - test/token-wallet-admin-payments
+  pull_request:
+    branches:
+      - main
+      - test/token-wallet-admin-payments
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Activate pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.18.0 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type check
+        run: pnpm check
+      - name: Production build
+        run: pnpm build
