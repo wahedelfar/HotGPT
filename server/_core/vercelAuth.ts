@@ -1,4 +1,5 @@
 import { sdk } from "./sdk";
+import { readAdminSession } from "./adminSession";
 
 export async function requireMember(req: any, res: any) {
   try {
@@ -15,6 +16,8 @@ export async function requireMember(req: any, res: any) {
 }
 
 export async function requireAdmin(req: any, res: any) {
+  const adminSession = await readAdminSession(req);
+  if (adminSession) return { id: 0, email: adminSession.email, name: "Administrator", role: "admin" as const };
   const user = await requireMember(req, res);
   if (!user) return null;
   const allowlist = (process.env.HOTGPT_ADMIN_EMAILS ?? "")
