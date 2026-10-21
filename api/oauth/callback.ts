@@ -1,7 +1,7 @@
-import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState } from "../../shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS, OAUTH_STATE_COOKIE, decodeOAuthState } from "../../shared/const.js";
 import { parse } from "cookie";
-import { sdk } from "../../server/_core/sdk";
-import * as db from "../../server/db";
+import { sdk } from "../../server/_core/sdk.js";
+import * as db from "../../server/db.js";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
