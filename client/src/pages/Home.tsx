@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { Button } from "@/components/ui/button";
+import { startLogin } from "@/const";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 type ChatMessage = {
   id: string;
@@ -368,6 +370,7 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
 }
 
 export default function Home() {
+  const auth = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
   const [activeConversation, setActiveConversation] = useState<string | null>(
@@ -496,6 +499,9 @@ export default function Home() {
           rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
           provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
           provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
+          login_required: "سجّل الدخول أولًا حتى تُحفظ إجاباتك المجانية ورصيدك على حسابك.",
+          insufficient_credits: "انتهت الإجابات المجانية ورصيد التوكينات غير كافٍ. افتح الباقات لشحن رصيدك.",
+          billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
         };
         throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
       }
@@ -592,6 +598,9 @@ export default function Home() {
             </div>
           </div>
           <div className="topbar-actions">
+            <a href="/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">الباقات</a>
+            {auth.user?.role === "admin" && <a href="/admin/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">لوحة الإدارة</a>}
+            {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => startLogin()}>تسجيل الدخول</button>}
             <button className="icon-button" aria-label="الإشعارات">
               <Bell size={17} />
             </button>
