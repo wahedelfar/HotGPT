@@ -191,7 +191,30 @@ export async function submitPaymentRequest(input: {
 export async function listPaymentRequests() {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  return db.select().from(paymentRequests).orderBy(desc(paymentRequests.createdAt)).limit(200);
+  return db.select({
+    id: paymentRequests.id,
+    userId: paymentRequests.userId,
+    email: paymentRequests.email,
+    paymentMethod: paymentRequests.paymentMethod,
+    packageTokens: paymentRequests.packageTokens,
+    amountEgp: paymentRequests.amountEgp,
+    transferReference: paymentRequests.transferReference,
+    status: paymentRequests.status,
+    createdAt: paymentRequests.createdAt,
+    reviewedAt: paymentRequests.reviewedAt,
+    reviewedBy: paymentRequests.reviewedBy,
+  }).from(paymentRequests).orderBy(desc(paymentRequests.createdAt)).limit(200);
+}
+
+export async function getPaymentProofById(paymentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const rows = await db.select({
+    id: paymentRequests.id,
+    email: paymentRequests.email,
+    screenshotData: paymentRequests.screenshotData,
+  }).from(paymentRequests).where(eq(paymentRequests.id, paymentId)).limit(1);
+  return rows[0] ?? null;
 }
 
 export async function reviewPaymentRequest(
