@@ -76,6 +76,7 @@ export async function submitPaymentRequest(input: {
   const match = input.screenshotData.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new Error("invalid_screenshot");
   const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+  if (bytes.byteLength > 1_200_000) throw new Error("screenshot_too_large");
   const ext = match[1] === "jpeg" ? "jpg" : match[1];
   const path = `${input.userId}/${crypto.randomUUID()}.${ext}`;
   const { url, key } = config();
