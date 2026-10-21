@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 type Member = { id: number; name: string | null; email: string | null; role: string; tokenBalance: number; freeAnswersUsed: number; createdAt: string };
 type Payment = { id: number; userId: number; email: string; paymentMethod: "vodafone_cash" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string };
 
-export default function AdminBillingPage() {
+function AdminDashboard() {
   const [members, setMembers] = useState<Member[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [proofs, setProofs] = useState<Record<number, string>>({});
@@ -110,4 +110,94 @@ export default function AdminBillingPage() {
       </section>
     </div>
   </main>;
+}
+
+
+export default function AdminBillingPage() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [email, setEmail] = useState("waheid0@gmail.com");
+  const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+
+  async function checkSession() {
+    try {
+      const response = await fetch("/api/admin/auth/me", { cache: "no-store" });
+      setAuthenticated(response.ok);
+    } catch { setAuthenticated(false); }
+  }
+  useEffect(() => { void checkSession(); }, []);
+
+  async function login(event: React.FormEvent) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/admin/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error === "admin_auth_unavailable" ? "قاعدة البيانات أو إعدادات الجلسة غير جاهزة. يلزم تطبيق الترحيل وضبط إعدادات Vercel." : "البريد أو كلمة المرور غير صحيحين.");
+      setAuthenticated(true); setPassword(""); setNotice("");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "تعذر تسجيل الدخول."); }
+    finally { setBusy(false); }
+  }
+
+  async function changePassword(event: React.FormEvent) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const response = await fetch("/api/admin/auth/password", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "تعذر تغيير كلمة المرور.");
+      setAuthenticated(false); setCurrentPassword(""); setNewPassword("");
+      setNotice("تم تغيير كلمة المرور. سجّل الدخول مجددًا.");
+      setShowPasswordForm(false);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "تعذر تغيير كلمة المرور."); }
+    finally { setBusy(false); }
+  }
+
+  async function logout() {
+    await fetch("/api/admin/auth/logout", { method: "POST" });
+    setAuthenticated(false);
+  }
+
+  if (authenticated === null) return <main dir="rtl" className="min-h-screen bg-[#080b10] p-6 text-white">جارٍ التحقق من جلسة الإدارة...</main>;
+  if (!authenticated) return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#080b10] px-4 py-10 text-white">
+    <form onSubmit={login} className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[.04] p-6 shadow-2xl">
+      <a href="/" className="text-sm text-cyan-300">← العودة إلى HotGPT</a>
+      <p className="mt-7 text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT ADMIN</p>
+      <h1 className="mt-2 text-2xl font-bold">تسجيل دخول الإدارة</h1>
+      <p className="mt-2 text-sm text-slate-400">دخول مستقل عن تسجيل دخول أعضاء الموقع.</p>
+      <label className="mt-6 block text-sm">البريد الإلكتروني</label>
+      <input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 outline-none focus:border-cyan-300" />
+      <label className="mt-4 block text-sm">كلمة المرور</label>
+      <input type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 outline-none focus:border-cyan-300" />
+      {notice && <p role="alert" className="mt-4 rounded-lg bg-red-400/10 p-3 text-sm text-red-200">{notice}</p>}
+      <Button type="submit" disabled={busy} className="mt-5 w-full">{busy ? "جارٍ تسجيل الدخول..." : "دخول لوحة الإدارة"}</Button>
+    </form>
+  </main>;
+
+  return <div>
+    <div dir="rtl" className="fixed left-4 top-4 z-20 flex gap-2">
+      <Button variant="outline" onClick={() => setShowPasswordForm(v => !v)}>تغيير كلمة المرور</Button>
+      <Button variant="outline" onClick={() => void logout()}>تسجيل الخروج</Button>
+    </div>
+    {showPasswordForm && <form dir="rtl" onSubmit={changePassword} className="fixed inset-0 z-30 flex items-center justify-center bg-black/80 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#10151d] p-6 text-white">
+        <h2 className="text-xl font-bold">تغيير كلمة مرور الإدارة</h2>
+        <label className="mt-4 block text-sm">كلمة المرور الحالية</label>
+        <input type="password" required autoComplete="current-password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3" />
+        <label className="mt-4 block text-sm">كلمة المرور الجديدة (10 أحرف على الأقل)</label>
+        <input type="password" required minLength={10} autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3" />
+        {notice && <p className="mt-3 text-sm text-amber-200">{notice}</p>}
+        <div className="mt-5 flex gap-2"><Button type="submit" disabled={busy}>{busy ? "جارٍ الحفظ..." : "حفظ كلمة المرور"}</Button><Button type="button" variant="outline" onClick={() => setShowPasswordForm(false)}>إلغاء</Button></div>
+      </div>
+    </form>}
+    <AdminDashboard />
+  </div>;
 }
