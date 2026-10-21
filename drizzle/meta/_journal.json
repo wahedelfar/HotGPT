@@ -15,6 +15,13 @@
       "when": 1792600000000,
       "tag": "0001_token_wallet_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792605100000,
+      "tag": "0002_admin_credentials",
+      "breakpoints": true
     }
   ]
 }
