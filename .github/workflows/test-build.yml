@@ -1,4 +1,5 @@
 name: Test HotGPT build
+# Temporary PR trigger to validate the latest Supabase auth/chat branch.
 on:
   push:
     branches:
