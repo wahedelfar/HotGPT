@@ -115,7 +115,7 @@ function AdminDashboard() {
 
 export default function AdminBillingPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [email, setEmail] = useState("waheid0@gmail.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
