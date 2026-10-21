@@ -1,8 +1,8 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { parse } from "cookie";
 import { eq } from "drizzle-orm";
-import { getDb } from "../db.js";
-import { adminCredentials } from "../../drizzle/schema.js";
+import { getDb } from "../db.ts";
+import { adminCredentials } from "../../drizzle/schema.ts";
 
 export const ADMIN_COOKIE = "hotgpt_admin_session";
 const SESSION_SECONDS = 12 * 60 * 60;

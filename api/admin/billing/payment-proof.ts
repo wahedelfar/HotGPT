@@ -1,5 +1,5 @@
-import { requireAdmin } from "../../../server/_core/vercelAuth.js";
-import * as db from "../../../server/db.js";
+import { requireAdmin } from "../../../server/_core/vercelAuth.ts";
+import * as db from "../../../server/db.ts";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");

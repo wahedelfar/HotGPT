@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
-import { sdk } from "./sdk.js";
-import * as db from "../db.js";
+import { sdk } from "./sdk.ts";
+import * as db from "../db.ts";
 
 const PACKAGES = {
   500: 300,
