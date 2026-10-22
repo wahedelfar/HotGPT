@@ -537,6 +537,7 @@ export default function Home() {
       const payload = await response.json().catch(() => ({})) as {
         content?: string;
         error?: string;
+        wallet?: { tokenBalance?: number } | null;
       };
       if (!response.ok || typeof payload.content !== "string" || !payload.content.trim()) {
         const errors: Record<string, string> = {
@@ -553,12 +554,13 @@ export default function Home() {
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "نموذج Beast يحتاج إلى توكينين مدفوعين على الأقل. اشترِ باقة أو اختر Default." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
         throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
       }
+      if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
       setMessages(current => [...current, {
         id: crypto.randomUUID(),
         role: "assistant",
