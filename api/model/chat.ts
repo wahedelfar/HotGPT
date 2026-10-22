@@ -2,15 +2,16 @@
 import { inflateSync } from "node:zlib";
 
 function decodePdfLiteral(value: string): string {
-  const unescaped = value.replace(/\\\\([nrtbf()\\\\])/g, (_match, char: string) => {
-    const map: Record<string, string> = { n: "\\n", r: "\\r", t: "\\t", b: "\\b", f: "\\f", "(": "(", ")": ")", "\\\\": "\\\\" };
-    return map[char] ?? char;
-  }).replace(/\\\\([0-7]{1,3})/g, (_match, octal: string) => String.fromCharCode(parseInt(octal, 8)));
-  return unescaped;
+  return value
+    .replace(/\\([nrtbf()\\])/g, (_match, char: string) => {
+      const map: Record<string, string> = { n: "\n", r: "\r", t: "\t", b: "\b", f: "\f", "(": "(", ")": ")", "\\": "\\" };
+      return map[char] ?? char;
+    })
+    .replace(/\\([0-7]{1,3})/g, (_match, octal: string) => String.fromCharCode(parseInt(octal, 8)));
 }
 
 function decodePdfHex(hex: string): string {
-  const clean = hex.replace(/\\s/g, "");
+  const clean = hex.replace(/\s/g, "");
   const bytes = new Uint8Array(Math.floor(clean.length / 2));
   for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16) || 0;
   if (bytes[0] === 0xfe && bytes[1] === 0xff) {
@@ -23,18 +24,18 @@ function decodePdfHex(hex: string): string {
 
 function pdfTextFromOperators(source: string): string {
   const parts: string[] = [];
-  const operator = /\\(((?:\\\\.|[^\\\\)])*)\\)\\s*Tj|\\[((?:.|\\n)*?)\\]\\s*TJ|<([\\da-fA-F\\s]+)>\\s*Tj/g;
+  const operator = /\(((?:\\.|[^\\)])*)\)\s*Tj|\[((?:.|\n)*?)\]\s*TJ|<([\da-fA-F\s]+)>\s*Tj/g;
   let match: RegExpExecArray | null;
   while ((match = operator.exec(source))) {
     if (match[1] !== undefined) parts.push(decodePdfLiteral(match[1]));
     else if (match[2] !== undefined) {
-      const tokens = /\\(((?:\\\\.|[^\\\\)])*)\\)|<([\\da-fA-F\\s]+)>/g;
+      const tokens = /\(((?:\\.|[^\\)])*)\)|<([\da-fA-F\s]+)>/g;
       let token: RegExpExecArray | null;
       while ((token = tokens.exec(match[2]))) parts.push(token[1] !== undefined ? decodePdfLiteral(token[1]) : decodePdfHex(token[2]));
     } else if (match[3] !== undefined) parts.push(decodePdfHex(match[3]));
     parts.push(" ");
   }
-  return parts.join("").replace(/[ \\t]+/g, " ").replace(/\\n{3,}/g, "\\n\\n").trim();
+  return parts.join("").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function extractPdfText(base64: string): string {
@@ -42,11 +43,11 @@ function extractPdfText(base64: string): string {
   if (bytes.length > 3 * 1024 * 1024 || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error("invalid_pdf");
   const raw = bytes.toString("latin1");
   const chunks: string[] = [];
-  const streamPattern = /<<(.*?)>>\\s*stream\\r?\\n([\\s\\S]*?)\\r?\\nendstream/g;
+  const streamPattern = /<<(.*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
   let stream: RegExpExecArray | null;
   while ((stream = streamPattern.exec(raw))) {
     let content = stream[2];
-    if (/\\/FlateDecode/.test(stream[1])) {
+    if (/\/FlateDecode/.test(stream[1])) {
       try {
         const start = Buffer.byteLength(raw.slice(0, stream.index + stream[0].indexOf(stream[2])), "latin1");
         const compressed = bytes.subarray(start, start + Buffer.byteLength(content, "latin1"));
@@ -57,7 +58,7 @@ function extractPdfText(base64: string): string {
     if (extracted) chunks.push(extracted);
     if (chunks.join(" ").length > 60000) break;
   }
-  return chunks.join("\\n").slice(0, 60000).trim();
+  return chunks.join("\n").slice(0, 60000).trim();
 }
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
