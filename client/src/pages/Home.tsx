@@ -7,7 +7,6 @@ import {
   CircleHelp,
   FileText,
   FolderOpen,
-  ImagePlus,
   Menu,
   MessageSquare,
   Moon,
@@ -494,20 +493,25 @@ export default function Home() {
         return existing ? current.map(item => item.id === conversationId ? { ...item, ...next } : item) : [next, ...current];
       });
 
-      let filePayload: { name: string; type: string; data: string; encoding: "base64" | "text" } | undefined;
+      let filePayload: { name: string; type: string; path: string; encoding: "storage" } | undefined;
       if (attachment) {
-        if (attachment.size > 3 * 1024 * 1024) throw new Error("حجم الملف أكبر من 3 ميجابايت. ارفع نسخة أصغر ثم حاول مجددًا.");
-        const isPdf = attachment.type === "application/pdf" || attachment.name.toLowerCase().endsWith(".pdf");
-        if (isPdf) {
-          const bytes = new Uint8Array(await attachment.arrayBuffer());
-          let binary = "";
-          for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-          filePayload = { name: attachment.name, type: "application/pdf", data: btoa(binary), encoding: "base64" };
-        } else {
-          const textContent = await attachment.text();
-          if (!textContent.trim()) throw new Error("الملف فارغ أو تعذر قراءة محتواه.");
-          filePayload = { name: attachment.name, type: attachment.type || "text/plain", data: textContent.slice(0, 60000), encoding: "text" };
+        if (attachment.size > 10 * 1024 * 1024) throw new Error("حجم الملف يجب ألا يتجاوز 10 ميجابايت.");
+        const uploadResponse = await authFetch("/api/model/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: attachment.name, type: attachment.type, size: attachment.size }),
+        });
+        const upload = await uploadResponse.json().catch(() => ({})) as { uploadUrl?: string; path?: string; error?: string };
+        if (!uploadResponse.ok || !upload.uploadUrl || !upload.path) {
+          throw new Error(upload.error === "file_too_large" ? "حجم الملف يجب ألا يتجاوز 10 ميجابايت." : "تعذر تجهيز رفع الملف. حاول مرة أخرى.");
         }
+        const putResponse = await fetch(upload.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": attachment.type || "application/octet-stream" },
+          body: attachment,
+        });
+        if (!putResponse.ok) throw new Error("تعذر رفع الملف إلى التخزين. حاول مرة أخرى.");
+        filePayload = { name: attachment.name, type: attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
       }
       const response = await authFetch("/api/model/chat", {
         method: "POST",
@@ -528,12 +532,13 @@ export default function Home() {
           rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
           provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
           provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
-          invalid_attachment: "تعذر إرسال الملف. تأكد أن حجمه لا يتجاوز 3 ميجابايت.",
+          invalid_attachment: "تعذر إرسال الملف. تأكد أن حجمه لا يتجاوز 10 ميجابايت.",
           unsupported_attachment: "نوع الملف غير مدعوم. استخدم PDF أو TXT أو MD أو CSV أو JSON.",
+          file_too_large: "حجم الملف يجب ألا يتجاوز 10 ميجابايت.", upload_unavailable: "تعذر رفع الملف إلى التخزين. حاول مرة أخرى.",
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
@@ -568,7 +573,11 @@ export default function Home() {
   };
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) setAttachment(file);
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) setRequestError("حجم الملف يجب ألا يتجاوز 10 ميجابايت.");
+      else if (!/\.(pdf|txt|md|csv|json)$/i.test(file.name)) setRequestError("نوع الملف غير مدعوم. استخدم PDF أو TXT أو MD أو CSV أو JSON.");
+      else { setRequestError(null); setAttachment(file); }
+    }
     event.target.value = "";
   };
 
@@ -724,9 +733,6 @@ export default function Home() {
                       accept=".pdf,.txt,.md,.csv,.json"
                     />
                   </label>
-                  <button className="composer-icon" aria-label="توليد صورة">
-                    <ImagePlus size={18} />
-                  </button>
                 </div>
                 <textarea
                   ref={textareaRef}
