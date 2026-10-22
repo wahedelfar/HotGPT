@@ -35,16 +35,38 @@ async function rest(path: string, init: RequestInit = {}) {
 }
 
 export async function getSupabaseUser(accessToken: string) {
-  const { url, key } = config();
+  const url = supabaseUrl();
+  const publicKey =
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    serviceKey();
+
+  // Validate the Supabase session with the public key. A missing service-role
+  // key must not make a valid user appear logged out in the client.
+  if (!url || !publicKey || !accessToken) throw new Error("supabase_auth_not_configured");
   const response = await fetch(`${url}/auth/v1/user`, {
-    headers: { apikey: key, authorization: `Bearer ${accessToken}` },
+    headers: { apikey: publicKey, authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
   if (!response.ok) return null;
   const user = await response.json() as any;
   if (!user?.id || !user?.email) return null;
-  const profiles = await rest(`profiles?id=eq.${encodeURIComponent(user.id)}&select=id,email,display_name,role&limit=1`);
-  const profile = profiles?.[0];
+
+  // Profile enrichment is optional; do not discard a valid auth session when
+  // the service-role key or the profiles table is unavailable in Preview.
+  let profile: any = null;
+  if (serviceKey()) {
+    try {
+      const profiles = await rest(`profiles?id=eq.${encodeURIComponent(user.id)}&select=id,email,display_name,role&limit=1`);
+      profile = profiles?.[0] || null;
+    } catch (error) {
+      console.error("[Auth] Profile enrichment failed", error instanceof Error ? error.message : "unknown");
+    }
+  }
+
   return {
     id: String(user.id),
     email: String(user.email).toLowerCase(),
