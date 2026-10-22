@@ -1,8 +1,11 @@
-import { getSupabaseUser } from "../server/supabaseBilling.ts";
+import { getSupabaseUser } from "../server/supabaseBilling";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
-  if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ error: "method_not_allowed" });
+  }
   const authorization = String(req.headers?.authorization || "");
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return res.status(401).json({ error: "login_required" });
