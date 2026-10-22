@@ -18,7 +18,6 @@ export default function BillingPage() {
   const [packageTokens, setPackageTokens] = useState(500);
   const [paymentMethod, setPaymentMethod] = useState<"vodafone_cash" | "paypal">("vodafone_cash");
   const [screenshotData, setScreenshotData] = useState("");
-  const [transferReference, setTransferReference] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -57,7 +56,7 @@ export default function BillingPage() {
       const response = await authFetch("/api/billing?action=payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageTokens, paymentMethod, screenshotData, transferReference }),
+        body: JSON.stringify({ packageTokens, paymentMethod, screenshotData }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -65,7 +64,7 @@ export default function BillingPage() {
         throw new Error(payload.error === "invalid_screenshot" ? "الصورة غير صالحة أو حجمها كبير." : "تعذر إرسال طلب الدفع.");
       }
       setMessage("تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة.");
-      setScreenshotData(""); setTransferReference("");
+      setScreenshotData("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "حدث خطأ غير متوقع.");
     } finally { setBusy(false); }
@@ -101,7 +100,7 @@ export default function BillingPage() {
         <div>
           <h2 className="text-xl font-bold">إثبات الدفع</h2>
           <p className="mt-2 text-sm text-slate-400">الباقة المختارة: {packageTokens} توكين مقابل {selected?.priceEgp ?? "—"} جنيه.</p>
-          <label className="mt-5 block text-sm">رقم العملية (اختياري)<input value={transferReference} onChange={event => setTransferReference(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 outline-none focus:border-cyan-300" maxLength={200} /></label>
+          <label className="mt-5 block text-sm">اختر الباقة التي دفعت قيمتها<select value={packageTokens} onChange={event => setPackageTokens(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#101722] p-3 text-white outline-none focus:border-cyan-300">{(config?.packages ?? [{ tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }]).map(item => <option key={item.tokens} value={item.tokens}>{item.tokens.toLocaleString("en-US")} توكين — {item.priceEgp} جنيه</option>)}</select></label>
           <label className="mt-4 block text-sm">صورة التحويل (PNG/JPG/WebP، حتى 1.2MB)<input className="mt-2 block w-full text-sm text-slate-300 file:ml-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void handleScreenshot(event.target.files?.[0])} /></label>
           {screenshotData && <img src={screenshotData} alt="معاينة إثبات الدفع" className="mt-4 max-h-48 rounded-xl border border-white/10 object-contain" />}
           <Button className="mt-5 w-full" disabled={busy || !account} onClick={() => void submitPayment()}>{busy ? "جارٍ إرسال الطلب..." : "إرسال إثبات الدفع للمراجعة"}</Button>
