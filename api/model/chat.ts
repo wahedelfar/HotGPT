@@ -40,7 +40,7 @@ function pdfTextFromOperators(source: string): string {
 
 function extractPdfText(base64: string): string {
   const bytes = Buffer.from(base64, "base64");
-  if (bytes.length > 3 * 1024 * 1024 || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error("invalid_pdf");
+  if (bytes.length > 10 * 1024 * 1024 || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error("invalid_pdf");
   const raw = bytes.toString("latin1");
   const chunks: string[] = [];
   const streamPattern = /<<([\s\S]*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
@@ -138,18 +138,15 @@ async function requireUser(req: any, res: any) {
   }
 }
 
-async function consumeCredit(userId: string): Promise<"free" | "paid" | null> {
-  const result = await supabaseRest("rpc/hotgpt_consume_answer_credit", {
-    method: "POST",
-    body: JSON.stringify({ p_user_id: userId }),
+async function consumeCredit(userId: string, cost: number, allowFree: boolean): Promise<"free" | "paid" | null> {
+  const result = await supabaseRest("rpc/hotgpt_consume_credit", {
+    method: "POST", body: JSON.stringify({ p_user_id: userId, p_cost: cost, p_allow_free: allowFree }),
   });
   return result === "free" || result === "paid" ? result : null;
 }
-
-async function refundCredit(userId: string, kind: "free" | "paid") {
-  await supabaseRest("rpc/hotgpt_refund_answer_credit", {
-    method: "POST",
-    body: JSON.stringify({ p_user_id: userId, p_kind: kind }),
+async function refundCredit(userId: string, kind: "free" | "paid", cost: number) {
+  await supabaseRest("rpc/hotgpt_refund_credit", {
+    method: "POST", body: JSON.stringify({ p_user_id: userId, p_kind: kind, p_cost: cost }),
   });
 }
 
@@ -223,28 +220,8 @@ export default async function handler(req: any, res: any) {
 
   let attachmentText = "";
   if (attachment !== undefined && attachment !== null) {
-    if (!attachment || typeof attachment.name !== "string" || typeof attachment.data !== "string" || attachment.data.length > 4_200_000) {
-      return res.status(400).json({ error: "invalid_attachment" });
-    }
-    const name = attachment.name.toLowerCase();
-    try {
-      if (attachment.encoding === "text" && /\.(txt|md|csv|json)$/.test(name)) {
-        attachmentText = attachment.data.slice(0, 60000).trim();
-      } else if (attachment.encoding === "base64" && (name.endsWith(".pdf") || attachment.type === "application/pdf")) {
-        attachmentText = extractPdfText(attachment.data);
-      } else {
-        return res.status(400).json({ error: "unsupported_attachment" });
-      }
-    } catch (error) {
-      console.error("[Chat] Attachment extraction failed", error instanceof Error ? error.message : "unknown");
-      return res.status(400).json({ error: "attachment_read_failed" });
-    }
-    if (!attachmentText) {
-      return res.status(422).json({
-        error: "attachment_no_text",
-        message: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR."
-      });
-    }
+    if (!attachment || typeof attachment.name !== "string" || typeof attachment.path !== "string" || attachment.encoding !== "storage") return res.status(400).json({ error: "invalid_attachment" });
+    if (!/\.(pdf|txt|md|csv|json)$/.test(attachment.name.toLowerCase()) || !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(pdf|txt|md|csv|json)$/i.test(attachment.path)) return res.status(400).json({ error: "unsupported_attachment" });
   }
 
   let endpoint: URL;
@@ -258,9 +235,32 @@ export default async function handler(req: any, res: any) {
   const user = await requireUser(req, res);
   if (!user) return;
 
+  if (attachment) {
+    if (!attachment.path.startsWith(`${user.id}/`)) return res.status(403).json({ error: "invalid_attachment" });
+    try {
+      const storageResponse = await fetch(`${supabaseUrl()}/storage/v1/object/hotgpt-uploads/${attachment.path}`, {
+        headers: { apikey: serviceKey(), authorization: `Bearer ${serviceKey()}` }, cache: "no-store",
+      });
+      if (!storageResponse.ok) return res.status(400).json({ error: "attachment_read_failed" });
+      const bytes = Buffer.from(await storageResponse.arrayBuffer());
+      if (bytes.length > 10 * 1024 * 1024) return res.status(413).json({ error: "file_too_large" });
+      attachmentText = attachment.name.toLowerCase().endsWith(".pdf")
+        ? extractPdfText(bytes.toString("base64"))
+        : new TextDecoder("utf-8").decode(bytes).slice(0, 60000).trim();
+      void fetch(`${supabaseUrl()}/storage/v1/object/hotgpt-uploads/${attachment.path}`, {
+        method: "DELETE", headers: { apikey: serviceKey(), authorization: `Bearer ${serviceKey()}` },
+      }).catch(() => {});
+      if (!attachmentText) return res.status(422).json({ error: "attachment_no_text", message: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR." });
+    } catch (error) {
+      console.error("[Chat] Attachment extraction failed", error instanceof Error ? error.message : "unknown");
+      return res.status(400).json({ error: "attachment_read_failed" });
+    }
+  }
+
+  const creditCost = attachment ? 3 : 1;
   let credit: "free" | "paid" | null = null;
   try {
-    credit = await consumeCredit(user.id);
+    credit = await consumeCredit(user.id, creditCost, !attachment);
   } catch (error) {
     console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
     return res.status(503).json({ error: "billing_unavailable" });
@@ -283,7 +283,7 @@ export default async function handler(req: any, res: any) {
     const payload: any = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
       console.error("[DadGPT] Provider returned HTTP", upstream.status);
-      try { await refundCredit(user.id, credit); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
+      try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
       return res.status(502).json({ error: "provider_request_failed" });
     }
 
@@ -294,7 +294,7 @@ export default async function handler(req: any, res: any) {
         ? raw.map((part: any) => typeof part?.text === "string" ? part.text : "").join("")
         : "";
     if (!content.trim()) {
-      try { await refundCredit(user.id, credit); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
+      try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
       return res.status(502).json({ error: "provider_empty_response" });
     }
 
@@ -303,7 +303,7 @@ export default async function handler(req: any, res: any) {
     try { wallet = await getWallet(user.id); } catch { /* Do not charge twice if the answer was persisted. */ }
     return res.status(200).json({ content: content.trim(), wallet, conversationId });
   } catch (error: any) {
-    try { await refundCredit(user.id, credit); } catch (refundError) {
+    try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
       console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
     }
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
