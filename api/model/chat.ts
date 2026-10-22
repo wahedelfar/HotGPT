@@ -198,6 +198,8 @@ export default async function handler(req: any, res: any) {
   const messages = body.messages;
   const attachment = body.attachment;
   const extended = body.extended === true;
+  const selectedModel = body.model === undefined ? "dadgpt-default" : body.model;
+  if (selectedModel !== "dadgpt-default" && selectedModel !== "dadgpt-beast") return res.status(400).json({ error: "invalid_model" });
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
 
@@ -257,10 +259,10 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const creditCost = attachment ? 3 : 1;
+  const creditCost = attachment ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
   let credit: "free" | "paid" | null = null;
   try {
-    credit = await consumeCredit(user.id, creditCost, !attachment);
+    credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
   } catch (error) {
     console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
     return res.status(503).json({ error: "billing_unavailable" });
@@ -276,7 +278,7 @@ export default async function handler(req: any, res: any) {
     const upstream = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages: attachmentText ? messages.map((message: ChatMessage, index: number) => index === messages.length - 1 ? { ...message, content: `${message.content}\n\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\n${attachmentText}` } : message) : messages, max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
+      body: JSON.stringify({ model: selectedModel, messages: attachmentText ? messages.map((message: ChatMessage, index: number) => index === messages.length - 1 ? { ...message, content: `${message.content}\n\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\n${attachmentText}` } : message) : messages, max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
       signal: AbortSignal.timeout(60000),
     });
 
