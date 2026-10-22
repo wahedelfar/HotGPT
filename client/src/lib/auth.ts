@@ -130,6 +130,53 @@ export async function getAccessToken(): Promise<string | null> {
   }
 }
 
+export async function getCurrentUser(): Promise<HotGPTUser | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+  const { url, key } = publicConfig();
+  const response = await fetch(`${url}/auth/v1/user`, {
+    headers: { apikey: key, Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (response.status === 401 || response.status === 403) {
+    clearSession();
+    return null;
+  }
+  if (!response.ok) throw new Error("auth_unavailable");
+  const raw = await response.json() as { id?: string; email?: string; user_metadata?: Record<string, unknown> };
+  if (!raw.id || !raw.email) {
+    clearSession();
+    return null;
+  }
+
+  const baseUser: HotGPTUser = {
+    id: String(raw.id),
+    email: String(raw.email).toLowerCase(),
+    name: String(raw.user_metadata?.display_name || raw.user_metadata?.full_name || ""),
+    role: "user",
+  };
+
+  // The Supabase session itself is authoritative. Server-side profile lookup
+  // only enriches the account; a profile/RLS issue must not hide a valid login.
+  try {
+    const profileResponse = await fetch("/api/auth", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (profileResponse.ok) {
+      const profile = await profileResponse.json() as Partial<HotGPTUser>;
+      return {
+        ...baseUser,
+        name: profile.name || baseUser.name,
+        role: profile.role === "admin" ? "admin" : "user",
+      };
+    }
+  } catch {
+    // Keep the authenticated Supabase user even if profile enrichment is offline.
+  }
+  return baseUser;
+}
+
 export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const token = await getAccessToken();
   const headers = new Headers(init.headers);
