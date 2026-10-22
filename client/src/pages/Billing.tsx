@@ -39,8 +39,8 @@ export default function BillingPage() {
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       setMessage("ارفع صورة PNG أو JPG أو WebP فقط."); return;
     }
-    if (file.size > 1_200_000) {
-      setMessage("حجم الصورة يجب ألا يتجاوز 1.2 ميجابايت."); return;
+    if (file.size > 700_000) {
+      setMessage("حجم الصورة يجب ألا يتجاوز 700 كيلوبايت. قلّل حجم الصورة ثم أعد المحاولة."); return;
     }
     const reader = new FileReader();
     reader.onload = () => setScreenshotData(typeof reader.result === "string" ? reader.result : "");
@@ -61,7 +61,9 @@ export default function BillingPage() {
       if (!response.ok) {
         if (payload.error === "login_required") { setMessage("يجب تسجيل الدخول قبل إرسال إثبات الدفع. سجّل الدخول ثم حاول مجددًا."); return; }
         if (payload.error === "auth_unavailable" || payload.error === "billing_unavailable") { throw new Error("تعذر التحقق من الحساب حاليًا. أعد المحاولة بعد قليل."); }
-        if (payload.error === "invalid_screenshot") throw new Error("الصورة غير صالحة أو حجمها كبير.");
+        if (payload.error === "invalid_screenshot") throw new Error("الصورة غير صالحة أو تتجاوز 700 كيلوبايت.");
+        if (payload.error === "proof_upload_failed") throw new Error("تعذر حفظ صورة الإثبات في التخزين. أعد المحاولة، وإذا تكرر الخطأ تواصل مع الإدارة.");
+        if (payload.error === "payment_insert_failed") throw new Error("تم رفع الصورة لكن تعذر تسجيل طلب الدفع. لا تعِد التحويل؛ أعد إرسال الطلب أو تواصل مع الإدارة.");
         if (payload.error === "invalid_package_or_method") throw new Error("اختر باقة وطريقة دفع صحيحتين.");
         throw new Error("تعذر إرسال طلب الدفع. تحقق من اتصالك وحاول مرة أخرى.");
       }
@@ -103,7 +105,7 @@ export default function BillingPage() {
           <h2 className="text-xl font-bold">إثبات الدفع</h2>
           <p className="mt-2 text-sm text-slate-400">الباقة المختارة: {packageTokens} توكين مقابل {selected?.priceEgp ?? "—"} جنيه.</p>
           <label className="mt-5 block text-sm">اختر الباقة التي دفعت قيمتها<select value={packageTokens} onChange={event => setPackageTokens(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#101722] p-3 text-white outline-none focus:border-cyan-300">{packages.map(item => <option key={item.tokens} value={item.tokens}>{item.tokens.toLocaleString("en-US")} توكين — {item.priceEgp} جنيه</option>)}</select></label>
-          <label className="mt-4 block text-sm">صورة التحويل (PNG/JPG/WebP، حتى 1.2MB)<input className="mt-2 block w-full text-sm text-slate-300 file:ml-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void handleScreenshot(event.target.files?.[0])} /></label>
+          <label className="mt-4 block text-sm">صورة التحويل (PNG/JPG/WebP، حتى 700KB)<input className="mt-2 block w-full text-sm text-slate-300 file:ml-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void handleScreenshot(event.target.files?.[0])} /></label>
           {screenshotData && <img src={screenshotData} alt="معاينة إثبات الدفع" className="mt-4 max-h-48 rounded-xl border border-white/10 object-contain" />}
           <Button className="mt-5 w-full" disabled={busy || !screenshotData} onClick={() => void submitPayment()}>{busy ? "جارٍ إرسال الطلب..." : "إرسال إثبات الدفع للمراجعة"}</Button>
           {message && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p>}
