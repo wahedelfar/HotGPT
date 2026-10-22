@@ -383,9 +383,22 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [extended, setExtended] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
+  const [walletBalance, setWalletBalance] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated) { setWalletBalance(0); return; }
+    let cancelled = false;
+    void authFetch("/api/billing?action=me", { cache: "no-store" }).then(async response => {
+      if (!response.ok) return;
+      const wallet = await response.json();
+      if (!cancelled) setWalletBalance(Number(wallet.tokenBalance) || 0);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
     if (auth.loading) return;
@@ -518,7 +531,7 @@ export default function Home() {
       const response = await authFetch("/api/model/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: requestMessages, extended, conversationId, attachment: filePayload }),
+        body: JSON.stringify({ messages: requestMessages, extended, model: selectedModel, requestId: crypto.randomUUID(), conversationId, attachment: filePayload }),
         signal: AbortSignal.timeout(65000),
       });
       const payload = await response.json().catch(() => ({})) as {
@@ -752,6 +765,15 @@ export default function Home() {
                 >
                   <Send size={17} />
                 </button>
+              </div>
+              <div className="mb-2 flex flex-wrap items-center gap-2 px-1 text-xs text-slate-400">
+                <label htmlFor="hotgpt-model">النموذج</label>
+                <select id="hotgpt-model" value={selectedModel} onChange={event => setSelectedModel(event.target.value as "dadgpt-default" | "dadgpt-beast")} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
+                  <option value="dadgpt-default">Default — توكين واحد</option>
+                  <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — توكينان (للباقات المدفوعة)</option>
+                </select>
+                {selectedModel === "dadgpt-beast" && <span>يُخصم توكينان لكل محادثة ناجحة.</span>}
+                {attachment && <span>تحليل الملف يخصم 3 توكينات.</span>}
               </div>
               <div className="composer-footer">
                 <span>Enter للإرسال · Shift + Enter لسطر جديد</span>
