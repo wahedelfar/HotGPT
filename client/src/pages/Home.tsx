@@ -533,7 +533,7 @@ export default function Home() {
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: "انتهت الإجابات المجانية ورصيد التوكينات غير كافٍ. افتح الباقات لشحن رصيدك.",
+          insufficient_credits: "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
@@ -697,7 +697,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>تعذر إكمال الطلب</strong><p>{requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label="إخفاء رسالة الخطأ"><X size={15} /></button></div>}
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>تعذر إكمال الطلب</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label="إخفاء رسالة الخطأ"><X size={15} /></button></div>}
             <div className="composer-area">
               <div
                 className={
