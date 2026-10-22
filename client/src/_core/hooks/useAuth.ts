@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { authFetch, clearSession, signOut, type HotGPTUser } from "@/lib/auth";
+import { getCurrentUser, clearSession, signOut, type HotGPTUser } from "@/lib/auth";
 
 type UseAuthOptions = { redirectOnUnauthenticated?: boolean; redirectPath?: string };
 
@@ -11,15 +11,7 @@ export function useAuth(options?: UseAuthOptions) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await authFetch("/api/auth");
-      if (response.status === 401) {
-        clearSession();
-        setUser(null);
-        setError(null);
-        return null;
-      }
-      if (!response.ok) throw new Error("auth_unavailable");
-      const payload = await response.json() as HotGPTUser;
+      const payload = await getCurrentUser();
       setUser(payload);
       setError(null);
       return payload;
