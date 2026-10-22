@@ -19,6 +19,7 @@ export default async function handler(req: any, res: any) {
     if (!match || !Number.isFinite(size) || size < 1) return res.status(400).json({ error: "unsupported_attachment" });
     if (size > 10 * 1024 * 1024) return res.status(413).json({ error: "file_too_large" });
     if (type && !allowedTypes[match[1]].includes(type)) return res.status(400).json({ error: "unsupported_attachment" });
+    const contentType: Record<string, string> = { pdf: "application/pdf", txt: "text/plain", md: "text/markdown", csv: "text/csv", json: "application/json" };
     const path = `${user.id}/${crypto.randomUUID()}.${match[1]}`;
     const signedResponse = await fetch(`${url}/storage/v1/object/upload/sign/hotgpt-uploads/${path}`, {
       method: "POST", headers: { apikey: secret, authorization: `Bearer ${secret}`, "content-type": "application/json" },
@@ -31,7 +32,7 @@ export default async function handler(req: any, res: any) {
     }
     const signed = payload.signedURL || payload.url!;
     const uploadUrl = signed.startsWith("http") ? signed : `${url}/storage/v1${signed.startsWith("/") ? "" : "/"}${signed}`;
-    return res.status(200).json({ uploadUrl, path });
+    return res.status(200).json({ uploadUrl, path, contentType: contentType[match[1]] });
   } catch (error) {
     console.error("[Upload] Signed upload failed", error instanceof Error ? error.message : "unknown");
     return res.status(502).json({ error: "upload_unavailable" });
