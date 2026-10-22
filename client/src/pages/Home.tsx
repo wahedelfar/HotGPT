@@ -771,10 +771,10 @@ export default function Home() {
               <div className="mb-2 flex flex-wrap items-center gap-2 px-1 text-xs text-slate-400">
                 <label htmlFor="hotgpt-model">النموذج</label>
                 <select id="hotgpt-model" value={selectedModel} onChange={event => setSelectedModel(event.target.value as "dadgpt-default" | "dadgpt-beast")} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
-                  <option value="dadgpt-default">Default — توكين واحد</option>
-                  <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — توكينان (للباقات المدفوعة)</option>
+                  <option value="dadgpt-default">Default — مجاني</option>
+                  <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — مدفوع</option>
                 </select>
-                {selectedModel === "dadgpt-beast" && <span>يُخصم توكينان لكل محادثة ناجحة.</span>}
+                {selectedModel === "dadgpt-beast" && <span>ميزة مدفوعة: يُخصم توكينان لكل إجابة ناجحة.</span>}
                 {attachment && <span>تحليل الملف يخصم 3 توكينات.</span>}
               </div>
               <div className="composer-footer">
