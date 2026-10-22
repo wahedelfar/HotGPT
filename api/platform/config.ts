@@ -1,10 +1,6 @@
 /**
  * Runtime public configuration endpoint.
- *
- * Keep this handler self-contained: Vercel's Node ESM runtime was failing to
- * resolve the shared TypeScript helper in the deployed function bundle.
- * These values are public browser credentials (project URL + publishable key),
- * never service-role secrets.
+ * Public browser credentials only; never serialize service-role secrets.
  */
 export default function handler(_req: any, res: any) {
   const supabaseUrl = (
@@ -12,7 +8,7 @@ export default function handler(_req: any, res: any) {
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     "https://ujtvgdaslpevoaraweid.supabase.co"
-  ).replace(/\\/+$/, "");
+  ).replace(/\/+$/, "");
 
   const supabaseAnonKey =
     process.env.SUPABASE_PUBLISHABLE_KEY ||
