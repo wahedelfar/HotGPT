@@ -34,7 +34,7 @@ export default async function handler(req: any, res: any) {
     const method = body.paymentMethod;
     const screenshotData = body.screenshotData;
     if (!PACKAGES[tokens] || !["vodafone_cash", "paypal"].includes(method)) return res.status(400).json({ error: "invalid_package_or_method" });
-    if (typeof screenshotData !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(screenshotData) || screenshotData.length > 1_700_000) {
+    if (typeof screenshotData !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(screenshotData) || screenshotData.length > 1_000_000) {
       return res.status(400).json({ error: "invalid_screenshot" });
     }
     try {
