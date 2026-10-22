@@ -1,4 +1,4 @@
-import { getSupabaseUser } from "../server/supabaseBilling";
+import { getSupabaseUser } from "../server/supabaseBilling.ts";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
