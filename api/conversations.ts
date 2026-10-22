@@ -1,10 +1,11 @@
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const authorization = String(req.headers?.authorization || "");
-  const token = authorization.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const token = authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : "";
   if (!token) return res.status(401).json({ error: "login_required" });
 
-  const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\\/+$/, "");
+  let url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  while (url.endsWith("/")) url = url.slice(0, -1);
   const publicKey = process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
