@@ -43,7 +43,7 @@ function extractPdfText(base64: string): string {
   if (bytes.length > 3 * 1024 * 1024 || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error("invalid_pdf");
   const raw = bytes.toString("latin1");
   const chunks: string[] = [];
-  const streamPattern = /<<(.*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  const streamPattern = /<<([\s\S]*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
   let stream: RegExpExecArray | null;
   while ((stream = streamPattern.exec(raw))) {
     let content = stream[2];

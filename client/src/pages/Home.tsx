@@ -528,6 +528,10 @@ export default function Home() {
           rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
           provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
           provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
+          invalid_attachment: "تعذر إرسال الملف. تأكد أن حجمه لا يتجاوز 3 ميجابايت.",
+          unsupported_attachment: "نوع الملف غير مدعوم. استخدم PDF أو TXT أو MD أو CSV أو JSON.",
+          attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
+          attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
           insufficient_credits: "انتهت الإجابات المجانية ورصيد التوكينات غير كافٍ. افتح الباقات لشحن رصيدك.",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
@@ -541,6 +545,7 @@ export default function Home() {
         content: payload.content!,
         timestamp: formatTime(),
       }]);
+      setAttachment(null);
       setConversations(current => current.map(item => item.id === conversationId
         ? { ...item, preview: payload.content!.slice(0, 32), date: "الآن" }
         : item));
