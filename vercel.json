@@ -7,7 +7,7 @@
     }
   ],
   "functions": {
-    "api/model/chat.ts": {
+    "api/**/*.ts": {
       "includeFiles": "server/**/*.ts"
     }
   }
