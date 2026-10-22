@@ -5,7 +5,7 @@ export const ADMIN_COOKIE = "hotgpt_admin_session";
 const SESSION_SECONDS = 12 * 60 * 60;
 const adminEmail = () => (process.env.HOTGPT_ADMIN_EMAILS || "").split(",")[0].trim().toLowerCase();
 const secret = () => process.env.ADMIN_SESSION_SECRET || "";
-const supabaseUrl = () => (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\\/+$/, "");
+const supabaseUrl = () => (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
 const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
 
 type AdminCredential = { email: string; password_hash: string; updated_at: string };
