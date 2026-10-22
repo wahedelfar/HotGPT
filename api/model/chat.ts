@@ -1,3 +1,65 @@
+
+import { inflateSync } from "node:zlib";
+
+function decodePdfLiteral(value: string): string {
+  const unescaped = value.replace(/\\\\([nrtbf()\\\\])/g, (_match, char: string) => {
+    const map: Record<string, string> = { n: "\\n", r: "\\r", t: "\\t", b: "\\b", f: "\\f", "(": "(", ")": ")", "\\\\": "\\\\" };
+    return map[char] ?? char;
+  }).replace(/\\\\([0-7]{1,3})/g, (_match, octal: string) => String.fromCharCode(parseInt(octal, 8)));
+  return unescaped;
+}
+
+function decodePdfHex(hex: string): string {
+  const clean = hex.replace(/\\s/g, "");
+  const bytes = new Uint8Array(Math.floor(clean.length / 2));
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16) || 0;
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+    let result = "";
+    for (let i = 2; i + 1 < bytes.length; i += 2) result += String.fromCharCode((bytes[i] << 8) | bytes[i + 1]);
+    return result;
+  }
+  return new TextDecoder("windows-1252").decode(bytes);
+}
+
+function pdfTextFromOperators(source: string): string {
+  const parts: string[] = [];
+  const operator = /\\(((?:\\\\.|[^\\\\)])*)\\)\\s*Tj|\\[((?:.|\\n)*?)\\]\\s*TJ|<([\\da-fA-F\\s]+)>\\s*Tj/g;
+  let match: RegExpExecArray | null;
+  while ((match = operator.exec(source))) {
+    if (match[1] !== undefined) parts.push(decodePdfLiteral(match[1]));
+    else if (match[2] !== undefined) {
+      const tokens = /\\(((?:\\\\.|[^\\\\)])*)\\)|<([\\da-fA-F\\s]+)>/g;
+      let token: RegExpExecArray | null;
+      while ((token = tokens.exec(match[2]))) parts.push(token[1] !== undefined ? decodePdfLiteral(token[1]) : decodePdfHex(token[2]));
+    } else if (match[3] !== undefined) parts.push(decodePdfHex(match[3]));
+    parts.push(" ");
+  }
+  return parts.join("").replace(/[ \\t]+/g, " ").replace(/\\n{3,}/g, "\\n\\n").trim();
+}
+
+function extractPdfText(base64: string): string {
+  const bytes = Buffer.from(base64, "base64");
+  if (bytes.length > 3 * 1024 * 1024 || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error("invalid_pdf");
+  const raw = bytes.toString("latin1");
+  const chunks: string[] = [];
+  const streamPattern = /<<(.*?)>>\\s*stream\\r?\\n([\\s\\S]*?)\\r?\\nendstream/g;
+  let stream: RegExpExecArray | null;
+  while ((stream = streamPattern.exec(raw))) {
+    let content = stream[2];
+    if (/\\/FlateDecode/.test(stream[1])) {
+      try {
+        const start = Buffer.byteLength(raw.slice(0, stream.index + stream[0].indexOf(stream[2])), "latin1");
+        const compressed = bytes.subarray(start, start + Buffer.byteLength(content, "latin1"));
+        content = inflateSync(compressed).toString("latin1");
+      } catch { continue; }
+    }
+    const extracted = pdfTextFromOperators(content);
+    if (extracted) chunks.push(extracted);
+    if (chunks.join(" ").length > 60000) break;
+  }
+  return chunks.join("\\n").slice(0, 60000).trim();
+}
+
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const supabaseUrl = () =>
@@ -136,6 +198,7 @@ export default async function handler(req: any, res: any) {
 
   const body = req.body ?? {};
   const messages = body.messages;
+  const attachment = body.attachment;
   const extended = body.extended === true;
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
@@ -157,7 +220,7 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "invalid_messages" });
   }
 
-  let endpoint: URL;
+  let attachmentText = "";\n  if (attachment !== undefined && attachment !== null) {\n    if (!attachment || typeof attachment.name !== "string" || typeof attachment.data !== "string" || attachment.data.length > 4_200_000) return res.status(400).json({ error: "invalid_attachment" });\n    const name = attachment.name.toLowerCase();\n    try {\n      if (attachment.encoding === "text" && /\\.(txt|md|csv|json)$/.test(name)) attachmentText = attachment.data.slice(0, 60000).trim();\n      else if (attachment.encoding === "base64" && (name.endsWith(".pdf") || attachment.type === "application/pdf")) attachmentText = extractPdfText(attachment.data);\n      else return res.status(400).json({ error: "unsupported_attachment" });\n    } catch (error) {\n      console.error("[Chat] Attachment extraction failed", error instanceof Error ? error.message : "unknown");\n      return res.status(400).json({ error: "attachment_read_failed" });\n    }\n    if (!attachmentText) return res.status(422).json({ error: "attachment_no_text", message: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR." });\n  }\n\n  let endpoint: URL;
   try {
     endpoint = new URL(baseUrl + "/chat/completions");
   } catch {
@@ -186,7 +249,7 @@ export default async function handler(req: any, res: any) {
     const upstream = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages, max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
+      body: JSON.stringify({ model, messages: attachmentText ? messages.map((message: ChatMessage, index: number) => index === messages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : messages, max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
       signal: AbortSignal.timeout(60000),
     });
 

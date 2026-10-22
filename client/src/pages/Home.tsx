@@ -385,7 +385,7 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [extended, setExtended] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [attachment, setAttachment] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -438,7 +438,7 @@ export default function Home() {
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
   const sendMessage = async (value = draft) => {
-    const trimmed = value.trim();
+    const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
     if (!trimmed || isSending) return;
     if (!auth.isAuthenticated) {
       setRequestError("سجّل الدخول أولًا حتى تُحفظ محادثاتك ويُربط الرصيد بحسابك.");
@@ -494,10 +494,25 @@ export default function Home() {
         return existing ? current.map(item => item.id === conversationId ? { ...item, ...next } : item) : [next, ...current];
       });
 
+      let filePayload: { name: string; type: string; data: string; encoding: "base64" | "text" } | undefined;
+      if (attachment) {
+        if (attachment.size > 3 * 1024 * 1024) throw new Error("حجم الملف أكبر من 3 ميجابايت. ارفع نسخة أصغر ثم حاول مجددًا.");
+        const isPdf = attachment.type === "application/pdf" || attachment.name.toLowerCase().endsWith(".pdf");
+        if (isPdf) {
+          const bytes = new Uint8Array(await attachment.arrayBuffer());
+          let binary = "";
+          for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+          filePayload = { name: attachment.name, type: "application/pdf", data: btoa(binary), encoding: "base64" };
+        } else {
+          const textContent = await attachment.text();
+          if (!textContent.trim()) throw new Error("الملف فارغ أو تعذر قراءة محتواه.");
+          filePayload = { name: attachment.name, type: attachment.type || "text/plain", data: textContent.slice(0, 60000), encoding: "text" };
+        }
+      }
       const response = await authFetch("/api/model/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: requestMessages, extended, conversationId }),
+        body: JSON.stringify({ messages: requestMessages, extended, conversationId, attachment: filePayload }),
         signal: AbortSignal.timeout(65000),
       });
       const payload = await response.json().catch(() => ({})) as {
@@ -548,7 +563,8 @@ export default function Home() {
   };
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) setAttachment(file.name);
+    if (file) setAttachment(file);
+    event.target.value = "";
   };
 
   return (
@@ -684,7 +700,7 @@ export default function Home() {
                 }
               >
                 <FileText size={14} />
-                <span>{attachment}</span>
+                <span>{attachment?.name}</span>
                 <button
                   onClick={() => setAttachment(null)}
                   aria-label="إزالة الملف"
@@ -700,7 +716,7 @@ export default function Home() {
                       type="file"
                       hidden
                       onChange={handleFile}
-                      accept=".pdf,.txt,.md,.csv"
+                      accept=".pdf,.txt,.md,.csv,.json"
                     />
                   </label>
                   <button className="composer-icon" aria-label="توليد صورة">
@@ -718,7 +734,7 @@ export default function Home() {
                 <button
                   className={draft.trim() ? "send-button ready" : "send-button"}
                   onClick={() => void sendMessage()}
-                  disabled={!draft.trim() || isSending}
+                  disabled={(!draft.trim() && !attachment) || isSending}
                   aria-label="إرسال الرسالة"
                 >
                   <Send size={17} />
