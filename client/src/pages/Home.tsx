@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
-  Bell,
+  Coins,
+  LogOut,
+  Crown,
+  CreditCard,
   Check,
   ChevronDown,
   CircleHelp,
@@ -374,6 +377,7 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
 export default function Home() {
   const auth = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
   const [activeConversation, setActiveConversation] = useState<string | null>(
     null
@@ -433,14 +437,6 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
-  const title = useMemo(
-    () =>
-      activeConversation
-        ? (conversations.find(item => item.id === activeConversation)?.title ??
-          "محادثة جديدة")
-        : "محادثة جديدة",
-    [activeConversation, conversations]
-  );
   const startNew = () => {
     setActiveConversation(null);
     setMessages([]);
@@ -641,45 +637,55 @@ export default function Home() {
         />
       </div>
       <main className="main-shell">
-        <header className="topbar">
-          <div className="topbar-title">
+        <header className="topbar hotgpt-topbar">
+          <div className="topbar-brand">
             <button
               className="icon-button mobile-menu-button"
               onClick={() => setSidebarOpen(true)}
               aria-label="فتح القائمة"
             >
-              <Menu size={19} />
+              <Menu size={22} />
             </button>
-            <div>
-              <span className="topbar-kicker">
-                مساحة العمل /{" "}
-                {activeView === "chat"
-                  ? "المحادثات"
-                  : activeView === "settings"
-                    ? "الإعدادات"
-                    : "الملفات"}
-              </span>
-              <h2>
-                {activeView === "chat"
-                  ? title
-                  : activeView === "settings"
-                    ? "الإعدادات"
-                    : "الملفات"}
-              </h2>
-            </div>
+            <button className="topbar-home-brand" onClick={startNew} aria-label="HotGPT - محادثة جديدة">
+              <BrandMark />
+            </button>
           </div>
-          <div className="topbar-actions">
-            <a href="/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">الباقات</a>
-            {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => startLogin()}>تسجيل الدخول</button>}
-            <button className="icon-button" aria-label="الإشعارات">
-              <Bell size={17} />
+          <div className="topbar-actions hotgpt-topbar-actions">
+            <a href="/billing" className="token-balance" aria-label={`الرصيد: ${walletBalance} توكن`}>
+              <Coins size={20} />
+              <span>{walletBalance}</span>
+            </a>
+            <button className="language-button" type="button" aria-label="لغة الواجهة: الإنجليزية" title="لغة الواجهة">
+              <span aria-hidden="true">🇺🇸</span>
             </button>
-            <button className="icon-button" aria-label="المساعدة">
-              <CircleHelp size={17} />
-            </button>
-            <button className="topbar-avatar" aria-label="الحساب الشخصي" title={auth.user?.name || auth.user?.email || "الحساب الشخصي"}>
-              {(auth.user?.name || auth.user?.email || "مستخدم HotGPT").trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}
-            </button>
+            <div className="profile-menu-wrap">
+              <button
+                className="topbar-avatar profile-menu-trigger"
+                aria-label="الحساب الشخصي"
+                aria-expanded={profileMenuOpen}
+                aria-haspopup="menu"
+                title={auth.user?.name || auth.user?.email || "الحساب الشخصي"}
+                onClick={() => auth.isAuthenticated ? setProfileMenuOpen(open => !open) : startLogin()}
+              >
+                {(auth.user?.name || auth.user?.email || "مستخدم HotGPT").trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}
+              </button>
+              {profileMenuOpen && auth.isAuthenticated && (
+                <>
+                  <button className="profile-menu-backdrop" aria-label="إغلاق قائمة الحساب" onClick={() => setProfileMenuOpen(false)} />
+                  <div className="profile-menu" role="menu">
+                    <div className="profile-menu-identity">
+                      <strong>{auth.user?.name || "المستخدم"}</strong>
+                      <span>{auth.user?.email}</span>
+                      <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} توكن</a>
+                    </div>
+                    <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>الترقية إلى Pro</span></a>
+                    <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>الفوترة والباقات</span></a>
+                    <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>الإعدادات</span></button>
+                    <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={() => { setProfileMenuOpen(false); void auth.logout().catch(() => {}); }}><LogOut size={19} /> <span>تسجيل الخروج</span></button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
         {activeView === "settings" ? (
