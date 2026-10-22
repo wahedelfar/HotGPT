@@ -78,7 +78,6 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && <span className="brand-wordmark">Hot<span>GPT</span></span>}
     </div>
-    </LanguageContext.Provider>
   );
 }
 
@@ -821,5 +820,6 @@ export default function Home() {
         )}
       </main>
     </div>
+    </LanguageContext.Provider>
   );
 }
