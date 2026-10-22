@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { startLogin } from "@/const";
 import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth";
 
@@ -32,7 +31,8 @@ export default function BillingPage() {
   }
   useEffect(() => { void load().catch(() => setMessage("تعذر تحميل بيانات الباقات. أعد المحاولة.")); }, []);
 
-  const selected = config?.packages.find(item => item.tokens === packageTokens);
+  const packages = config?.packages ?? [{ tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }];
+  const selected = packages.find(item => item.tokens === packageTokens);
   async function handleScreenshot(file?: File) {
     setMessage("");
     if (!file) { setScreenshotData(""); return; }
@@ -49,7 +49,6 @@ export default function BillingPage() {
   }
 
   async function submitPayment() {
-    if (!account) { startLogin(); return; }
     if (!selected || !screenshotData) { setMessage("اختر الباقة وارفع صورة إثبات الدفع أولًا."); return; }
     setBusy(true); setMessage("");
     try {
@@ -60,8 +59,11 @@ export default function BillingPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        if (payload.error === "login_required") { setMessage("انتهت جلسة الدخول. سجّل الدخول ثم أعد إرسال الطلب."); return; }
-        throw new Error(payload.error === "invalid_screenshot" ? "الصورة غير صالحة أو حجمها كبير." : "تعذر إرسال طلب الدفع.");
+        if (payload.error === "login_required") { setMessage("يجب تسجيل الدخول قبل إرسال إثبات الدفع. سجّل الدخول ثم حاول مجددًا."); return; }
+        if (payload.error === "auth_unavailable" || payload.error === "billing_unavailable") { throw new Error("تعذر التحقق من الحساب حاليًا. أعد المحاولة بعد قليل."); }
+        if (payload.error === "invalid_screenshot") throw new Error("الصورة غير صالحة أو حجمها كبير.");
+        if (payload.error === "invalid_package_or_method") throw new Error("اختر باقة وطريقة دفع صحيحتين.");
+        throw new Error("تعذر إرسال طلب الدفع. تحقق من اتصالك وحاول مرة أخرى.");
       }
       setMessage("تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة.");
       setScreenshotData("");
@@ -78,7 +80,7 @@ export default function BillingPage() {
         {account && <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold">{account.tokenBalance} توكين مدفوع</div><div className="text-xs text-slate-400">متبقي {account.freeAnswersRemaining} إجابة مجانية</div></div>}
       </div>
       <div className="mt-8 grid gap-4 md:grid-cols-3">
-        {(config?.packages ?? [{tokens:500,priceEgp:300},{tokens:800,priceEgp:500},{tokens:1000,priceEgp:700}]).map((item, index) =>
+        {packages.map((item, index) =>
           <button key={item.tokens} onClick={() => setPackageTokens(item.tokens)} className={`rounded-2xl border p-6 text-right transition ${packageTokens === item.tokens ? "border-cyan-300 bg-cyan-300/10" : "border-white/10 bg-white/[.03] hover:border-white/25"}`}>
             <div className="text-sm text-slate-400">{index === 0 ? "البداية" : index === 1 ? "الأكثر توازنًا" : "الأكبر"}</div>
             <div className="mt-3 text-3xl font-bold">{item.tokens.toLocaleString("en-US")} <span className="text-base font-normal text-cyan-300">توكين</span></div>
@@ -100,10 +102,10 @@ export default function BillingPage() {
         <div>
           <h2 className="text-xl font-bold">إثبات الدفع</h2>
           <p className="mt-2 text-sm text-slate-400">الباقة المختارة: {packageTokens} توكين مقابل {selected?.priceEgp ?? "—"} جنيه.</p>
-          <label className="mt-5 block text-sm">اختر الباقة التي دفعت قيمتها<select value={packageTokens} onChange={event => setPackageTokens(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#101722] p-3 text-white outline-none focus:border-cyan-300">{(config?.packages ?? [{ tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }]).map(item => <option key={item.tokens} value={item.tokens}>{item.tokens.toLocaleString("en-US")} توكين — {item.priceEgp} جنيه</option>)}</select></label>
+          <label className="mt-5 block text-sm">اختر الباقة التي دفعت قيمتها<select value={packageTokens} onChange={event => setPackageTokens(Number(event.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#101722] p-3 text-white outline-none focus:border-cyan-300">{packages.map(item => <option key={item.tokens} value={item.tokens}>{item.tokens.toLocaleString("en-US")} توكين — {item.priceEgp} جنيه</option>)}</select></label>
           <label className="mt-4 block text-sm">صورة التحويل (PNG/JPG/WebP، حتى 1.2MB)<input className="mt-2 block w-full text-sm text-slate-300 file:ml-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void handleScreenshot(event.target.files?.[0])} /></label>
           {screenshotData && <img src={screenshotData} alt="معاينة إثبات الدفع" className="mt-4 max-h-48 rounded-xl border border-white/10 object-contain" />}
-          <Button className="mt-5 w-full" disabled={busy || !account} onClick={() => void submitPayment()}>{busy ? "جارٍ إرسال الطلب..." : "إرسال إثبات الدفع للمراجعة"}</Button>
+          <Button className="mt-5 w-full" disabled={busy || !screenshotData} onClick={() => void submitPayment()}>{busy ? "جارٍ إرسال الطلب..." : "إرسال إثبات الدفع للمراجعة"}</Button>
           {message && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p>}
         </div>
       </section>
