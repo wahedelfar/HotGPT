@@ -8,7 +8,10 @@
   ],
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "server/**/*.ts"
+      "includeFiles": [
+        "server/**/*.ts",
+        "drizzle/**/*.ts"
+      ]
     }
   }
 }
