@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   Coins,
@@ -33,6 +33,11 @@ import { Button } from "@/components/ui/button";
 import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { authFetch } from "@/lib/auth";
+
+type Language = "ar" | "en";
+const LanguageContext = createContext<{ language: Language; toggleLanguage: () => void }>({ language: "ar", toggleLanguage: () => {} });
+function useLanguage() { return useContext(LanguageContext); }
+function tr(language: Language, ar: string, en: string) { return language === "ar" ? ar : en; }
 
 type ChatMessage = {
   id: string;
@@ -73,6 +78,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && <span className="brand-wordmark">Hot<span>GPT</span></span>}
     </div>
+    </LanguageContext.Provider>
   );
 }
 
@@ -97,6 +103,7 @@ function Sidebar({
   onClose?: () => void;
   displayName: string;
 }) {
+  const { language } = useLanguage();
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
@@ -105,13 +112,13 @@ function Sidebar({
           <button
             className="icon-button mobile-only"
             onClick={onClose}
-            aria-label="إغلاق القائمة"
+            aria-label={tr(language, "إغلاق القائمة", "Close menu")}
           >
             <X size={18} />
           </button>
         </div>
         <Button className="new-chat-button" onClick={onNew}>
-          <Plus size={16} /> محادثة جديدة{" "}
+          <Plus size={16} /> {tr(language, "محادثة جديدة", "New chat")}{" "}
           <span className="new-chat-shortcut">N</span>
         </Button>
       </div>
@@ -119,37 +126,37 @@ function Sidebar({
       <div className="sidebar-search">
         <Search size={15} />
         <input
-          aria-label="البحث في المحادثات"
-          placeholder="البحث في المحادثات"
+          aria-label={tr(language, "البحث في المحادثات", "Search conversations")}
+          placeholder={tr(language, "البحث في المحادثات", "Search conversations")}
         />
         <span className="search-shortcut">⌘ K</span>
       </div>
 
-      <nav className="sidebar-nav" aria-label="التنقل الرئيسي">
+      <nav className="sidebar-nav" aria-label={tr(language, "التنقل الرئيسي", "Main navigation")}>
         <button
           className={activeView === "chat" ? "nav-item active" : "nav-item"}
           onClick={onNew}
         >
-          <MessageSquare size={16} /> المحادثات
+          <MessageSquare size={16} /> {tr(language, "المحادثات", "Chats")}
         </button>
         <button
           className={activeView === "files" ? "nav-item active" : "nav-item"}
           onClick={onGuide}
         >
-          <FolderOpen size={16} /> الملفات
+          <FolderOpen size={16} /> {tr(language, "الملفات", "Files")}
         </button>
         <button
           className={activeView === "settings" ? "nav-item active" : "nav-item"}
           onClick={onSettings}
         >
-          <Settings size={16} /> الإعدادات
+          <Settings size={16} /> {tr(language, "الإعدادات", "Settings")}
         </button>
       </nav>
 
       <div className="conversation-list-wrap">
         <div className="list-heading">
-          <span>الأخيرة</span>
-          <button className="tiny-button" aria-label="خيارات السجل">
+          <span>{tr(language, "الأخيرة", "Recent")}</span>
+          <button className="tiny-button" aria-label={tr(language, "خيارات السجل", "History options")}>
             <MoreHorizontal size={15} />
           </button>
         </div>
@@ -183,9 +190,9 @@ function Sidebar({
             <Sparkles size={14} />
           </span>
           <p>
-            مساحة هادئة
+            {tr(language, "مساحة هادئة", "A calmer space")}
             <br />
-            <strong>لأفكار أكبر</strong>
+            <strong>{tr(language, "لأفكار أكبر", "for bigger ideas")}</strong>
           </p>
           <ArrowUp size={13} />
         </div>
@@ -193,7 +200,7 @@ function Sidebar({
           <span className="profile-avatar">{displayName.trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}</span>
           <span>
             <strong>{displayName}</strong>
-            <small>الحساب الشخصي</small>
+            <small>{tr(language, "الحساب الشخصي", "Personal account")}</small>
           </span>
           <ChevronDown size={15} />
         </button>
@@ -203,6 +210,7 @@ function Sidebar({
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
+  const { language } = useLanguage();
   if (message.notice) {
     return (
       <div className="provider-notice">
@@ -210,7 +218,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <Sparkles size={16} />
         </div>
         <div>
-          <strong>تم استلام رسالتك</strong>
+          <strong>{tr(language, "تم استلام رسالتك", "Message received")}</strong>
           <p>{message.content}</p>
         </div>
       </div>
@@ -231,11 +239,11 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             : "message-avatar assistant-avatar"
         }
       >
-        {message.role === "user" ? "م" : <Sparkles size={15} />}
+        {message.role === "user" ? (language === "ar" ? "م" : "U") : <Sparkles size={15} />}
       </div>
       <div className="message-body">
         <div className="message-meta">
-          <strong>{message.role === "user" ? "أنت" : "HotGPT"}</strong>
+          <strong>{message.role === "user" ? tr(language, "أنت", "You") : "HotGPT"}</strong>
           <span>{message.timestamp}</span>
         </div>
         <div className="message-content">
@@ -247,6 +255,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
+  const { language } = useLanguage();
   return (
     <div className="welcome-state hotgpt-welcome">
       <div className="welcome-orbit hotgpt-orbit">
@@ -254,16 +263,16 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
-      <p className="welcome-copy">ماذا يمكنني مساعدتك فيه اليوم؟<br />مساعدك الذكي للبرمجة والتحليل والأمن الرقمي.</p>
+      <p className="welcome-copy">{tr(language, "ماذا يمكنني مساعدتك فيه اليوم؟", "What can I help you with today?")}<br />{tr(language, "مساعدك الذكي للبرمجة والتحليل والأمن الرقمي.", "Your AI assistant for coding, analysis, and digital security.")}</p>
       <div className="starter-grid hotgpt-starter-grid">
         {starters.map(starter => {
           const Icon = starter.icon;
           return (
-            <button className="starter-card hotgpt-starter-card" key={starter.label} onClick={() => onStarter(starter.prompt)}>
+            <button className="starter-card hotgpt-starter-card" key={starter.label} onClick={() => onStarter(language === "ar" ? starter.prompt : ({ VULN_SCAN: "Review the code I provide for security vulnerabilities, explain the risks, and recommend defensive fixes.", NET_RECON: "Help me safely inventory and verify the configuration of network assets I am authorized to manage.", CODE_LAB: "Help me analyze and improve code, explaining the solution step by step.", CRYPTO_OPS: "Explain best practices for implementing encryption and securely hashing passwords." } as Record<string, string>)[starter.label])}>
               <span className="starter-icon hotgpt-starter-icon"><Icon size={22} /></span>
               <span className="starter-copy">
                 <strong>{starter.label}</strong>
-                <small>{starter.description}</small>
+                <small>{language === "ar" ? starter.description : ({ VULN_SCAN: "Audit code for vulnerabilities and security flaws.", NET_RECON: "Map authorized networks and assets.", CODE_LAB: "Analyze code and learn hands-on.", CRYPTO_OPS: "Encryption, hashing, and best practices." } as Record<string, string>)[starter.label]}</small>
               </span>
             </button>
           );
@@ -274,18 +283,19 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
 }
 
 function SettingsPanel({ onBack }: { onBack: () => void }) {
+  const { language } = useLanguage();
   return (
     <div className="settings-panel content-panel">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">الإعدادات</p>
-          <h1>مساحتك، بطريقتك</h1>
-          <p>تحكم في تفاصيل التجربة التي تناسبك.</p>
+          <p className="eyebrow">{tr(language, "الإعدادات", "Settings")}</p>
+          <h1>{tr(language, "مساحتك، بطريقتك", "Your space, your way")}</h1>
+          <p>{tr(language, "تحكم في تفاصيل التجربة التي تناسبك.", "Customize the experience to fit you.")}</p>
         </div>
         <button
           className="icon-button"
           onClick={onBack}
-          aria-label="العودة للمحادثة"
+          aria-label={tr(language, "العودة للمحادثة", "Back to chat")}
         >
           <X size={18} />
         </button>
@@ -296,47 +306,47 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
             <Moon size={18} />
           </div>
           <div>
-            <h3>المظهر</h3>
-            <p>واجهة داكنة هادئة للقراءة والتركيز لفترة أطول.</p>
+            <h3>{tr(language, "المظهر", "Appearance")}</h3>
+            <p>{tr(language, "واجهة داكنة هادئة للقراءة والتركيز لفترة أطول.", "A calm dark interface for reading and focus.")}</p>
             <span className="setting-status">
-              <Check size={14} /> الوضع الداكن مفعّل
+              <Check size={14} /> {tr(language, "الوضع الداكن مفعّل", "Dark mode enabled")}
             </span>
           </div>
-          <Button variant="outline">مفعّل</Button>
+          <Button variant="outline">{tr(language, "مفعّل", "Enabled")}</Button>
         </section>
         <section className="settings-card">
           <div className="settings-card-icon cyan">
             <Sparkles size={18} />
           </div>
           <div>
-            <h3>اللغة والاتجاه</h3>
+            <h3>{tr(language, "اللغة والاتجاه", "Language & direction")}</h3>
             <p>
-              العربية هي لغة الواجهة الأساسية مع دعم كامل للكتابة من اليمين.
+              {tr(language, "العربية هي لغة الواجهة الأساسية مع دعم كامل للكتابة من اليمين.", "Switch between Arabic RTL and English LTR across the interface.")}
             </p>
             <span className="setting-status">
-              <Check size={14} /> العربية · RTL
+              <Check size={14} /> {language === "ar" ? "العربية · RTL" : "English · LTR"}
             </span>
           </div>
-          <Button variant="outline">العربية</Button>
+          <Button variant="outline">{language === "ar" ? "العربية" : "English"}</Button>
         </section>
         <section className="settings-card">
           <div className="settings-card-icon lime">
             <Check size={18} />
           </div>
           <div>
-            <h3>تجربة الكتابة</h3>
-            <p>اختصارات بسيطة تجعل الانتقال من الفكرة إلى الرسالة أسرع.</p>
+            <h3>{tr(language, "تجربة الكتابة", "Writing experience")}</h3>
+            <p>{tr(language, "اختصارات بسيطة تجعل الانتقال من الفكرة إلى الرسالة أسرع.", "Simple shortcuts help you turn ideas into messages faster.")}</p>
             <span className="setting-status">
-              Enter للإرسال · Shift + Enter لسطر جديد
+              {tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}
             </span>
           </div>
-          <Button variant="outline">تعديل</Button>
+          <Button variant="outline">{tr(language, "تعديل", "Edit")}</Button>
         </section>
       </div>
       <div className="settings-quote">
         <Sparkles size={17} />
         <span>
-          صممت HotGPT لتبقى الفكرة في المقدمة، وكل ما عداها في الخلفية.
+          {tr(language, "صممت HotGPT لتبقى الفكرة في المقدمة، وكل ما عداها في الخلفية.", "HotGPT keeps your ideas in focus and everything else in the background.")}
         </span>
       </div>
     </div>
@@ -344,13 +354,14 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
 }
 
 function GuidePanel({ onBack }: { onBack: () => void }) {
+  const { language } = useLanguage();
   return (
     <div className="content-panel guide-panel">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">الملفات</p>
-          <h1>كل ما تحتاجه، في مكان واحد</h1>
-          <p>احتفظ بالمراجع والمستندات التي تعمل عليها بجوار محادثاتك.</p>
+          <p className="eyebrow">{tr(language, "الملفات", "Files")}</p>
+          <h1>{tr(language, "كل ما تحتاجه، في مكان واحد", "Everything you need, in one place")}</h1>
+          <p>{tr(language, "احتفظ بالمراجع والمستندات التي تعمل عليها بجوار محادثاتك.", "Keep your references and documents alongside your conversations.")}</p>
         </div>
         <button
           className="icon-button"
@@ -364,10 +375,10 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
         <div className="upload-icon">
           <Upload size={23} />
         </div>
-        <h3>أضف أول ملف لك</h3>
-        <p>اسحب مستنداتك إلى هنا أو اخترها من جهازك.</p>
+        <h3>{tr(language, "أضف أول ملف لك", "Add your first file")}</h3>
+        <p>{tr(language, "اسحب مستنداتك إلى هنا أو اخترها من جهازك.", "Drop documents here or choose them from your device.")}</p>
         <Button variant="outline">
-          <Paperclip size={15} /> اختيار ملف
+          <Paperclip size={15} /> {tr(language, "اختيار ملف", "Choose file")}
         </Button>
       </div>
     </div>
@@ -376,6 +387,13 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
 
 export default function Home() {
   const auth = useAuth();
+  const [language, setLanguage] = useState<Language>(() => typeof window !== "undefined" && localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar");
+  const toggleLanguage = () => setLanguage(current => current === "ar" ? "en" : "ar");
+  useEffect(() => {
+    localStorage.setItem("hotgpt-language", language);
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+  }, [language]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
@@ -595,7 +613,8 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell" dir="rtl">
+    <LanguageContext.Provider value={{ language, toggleLanguage }}>
+    <div className="app-shell" dir={language === "ar" ? "rtl" : "ltr"} lang={language}>
       <div
         className={sidebarOpen ? "mobile-scrim visible" : "mobile-scrim"}
         onClick={() => setSidebarOpen(false)}
@@ -642,46 +661,46 @@ export default function Home() {
             <button
               className="icon-button mobile-menu-button"
               onClick={() => setSidebarOpen(true)}
-              aria-label="فتح القائمة"
+              aria-label={tr(language, "فتح القائمة", "Open menu")}
             >
               <Menu size={22} />
             </button>
-            <button className="topbar-home-brand" onClick={startNew} aria-label="HotGPT - محادثة جديدة">
+            <button className="topbar-home-brand" onClick={startNew} aria-label={tr(language, "HotGPT - محادثة جديدة", "HotGPT - New chat")}>
               <BrandMark />
             </button>
           </div>
           <div className="topbar-actions hotgpt-topbar-actions">
-            <a href="/billing" className="token-balance" aria-label={`الرصيد: ${walletBalance} توكن`}>
+            <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
               <Coins size={20} />
               <span>{walletBalance}</span>
             </a>
-            <button className="language-button" type="button" aria-label="لغة الواجهة: الإنجليزية" title="لغة الواجهة">
-              <span aria-hidden="true">🇺🇸</span>
+            <button className="language-button" type="button" onClick={toggleLanguage} aria-label={tr(language, "التبديل إلى الإنجليزية", "Switch to Arabic")} title={tr(language, "English", "العربية")}>
+              <span aria-hidden="true">{language === "ar" ? "🇺🇸" : "🇸🇦"}</span>
             </button>
             <div className="profile-menu-wrap">
               <button
                 className="topbar-avatar profile-menu-trigger"
-                aria-label="الحساب الشخصي"
+                aria-label={tr(language, "الحساب الشخصي", "Account menu")}
                 aria-expanded={profileMenuOpen}
                 aria-haspopup="menu"
-                title={auth.user?.name || auth.user?.email || "الحساب الشخصي"}
+                title={auth.user?.name || auth.user?.email || tr(language, "الحساب الشخصي", "Account menu")}
                 onClick={() => auth.isAuthenticated ? setProfileMenuOpen(open => !open) : startLogin()}
               >
                 {(auth.user?.name || auth.user?.email || "مستخدم HotGPT").trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}
               </button>
               {profileMenuOpen && auth.isAuthenticated && (
                 <>
-                  <button className="profile-menu-backdrop" aria-label="إغلاق قائمة الحساب" onClick={() => setProfileMenuOpen(false)} />
+                  <button className="profile-menu-backdrop" aria-label={tr(language, "إغلاق قائمة الحساب", "Close account menu")} onClick={() => setProfileMenuOpen(false)} />
                   <div className="profile-menu" role="menu">
                     <div className="profile-menu-identity">
-                      <strong>{auth.user?.name || "المستخدم"}</strong>
+                      <strong>{auth.user?.name || tr(language, "المستخدم", "User")}</strong>
                       <span>{auth.user?.email}</span>
-                      <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} توكن</a>
+                      <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
                     </div>
-                    <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>الترقية إلى Pro</span></a>
-                    <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>الفوترة والباقات</span></a>
-                    <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>الإعدادات</span></button>
-                    <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={() => { setProfileMenuOpen(false); void auth.logout().catch(() => {}); }}><LogOut size={19} /> <span>تسجيل الخروج</span></button>
+                    <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
+                    <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
+                    <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
+                    <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={() => { setProfileMenuOpen(false); void auth.logout().catch(() => {}); }}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
                   </div>
                 </>
               )}
@@ -723,13 +742,13 @@ export default function Home() {
                         <i />
                         <i />
                       </span>
-                      <span>يجهز الرد...</span>
+                      <span>{tr(language, "يجهز الرد...", "Preparing a response...")}</span>
                     </div>
                   )}
                 </div>
               )}
             </div>
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>تعذر إكمال الطلب</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label="إخفاء رسالة الخطأ"><X size={15} /></button></div>}
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
               <div
                 className={
@@ -740,14 +759,14 @@ export default function Home() {
                 <span>{attachment?.name}</span>
                 <button
                   onClick={() => setAttachment(null)}
-                  aria-label="إزالة الملف"
+                  aria-label={tr(language, "إزالة الملف", "Remove file")}
                 >
                   <X size={13} />
                 </button>
               </div>
               <div className="composer">
                 <div className="composer-tools">
-                  <label className="composer-icon" aria-label="إرفاق ملف">
+                  <label className="composer-icon" aria-label={tr(language, "إرفاق ملف", "Attach file")}>
                     <Paperclip size={18} />
                     <input
                       type="file"
@@ -762,36 +781,36 @@ export default function Home() {
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="اكتب رسالتك هنا..."
+                  placeholder={tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
                   className={draft.trim() ? "send-button ready" : "send-button"}
                   onClick={() => void sendMessage()}
                   disabled={(!draft.trim() && !attachment) || isSending}
-                  aria-label="إرسال الرسالة"
+                  aria-label={tr(language, "إرسال الرسالة", "Send message")}
                 >
                   <Send size={17} />
                 </button>
               </div>
               <div className="mb-2 flex flex-wrap items-center gap-2 px-1 text-xs text-slate-400">
-                <label htmlFor="hotgpt-model">النموذج</label>
+                <label htmlFor="hotgpt-model">{tr(language, "النموذج", "Model")}</label>
                 <select id="hotgpt-model" value={selectedModel} onChange={event => setSelectedModel(event.target.value as "dadgpt-default" | "dadgpt-beast")} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
-                  <option value="dadgpt-default">Default — مجاني</option>
-                  <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — مدفوع</option>
+                  <option value="dadgpt-default">Default — {tr(language, "مجاني", "Free")}</option>
+                  <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — {tr(language, "مدفوع", "Paid")}</option>
                 </select>
-                {selectedModel === "dadgpt-beast" && <span>ميزة مدفوعة: يُخصم توكينان لكل إجابة ناجحة.</span>}
-                {attachment && <span>تحليل الملف يخصم 3 توكينات.</span>}
+                {selectedModel === "dadgpt-beast" && <span>{tr(language, "ميزة مدفوعة: يُخصم توكينان لكل إجابة ناجحة.", "Paid feature: 2 tokens are charged per successful answer.")}</span>}
+                {attachment && <span>{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</span>}
               </div>
               <div className="composer-footer">
-                <span>Enter للإرسال · Shift + Enter لسطر جديد</span>
+                <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>
                 <button
                   className={
                     extended ? "extended-toggle active" : "extended-toggle"
                   }
                   onClick={() => setExtended(value => !value)}
                 >
-                  <Sparkles size={14} /> استجابة موسعة{" "}
+                  <Sparkles size={14} /> {tr(language, "استجابة موسعة", "Extended response")}{" "}
                   <span className="toggle-track">
                     <span />
                   </span>
