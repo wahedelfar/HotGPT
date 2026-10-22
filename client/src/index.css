@@ -227,3 +227,21 @@ body, .app-shell { background: #050505; }
   .language-button { width: 38px; height: 38px; }
   .profile-menu-trigger { width: 38px; height: 38px; }
 }
+
+/* English interface direction overrides; keep the existing layout and routes intact. */
+.app-shell[dir="ltr"] .nav-item,
+.app-shell[dir="ltr"] .conversation-item,
+.app-shell[dir="ltr"] .starter-card,
+.app-shell[dir="ltr"] .profile-row { text-align: left; }
+.app-shell[dir="ltr"] .nav-item.active { box-shadow: inset 2px 0 #6bd5e9; }
+.app-shell[dir="ltr"] .sidebar-note { flex-direction: row; }
+.app-shell[dir="ltr"] .sidebar-search { direction: ltr; }
+.app-shell[dir="ltr"] .conversation-copy { text-align: left; }
+.app-shell[dir="ltr"] .message-row { direction: ltr; }
+.app-shell[dir="ltr"] .message-meta { direction: ltr; }
+.app-shell[dir="ltr"] .user-row .message-content { border-radius: 12px 4px 12px 12px; }
+.app-shell[dir="ltr"] .composer { direction: ltr; }
+.app-shell[dir="ltr"] .composer-footer { direction: ltr; }
+.app-shell[dir="ltr"] .composer textarea { text-align: left; }
+.app-shell[dir="ltr"] .profile-menu { direction: ltr; text-align: left; }
+.app-shell[dir="ltr"] .profile-menu-item { direction: ltr; }
