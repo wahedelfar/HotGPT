@@ -501,17 +501,19 @@ export default function Home() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: attachment.name, type: attachment.type, size: attachment.size }),
         });
-        const upload = await uploadResponse.json().catch(() => ({})) as { uploadUrl?: string; path?: string; error?: string };
+        const upload = await uploadResponse.json().catch(() => ({})) as { uploadUrl?: string; path?: string; contentType?: string; error?: string };
         if (!uploadResponse.ok || !upload.uploadUrl || !upload.path) {
           throw new Error(upload.error === "file_too_large" ? "حجم الملف يجب ألا يتجاوز 10 ميجابايت." : "تعذر تجهيز رفع الملف. حاول مرة أخرى.");
         }
+        const uploadBody = new FormData();
+        uploadBody.append("cacheControl", "3600");
+        uploadBody.append("", attachment);
         const putResponse = await fetch(upload.uploadUrl, {
           method: "PUT",
-          headers: { "Content-Type": attachment.type || "application/octet-stream" },
-          body: attachment,
+          body: uploadBody,
         });
         if (!putResponse.ok) throw new Error("تعذر رفع الملف إلى التخزين. حاول مرة أخرى.");
-        filePayload = { name: attachment.name, type: attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
+        filePayload = { name: attachment.name, type: upload.contentType || attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
       }
       const response = await authFetch("/api/model/chat", {
         method: "POST",
