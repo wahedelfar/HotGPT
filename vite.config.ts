@@ -162,9 +162,8 @@ function vitePluginPublicPlatformConfig(): Plugin {
         res.end(publicPlatformScript());
       });
     },
-    generateBundle() {
-      this.emitFile({ type: "asset", fileName: "api/platform/config.js", source: publicPlatformScript() });
-    },
+    // Do not emit config.js into dist: that freezes environment values at build time.
+    // Vercel serves /api/platform/config.js from api/platform/config.ts at runtime.
   };
 }
 

@@ -7,7 +7,6 @@ import {
   CircleHelp,
   FileText,
   FolderOpen,
-  ImagePlus,
   Menu,
   MessageSquare,
   Moon,
@@ -28,6 +27,9 @@ import {
 } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { Button } from "@/components/ui/button";
+import { startLogin } from "@/const";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { authFetch } from "@/lib/auth";
 
 type ChatMessage = {
   id: string;
@@ -80,6 +82,7 @@ function Sidebar({
   onGuide,
   activeView,
   onClose,
+  displayName,
 }: {
   conversations: Conversation[];
   activeId: string | null;
@@ -89,6 +92,7 @@ function Sidebar({
   onGuide: () => void;
   activeView: string;
   onClose?: () => void;
+  displayName: string;
 }) {
   return (
     <aside className="sidebar">
@@ -183,9 +187,9 @@ function Sidebar({
           <ArrowUp size={13} />
         </div>
         <button className="profile-row">
-          <span className="profile-avatar">م</span>
+          <span className="profile-avatar">{displayName.trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}</span>
           <span>
-            <strong>مستخدم HotGPT</strong>
+            <strong>{displayName}</strong>
             <small>الحساب الشخصي</small>
           </span>
           <ChevronDown size={15} />
@@ -368,62 +372,66 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
 }
 
 export default function Home() {
+  const auth = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState("chat");
   const [activeConversation, setActiveConversation] = useState<string | null>(
     null
   );
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
-  const [isRestored, setIsRestored] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [extended, setExtended] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
+  const [walletBalance, setWalletBalance] = useState(0);
   const [isSending, setIsSending] = useState(false);
-  const [attachment, setAttachment] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("hotgpt.chat.v1");
-      if (saved) {
-        const data = JSON.parse(saved) as {
-          conversations?: Conversation[];
-          messagesByConversation?: Record<string, ChatMessage[]>;
-          activeConversation?: string | null;
-        };
-        const restoredConversations = Array.isArray(data.conversations) ? data.conversations : [];
-        setConversations(restoredConversations);
-        const activeId = data.activeConversation && restoredConversations.some(item => item.id === data.activeConversation)
-          ? data.activeConversation
-          : null;
-        setActiveConversation(activeId);
-        setMessages(activeId ? data.messagesByConversation?.[activeId] ?? [] : []);
-      }
-    } catch {
-      localStorage.removeItem("hotgpt.chat.v1");
-    } finally {
-      setIsRestored(true);
-      textareaRef.current?.focus();
-    }
-  }, []);
+    if (auth.loading || !auth.isAuthenticated) { setWalletBalance(0); return; }
+    let cancelled = false;
+    void authFetch("/api/billing?action=me", { cache: "no-store" }).then(async response => {
+      if (!response.ok) return;
+      const wallet = await response.json();
+      if (!cancelled) setWalletBalance(Number(wallet.tokenBalance) || 0);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
-    if (!isRestored) return;
-    try {
-      const saved = localStorage.getItem("hotgpt.chat.v1");
-      const data = saved ? JSON.parse(saved) as { messagesByConversation?: Record<string, ChatMessage[]> } : {};
-      const messagesByConversation = data.messagesByConversation ?? {};
-      if (activeConversation) messagesByConversation[activeConversation] = messages;
-      localStorage.setItem("hotgpt.chat.v1", JSON.stringify({
-        conversations,
-        messagesByConversation,
-        activeConversation,
-      }));
-    } catch {
-      setRequestError("تعذر حفظ سجل المحادثات في هذا المتصفح. تحقق من مساحة التخزين المتاحة.");
+    if (auth.loading) return;
+    let cancelled = false;
+    setActiveConversation(null);
+    setMessages([]);
+    if (!auth.isAuthenticated) {
+      setConversations([]);
+      try { localStorage.removeItem("hotgpt.chat.v1"); } catch {}
+      return;
     }
-  }, [isRestored, conversations, messages, activeConversation]);
+    void authFetch("/api/conversations").then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "conversations_unavailable");
+      if (cancelled) return;
+      setConversations((payload.conversations ?? []).map((item: any) => ({
+        id: String(item.id),
+        title: String(item.title || "محادثة جديدة"),
+        preview: String(item.preview || ""),
+        date: item.date ? new Date(item.date).toLocaleDateString("ar-EG", { month: "short", day: "numeric" }) : "",
+      })));
+    }).catch(error => {
+      if (cancelled) return;
+      const code = error instanceof Error ? error.message : "";
+      const errors: Record<string, string> = {
+        login_required: "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.",
+        auth_unavailable: "تعذر التحقق من جلسة Supabase. تحقق من إعدادات الخادم.",
+        conversations_unavailable: "الخادم لم يتمكن من قراءة المحادثات من قاعدة البيانات. راجع إعداد SUPABASE_SERVICE_ROLE_KEY وسجلات Supabase.",
+      };
+      setRequestError(errors[code] || "تعذر تحميل محادثاتك المحفوظة.");
+    });
+    return () => { cancelled = true; };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   const title = useMemo(
     () =>
@@ -442,69 +450,127 @@ export default function Home() {
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
   const sendMessage = async (value = draft) => {
-    const trimmed = value.trim();
+    const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
     if (!trimmed || isSending) return;
+    if (!auth.isAuthenticated) {
+      setRequestError("سجّل الدخول أولًا حتى تُحفظ محادثاتك ويُربط الرصيد بحسابك.");
+      window.location.assign("/auth");
+      return;
+    }
 
     setActiveView("chat");
     setDraft("");
     setRequestError(null);
     setIsSending(true);
-
-    const conversationId = activeConversation ?? crypto.randomUUID();
+    let conversationId = activeConversation;
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
       content: trimmed,
       timestamp: formatTime(),
     };
-    const requestMessages = [...messages, userMessage].map(message => ({
-      role: message.role,
-      content: message.content,
-    }));
-
-    setActiveConversation(conversationId);
-    setMessages([...messages, userMessage]);
-    if (!activeConversation) {
-      setConversations(current => [{
-        id: conversationId,
-        title: trimmed.slice(0, 28),
-        preview: trimmed.slice(0, 32),
-        date: "الآن",
-      }, ...current]);
-    } else {
-      setConversations(current => current.map(item => item.id === conversationId
-        ? { ...item, preview: trimmed.slice(0, 32), date: "الآن" }
-        : item));
-    }
 
     try {
-      const response = await fetch("/api/model/chat", {
+      if (!conversationId) {
+        const createResponse = await authFetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: trimmed.slice(0, 80) }),
+        });
+        const created = await createResponse.json().catch(() => ({}));
+        if (!createResponse.ok || !created.conversation?.id) {
+          const errors: Record<string, string> = {
+            login_required: "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.",
+            auth_unavailable: "تعذر التحقق من جلسة الدخول على الخادم.",
+            conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات. تحقق من إعداد SUPABASE_SERVICE_ROLE_KEY وصلاحيات قاعدة البيانات.",
+          };
+          throw new Error(errors[String(created.error || "")] || `تعذر إنشاء المحادثة (HTTP ${createResponse.status}). رمز الخطأ: ${String(created.error || "unknown")}.`);
+        }
+        conversationId = String(created.conversation.id);
+        setActiveConversation(conversationId);
+      }
+
+      const requestMessages = [...messages, userMessage].slice(-40).map(message => ({
+        role: message.role,
+        content: message.content,
+      }));
+      setMessages(current => [...current, userMessage]);
+      setConversations(current => {
+        const existing = current.some(item => item.id === conversationId);
+        const next: Conversation = {
+          id: conversationId!,
+          title: activeConversation ? (current.find(item => item.id === conversationId)?.title || trimmed.slice(0, 28)) : trimmed.slice(0, 28),
+          preview: trimmed.slice(0, 32),
+          date: "الآن",
+        };
+        return existing ? current.map(item => item.id === conversationId ? { ...item, ...next } : item) : [next, ...current];
+      });
+
+      let filePayload: { name: string; type: string; path: string; encoding: "storage" } | undefined;
+      if (attachment) {
+        if (attachment.size > 10 * 1024 * 1024) throw new Error("حجم الملف يجب ألا يتجاوز 10 ميجابايت.");
+        const uploadResponse = await authFetch("/api/model/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: attachment.name, type: attachment.type, size: attachment.size }),
+        });
+        const upload = await uploadResponse.json().catch(() => ({})) as { uploadUrl?: string; path?: string; contentType?: string; error?: string };
+        if (!uploadResponse.ok || !upload.uploadUrl || !upload.path) {
+          throw new Error(upload.error === "file_too_large" ? "حجم الملف يجب ألا يتجاوز 10 ميجابايت." : "تعذر تجهيز رفع الملف. حاول مرة أخرى.");
+        }
+        const uploadBody = new FormData();
+        uploadBody.append("cacheControl", "3600");
+        uploadBody.append("", attachment);
+        const putResponse = await fetch(upload.uploadUrl, {
+          method: "PUT",
+          body: uploadBody,
+        });
+        if (!putResponse.ok) throw new Error("تعذر رفع الملف إلى التخزين. حاول مرة أخرى.");
+        filePayload = { name: attachment.name, type: upload.contentType || attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
+      }
+      const response = await authFetch("/api/model/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: requestMessages, extended }),
+        body: JSON.stringify({ messages: requestMessages, extended, model: selectedModel, requestId: crypto.randomUUID(), conversationId, attachment: filePayload }),
         signal: AbortSignal.timeout(65000),
       });
       const payload = await response.json().catch(() => ({})) as {
         content?: string;
         error?: string;
+        wallet?: { tokenBalance?: number } | null;
       };
       if (!response.ok || typeof payload.content !== "string" || !payload.content.trim()) {
         const errors: Record<string, string> = {
           provider_not_configured: "لم يتم إعداد مزود الذكاء الاصطناعي على الخادم بعد. أضف إعدادات النموذج في Vercel.",
           messages_required: "الرسالة فارغة أو غير صالحة.",
           invalid_messages: "تعذر إرسال المحادثة بسبب تنسيق الرسائل.",
+          invalid_conversation_id: "المحادثة غير صالحة. أنشئ محادثة جديدة وحاول مرة أخرى.",
           rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
           provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
           provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
+          invalid_attachment: "تعذر إرسال الملف. تأكد أن حجمه لا يتجاوز 10 ميجابايت.",
+          unsupported_attachment: "نوع الملف غير مدعوم. استخدم PDF أو TXT أو MD أو CSV أو JSON.",
+          file_too_large: "حجم الملف يجب ألا يتجاوز 10 ميجابايت.", upload_unavailable: "تعذر رفع الملف إلى التخزين. حاول مرة أخرى.",
+          attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
+          attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
+          login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "نموذج Beast يحتاج إلى توكينين مدفوعين على الأقل. اشترِ باقة أو اختر Default." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
+          conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
         throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
       }
+      if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
       setMessages(current => [...current, {
         id: crypto.randomUUID(),
         role: "assistant",
         content: payload.content!,
         timestamp: formatTime(),
       }]);
+      setAttachment(null);
+      setConversations(current => current.map(item => item.id === conversationId
+        ? { ...item, preview: payload.content!.slice(0, 32), date: "الآن" }
+        : item));
     } catch (error) {
       const message = error instanceof Error && error.name === "TimeoutError"
         ? "انتهت مهلة الاتصال بالنموذج. حاول مرة أخرى."
@@ -524,7 +590,12 @@ export default function Home() {
   };
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) setAttachment(file.name);
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) setRequestError("حجم الملف يجب ألا يتجاوز 10 ميجابايت.");
+      else if (!/\.(pdf|txt|md|csv|json)$/i.test(file.name)) setRequestError("نوع الملف غير مدعوم. استخدم PDF أو TXT أو MD أو CSV أو JSON.");
+      else { setRequestError(null); setAttachment(file); }
+    }
+    event.target.value = "";
   };
 
   return (
@@ -539,16 +610,21 @@ export default function Home() {
           activeId={activeConversation}
           onSelect={id => {
             setActiveConversation(id);
-            try {
-              const saved = localStorage.getItem("hotgpt.chat.v1");
-              const data = saved ? JSON.parse(saved) as { messagesByConversation?: Record<string, ChatMessage[]> } : {};
-              setMessages(data.messagesByConversation?.[id] ?? []);
-            } catch {
-              setMessages([]);
-            }
+            setMessages([]);
             setRequestError(null);
             setActiveView("chat");
             setSidebarOpen(false);
+            void authFetch(`/api/conversations?id=${encodeURIComponent(id)}`).then(async response => {
+              const payload = await response.json().catch(() => ({}));
+              if (!response.ok) throw new Error("conversation_load_failed");
+              if (String(payload.conversation?.id) !== id) return;
+              setMessages((payload.messages ?? []).map((item: any) => ({
+                id: String(item.id),
+                role: item.role,
+                content: String(item.content),
+                timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
+              })));
+            }).catch(() => setRequestError("تعذر فتح المحادثة المحفوظة. حاول مرة أخرى."));
           }}
           onNew={startNew}
           onSettings={() => {
@@ -561,6 +637,7 @@ export default function Home() {
           }}
           activeView={activeView}
           onClose={() => setSidebarOpen(false)}
+          displayName={auth.user?.name || auth.user?.email || "مستخدم HotGPT"}
         />
       </div>
       <main className="main-shell">
@@ -592,14 +669,16 @@ export default function Home() {
             </div>
           </div>
           <div className="topbar-actions">
+            <a href="/billing" className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">الباقات</a>
+            {auth.isAuthenticated ? <button className="text-xs text-slate-300 hover:text-white" onClick={() => void auth.logout().catch(() => {})}>تسجيل الخروج</button> : <button className="text-xs font-semibold text-cyan-300 hover:text-cyan-200" onClick={() => startLogin()}>تسجيل الدخول</button>}
             <button className="icon-button" aria-label="الإشعارات">
               <Bell size={17} />
             </button>
             <button className="icon-button" aria-label="المساعدة">
               <CircleHelp size={17} />
             </button>
-            <button className="topbar-avatar" aria-label="الحساب الشخصي">
-              م
+            <button className="topbar-avatar" aria-label="الحساب الشخصي" title={auth.user?.name || auth.user?.email || "الحساب الشخصي"}>
+              {(auth.user?.name || auth.user?.email || "مستخدم HotGPT").trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}
             </button>
           </div>
         </header>
@@ -644,7 +723,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>تعذر إكمال الطلب</strong><p>{requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label="إخفاء رسالة الخطأ"><X size={15} /></button></div>}
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>تعذر إكمال الطلب</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label="إخفاء رسالة الخطأ"><X size={15} /></button></div>}
             <div className="composer-area">
               <div
                 className={
@@ -652,7 +731,7 @@ export default function Home() {
                 }
               >
                 <FileText size={14} />
-                <span>{attachment}</span>
+                <span>{attachment?.name}</span>
                 <button
                   onClick={() => setAttachment(null)}
                   aria-label="إزالة الملف"
@@ -668,12 +747,9 @@ export default function Home() {
                       type="file"
                       hidden
                       onChange={handleFile}
-                      accept=".pdf,.txt,.md,.csv"
+                      accept=".pdf,.txt,.md,.csv,.json"
                     />
                   </label>
-                  <button className="composer-icon" aria-label="توليد صورة">
-                    <ImagePlus size={18} />
-                  </button>
                 </div>
                 <textarea
                   ref={textareaRef}
@@ -686,11 +762,20 @@ export default function Home() {
                 <button
                   className={draft.trim() ? "send-button ready" : "send-button"}
                   onClick={() => void sendMessage()}
-                  disabled={!draft.trim() || isSending}
+                  disabled={(!draft.trim() && !attachment) || isSending}
                   aria-label="إرسال الرسالة"
                 >
                   <Send size={17} />
                 </button>
+              </div>
+              <div className="mb-2 flex flex-wrap items-center gap-2 px-1 text-xs text-slate-400">
+                <label htmlFor="hotgpt-model">النموذج</label>
+                <select id="hotgpt-model" value={selectedModel} onChange={event => setSelectedModel(event.target.value as "dadgpt-default" | "dadgpt-beast")} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
+                  <option value="dadgpt-default">Default — مجاني</option>
+                  <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — مدفوع</option>
+                </select>
+                {selectedModel === "dadgpt-beast" && <span>ميزة مدفوعة: يُخصم توكينان لكل إجابة ناجحة.</span>}
+                {attachment && <span>تحليل الملف يخصم 3 توكينات.</span>}
               </div>
               <div className="composer-footer">
                 <span>Enter للإرسال · Shift + Enter لسطر جديد</span>
