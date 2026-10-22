@@ -78,7 +78,6 @@ export default function BillingPage() {
         <div><p className="text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">الباقات ورصيد التوكينات</h1><p className="mt-2 text-sm text-slate-400">كل إجابة ناجحة تخصم توكينًا واحدًا. لديك إجابتان مجانيتان بعد تسجيل الدخول.</p></div>
         {account && <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold">{account.tokenBalance} توكين مدفوع</div><div className="text-xs text-slate-400">متبقي {account.freeAnswersRemaining} إجابة مجانية</div></div>}
       </div>
-      {!account && <div className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4"><p className="mb-3">سجّل الدخول لربط الرصيد بحسابك وإرسال طلب شراء.</p><Button onClick={() => startLogin()}>تسجيل الدخول</Button></div>}
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         {(config?.packages ?? [{tokens:500,priceEgp:300},{tokens:800,priceEgp:500},{tokens:1000,priceEgp:700}]).map((item, index) =>
           <button key={item.tokens} onClick={() => setPackageTokens(item.tokens)} className={`rounded-2xl border p-6 text-right transition ${packageTokens === item.tokens ? "border-cyan-300 bg-cyan-300/10" : "border-white/10 bg-white/[.03] hover:border-white/25"}`}>
