@@ -221,7 +221,33 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "invalid_messages" });
   }
 
-  let attachmentText = "";\n  if (attachment !== undefined && attachment !== null) {\n    if (!attachment || typeof attachment.name !== "string" || typeof attachment.data !== "string" || attachment.data.length > 4_200_000) return res.status(400).json({ error: "invalid_attachment" });\n    const name = attachment.name.toLowerCase();\n    try {\n      if (attachment.encoding === "text" && /\\.(txt|md|csv|json)$/.test(name)) attachmentText = attachment.data.slice(0, 60000).trim();\n      else if (attachment.encoding === "base64" && (name.endsWith(".pdf") || attachment.type === "application/pdf")) attachmentText = extractPdfText(attachment.data);\n      else return res.status(400).json({ error: "unsupported_attachment" });\n    } catch (error) {\n      console.error("[Chat] Attachment extraction failed", error instanceof Error ? error.message : "unknown");\n      return res.status(400).json({ error: "attachment_read_failed" });\n    }\n    if (!attachmentText) return res.status(422).json({ error: "attachment_no_text", message: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR." });\n  }\n\n  let endpoint: URL;
+  let attachmentText = "";
+  if (attachment !== undefined && attachment !== null) {
+    if (!attachment || typeof attachment.name !== "string" || typeof attachment.data !== "string" || attachment.data.length > 4_200_000) {
+      return res.status(400).json({ error: "invalid_attachment" });
+    }
+    const name = attachment.name.toLowerCase();
+    try {
+      if (attachment.encoding === "text" && /\.(txt|md|csv|json)$/.test(name)) {
+        attachmentText = attachment.data.slice(0, 60000).trim();
+      } else if (attachment.encoding === "base64" && (name.endsWith(".pdf") || attachment.type === "application/pdf")) {
+        attachmentText = extractPdfText(attachment.data);
+      } else {
+        return res.status(400).json({ error: "unsupported_attachment" });
+      }
+    } catch (error) {
+      console.error("[Chat] Attachment extraction failed", error instanceof Error ? error.message : "unknown");
+      return res.status(400).json({ error: "attachment_read_failed" });
+    }
+    if (!attachmentText) {
+      return res.status(422).json({
+        error: "attachment_no_text",
+        message: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR."
+      });
+    }
+  }
+
+  let endpoint: URL;
   try {
     endpoint = new URL(baseUrl + "/chat/completions");
   } catch {
@@ -250,7 +276,7 @@ export default async function handler(req: any, res: any) {
     const upstream = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages: attachmentText ? messages.map((message: ChatMessage, index: number) => index === messages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : messages, max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
+      body: JSON.stringify({ model, messages: attachmentText ? messages.map((message: ChatMessage, index: number) => index === messages.length - 1 ? { ...message, content: `${message.content}\n\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\n${attachmentText}` } : message) : messages, max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
       signal: AbortSignal.timeout(60000),
     });
 
