@@ -75,7 +75,7 @@ export default function BillingPage() {
     <div className="mx-auto max-w-5xl">
       <a href="/" className="text-sm text-cyan-300 hover:text-cyan-200">← العودة إلى HotGPT</a>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">الباقات ورصيد التوكينات</h1><p className="mt-2 text-sm text-slate-400">الرسالة العادية تخصم توكينًا واحدًا، وتحليل الملف يخصم 3 توكينات. لديك إجابتان مجانيتان للرسائل العادية بعد تسجيل الدخول.</p></div>
+        <div><p className="text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">الباقات ورصيد التوكينات</h1><p className="mt-2 text-sm text-slate-400">نموذج Default يخصم توكينًا واحدًا، ونموذج Beast يخصم توكينين ويحتاج إلى رصيد مدفوع. تحليل الملفات يخصم 3 توكينات. لديك إجابتان مجانيتان للرسائل العادية.</p></div>
         {account && <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold">{account.tokenBalance} توكين مدفوع</div><div className="text-xs text-slate-400">متبقي {account.freeAnswersRemaining} إجابة مجانية</div></div>}
       </div>
       <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -84,7 +84,7 @@ export default function BillingPage() {
             <div className="text-sm text-slate-400">{index === 0 ? "البداية" : index === 1 ? "الأكثر توازنًا" : "الأكبر"}</div>
             <div className="mt-3 text-3xl font-bold">{item.tokens.toLocaleString("en-US")} <span className="text-base font-normal text-cyan-300">توكين</span></div>
             <div className="mt-2 text-xl font-semibold">{item.priceEgp} جنيه</div>
-            <div className="mt-4 text-xs text-slate-400">الرسالة العادية 1 توكين · تحليل الملف 3 توكينات</div>
+            <div className="mt-4 text-xs text-slate-400">Default: 1 توكين · Beast: 2 توكين · تحليل الملف: 3 توكينات</div>
           </button>
         )}
       </div>
