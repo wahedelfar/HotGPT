@@ -409,7 +409,14 @@ export default function Home() {
         date: item.date ? new Date(item.date).toLocaleDateString("ar-EG", { month: "short", day: "numeric" }) : "",
       })));
     }).catch(error => {
-      if (!cancelled) setRequestError(error instanceof Error ? "تعذر تحميل محادثاتك المحفوظة." : "تعذر تحميل المحادثات.");
+      if (cancelled) return;
+      const code = error instanceof Error ? error.message : "";
+      const errors: Record<string, string> = {
+        login_required: "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.",
+        auth_unavailable: "تعذر التحقق من جلسة Supabase. تحقق من إعدادات الخادم.",
+        conversations_unavailable: "الخادم لم يتمكن من قراءة المحادثات من قاعدة البيانات. راجع إعداد SUPABASE_SERVICE_ROLE_KEY وسجلات Supabase.",
+      };
+      setRequestError(errors[code] || "تعذر تحميل محادثاتك المحفوظة.");
     });
     return () => { cancelled = true; };
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
@@ -460,7 +467,12 @@ export default function Home() {
         });
         const created = await createResponse.json().catch(() => ({}));
         if (!createResponse.ok || !created.conversation?.id) {
-          throw new Error("تعذر إنشاء محادثة محفوظة. حاول تسجيل الدخول مرة أخرى.");
+          const errors: Record<string, string> = {
+            login_required: "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.",
+            auth_unavailable: "تعذر التحقق من جلسة الدخول على الخادم.",
+            conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات. تحقق من إعداد SUPABASE_SERVICE_ROLE_KEY وصلاحيات قاعدة البيانات.",
+          };
+          throw new Error(errors[String(created.error || "")] || `تعذر إنشاء المحادثة (HTTP ${createResponse.status}). رمز الخطأ: ${String(created.error || "unknown")}.`);
         }
         conversationId = String(created.conversation.id);
         setActiveConversation(conversationId);
