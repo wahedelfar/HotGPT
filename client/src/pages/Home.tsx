@@ -791,8 +791,8 @@ export default function Home() {
         : "Beast Pro";
     if (walletBalance <= 0) {
       setRequestError(tr(language,
-        `هذه الميزة متاحة للمشتركين في الباقات المدفوعة فقط. اشترك لتفعيل ${featureName}.`,
-        `This feature is available to paid-plan members only. Subscribe to enable ${featureName}.`));
+        `يجب الاشتراك من هنا لاستخدام ${featureName}.`,
+        `Subscribe here to use ${featureName}.`));
       return false;
     }
     return true;
@@ -1024,22 +1024,7 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              <div className="mb-2 flex flex-wrap items-center gap-2 px-1 text-xs text-slate-400">
-                <label htmlFor="hotgpt-model">{tr(language, "النموذج", "Model")}</label>
-                <select id="hotgpt-model" value={selectedModel} onChange={event => {
-                  const next = event.target.value as "dadgpt-default" | "dadgpt-beast";
-                  if (next === "dadgpt-beast") {
-                    if (!requireProFeature("beast")) return;
-                    if (walletBalance < 2) { setRequestError(tr(language, "تحتاج إلى توكينين على الأقل لتشغيل Beast Pro.", "At least 2 tokens are required to use Beast Pro.")); return; }
-                  }
-                  setSelectedModel(next);
-                }} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
-                  <option value="dadgpt-default">Default — {tr(language, "مجاني", "Free")}</option>
-                  <option value="dadgpt-beast">Beast — {tr(language, "مدفوع", "Paid")}</option>
-                </select>
-                {selectedModel === "dadgpt-beast" && <span>{tr(language, "ميزة مدفوعة: يُخصم توكينان لكل إجابة ناجحة.", "Paid feature: 2 tokens are charged per successful answer.")}</span>}
-                {attachment && <span>{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</span>}
-              </div>
+              {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>
                 <button
