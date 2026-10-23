@@ -759,7 +759,7 @@ export default function Home() {
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "نموذج Beast يحتاج إلى توكينين مدفوعين على الأقل. اشترِ باقة أو اختر Default." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : (webSearchEnabled || darkWebEnabled) ? "البحث والدارك ويب يحتاج كل منهما إلى 3 توكينات للرسالة. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "نموذج Beast يحتاج إلى توكينين مدفوعين على الأقل. اشترِ باقة أو اختر Default." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
@@ -1006,9 +1006,6 @@ export default function Home() {
                   <Send size={17} />
                 </button>
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
-                  <button type="button" className="composer-mode" onClick={() => document.querySelector<HTMLInputElement>(".composer-tools input[type='file']")?.click()} title={tr(language, "الملفات والأدوات", "Files and tools")} aria-label={tr(language, "الملفات والأدوات", "Files and tools")}>
-                    <FolderOpen size={18} />
-                  </button>
                   <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "مساعد الكتابة", "Writing assistant")}>
                     <Wand size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
                   </button>
