@@ -78,8 +78,8 @@ export default function BillingPage() {
 
   return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-8">
     <LanguageToggle />
+    <a href="/" aria-label={language === "ar" ? "العودة إلى الرئيسية" : "Back to home"} className="fixed left-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#11151b]/95 px-4 py-2 text-sm text-cyan-200 shadow-lg backdrop-blur hover:bg-white/10"><span aria-hidden="true">⌂</span><span>{language === "ar" ? "الرئيسية" : "Home"}</span></a>
     <div className="mx-auto max-w-5xl">
-      <a href="/" className="text-sm text-cyan-300 hover:text-cyan-200">← العودة إلى HotGPT</a>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div><p className="text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">الباقات ورصيد التوكينات</h1><p className="mt-2 text-sm text-slate-400">نموذج Default يخصم توكينًا واحدًا، ونموذج Beast يخصم توكينين ويحتاج إلى رصيد مدفوع. تحليل الملفات يخصم 3 توكينات. لديك إجابتان مجانيتان للرسائل العادية.</p></div>
         {account && <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold">{account.tokenBalance} توكين مدفوع</div><div className="text-xs text-slate-400">متبقي {account.freeAnswersRemaining} إجابة مجانية</div></div>}
