@@ -349,3 +349,59 @@ html, body {
 @media (hover: none) {
   .message-copy-button { opacity: .9; }
 }
+
+
+/* Fix: keep the complete bilingual brand mark visible inside the header */
+.topbar-home-brand {
+  min-height: 48px;
+  height: auto;
+  line-height: normal;
+  overflow: visible;
+  flex: 0 0 auto;
+  align-self: center;
+}
+.topbar-home-brand .brand-mark {
+  min-height: 44px;
+  overflow: visible;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.topbar-home-brand .brand-logo-img {
+  display: block;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  object-position: center;
+  flex: 0 0 44px;
+  margin: 0;
+  padding: 0;
+  transform: none;
+  vertical-align: middle;
+}
+.sidebar-brand-row .brand-logo-img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  object-fit: contain;
+  object-position: center;
+  flex: 0 0 36px;
+}
+@media (max-width: 520px) {
+  .hotgpt-topbar { overflow: visible; }
+  .topbar-home-brand { min-height: 44px; }
+  .topbar-home-brand .brand-mark { min-height: 44px; gap: 7px; }
+  .topbar-home-brand .brand-logo-img {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px;
+    min-height: 40px;
+    flex-basis: 40px;
+  }
+  .topbar-home-brand .brand-wordmark { line-height: 1.2; }
+}
