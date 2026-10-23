@@ -11,6 +11,8 @@ import {
   CircleHelp,
   FileText,
   FolderOpen,
+  Globe,
+  WandSparkles,
   Menu,
   MessageSquare,
   Moon,
@@ -571,6 +573,9 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [extended, setExtended] = useState(false);
+  const [writingAssist, setWritingAssist] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [darkWebEnabled, setDarkWebEnabled] = useState(false);
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
   const [walletBalance, setWalletBalance] = useState(0);
   const [isSending, setIsSending] = useState(false);
@@ -718,6 +723,7 @@ export default function Home() {
           requestId: crypto.randomUUID(),
           conversationId,
           attachment: filePayload,
+          modes: { writingAssist, webSearch: webSearchEnabled, darkWeb: darkWebEnabled },
           preferences: {
             style: localStorage.getItem("hotgpt-response-style") || "professional",
             instructions: (localStorage.getItem("hotgpt-custom-instructions") || "").slice(0, 2000),
@@ -740,6 +746,9 @@ export default function Home() {
           rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
           provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
           provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
+          pro_required: "هذه الميزة متاحة للمشتركين في الباقات المدفوعة فقط. اشترك لتفعيل الوضع المطلوب.",
+          web_search_not_configured: "البحث على الإنترنت غير مُعدّ على الخادم بعد. أضف مفتاح خدمة البحث إلى Vercel.",
+          web_search_failed: "تعذر البحث على الإنترنت الآن. حاول مرة أخرى لاحقًا.",
           invalid_attachment: "تعذر إرسال الملف. تأكد أن حجمه لا يتجاوز 10 ميجابايت.",
           unsupported_attachment: "نوع الملف غير مدعوم. استخدم PDF أو TXT أو MD أو CSV أو JSON.",
           file_too_large: "حجم الملف يجب ألا يتجاوز 10 ميجابايت.", upload_unavailable: "تعذر رفع الملف إلى التخزين. حاول مرة أخرى.",
@@ -774,6 +783,28 @@ export default function Home() {
       setIsSending(false);
     }
   };
+  const requireProFeature = (feature: "search" | "darkweb" | "beast") => {
+    const featureName = feature === "search"
+      ? tr(language, "البحث على الإنترنت", "Internet Search")
+      : feature === "darkweb"
+        ? tr(language, "وضع الدارك ويب", "Dark Web mode")
+        : "Beast Pro";
+    if (walletBalance <= 0) {
+      setRequestError(tr(language,
+        `هذه الميزة متاحة للمشتركين في الباقات المدفوعة فقط. اشترك لتفعيل ${featureName}.`,
+        `This feature is available to paid-plan members only. Subscribe to enable ${featureName}.`));
+      return false;
+    }
+    return true;
+  };
+
+  const toggleProMode = (feature: "search" | "darkweb") => {
+    if (!requireProFeature(feature)) return;
+    setRequestError(null);
+    if (feature === "search") setWebSearchEnabled(value => !value);
+    else setDarkWebEnabled(value => !value);
+  };
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -944,7 +975,7 @@ export default function Home() {
               </div>
               <div className="composer">
                 <div className="composer-tools">
-                  <label className="composer-icon" aria-label={tr(language, "إرفاق ملف", "Attach file")}>
+                  <label className="composer-icon" aria-label={tr(language, "إرفاق ملف", "Attach file")} title={tr(language, "إرفاق ملف", "Attach file")}>
                     <Paperclip size={18} />
                     <input
                       type="file"
@@ -970,10 +1001,36 @@ export default function Home() {
                 >
                   <Send size={17} />
                 </button>
+                <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
+                  <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "مساعد الكتابة", "Writing assistant")}>
+                    <WandSparkles size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
+                  </button>
+                  <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث على الإنترنت — PRO", "Internet Search — PRO")}>
+                    <Globe size={18} /><span>PRO</span>
+                  </button>
+                  <button type="button" className={darkWebEnabled ? "composer-mode active" : "composer-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title={tr(language, "وضع الدارك ويب", "Dark Web mode")}>
+                    <Shield size={18} /><span className="sr-only">{tr(language, "وضع الدارك ويب", "Dark Web mode")}</span>
+                  </button>
+                  <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
+                    if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
+                    if (!requireProFeature("beast")) return;
+                    if (walletBalance < 2) { setRequestError(tr(language, "تحتاج إلى توكينين على الأقل لتشغيل Beast Pro.", "At least 2 tokens are required to use Beast Pro.")); return; }
+                    setRequestError(null); setSelectedModel("dadgpt-beast");
+                  }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "Beast Pro", "Beast Pro")}>
+                    <span>Beast</span><span>PRO</span>
+                  </button>
+                </div>
               </div>
               <div className="mb-2 flex flex-wrap items-center gap-2 px-1 text-xs text-slate-400">
                 <label htmlFor="hotgpt-model">{tr(language, "النموذج", "Model")}</label>
-                <select id="hotgpt-model" value={selectedModel} onChange={event => setSelectedModel(event.target.value as "dadgpt-default" | "dadgpt-beast")} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
+                <select id="hotgpt-model" value={selectedModel} onChange={event => {
+                  const next = event.target.value as "dadgpt-default" | "dadgpt-beast";
+                  if (next === "dadgpt-beast") {
+                    if (!requireProFeature("beast")) return;
+                    if (walletBalance < 2) { setRequestError(tr(language, "تحتاج إلى توكينين على الأقل لتشغيل Beast Pro.", "At least 2 tokens are required to use Beast Pro.")); return; }
+                  }
+                  setSelectedModel(next);
+                }} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
                   <option value="dadgpt-default">Default — {tr(language, "مجاني", "Free")}</option>
                   <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — {tr(language, "مدفوع", "Paid")}</option>
                 </select>
