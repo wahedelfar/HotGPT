@@ -165,7 +165,7 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
       try { merged = await runFirecrawl(query, deep, firecrawlKey, 8); } catch {}
     }
   } else if (firecrawlKey) {
-    try { merged = await runFirecrawl(query, deep, firecrawlKey); } catch {}
+    try { merged = await runFirecrawl(query, deep, firecrawlKey, 8); } catch {}
   }
 
   if (!merged.length) throw new Error("web_search_failed");
