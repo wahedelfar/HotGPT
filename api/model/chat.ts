@@ -172,7 +172,7 @@ async function searchInternet(query: string): Promise<string> {
         max_results: 8,
         include_answer: true,
       }),
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(9000),
     });
     if (!response.ok) throw new Error("search_source_failed");
     const data = await response.json() as any;
@@ -200,7 +200,7 @@ async function searchInternet(query: string): Promise<string> {
         sources: ["web"],
         ...(deepResearch ? { scrapeOptions: { formats: ["markdown"] } } : {}),
       }),
-      signal: AbortSignal.timeout(deepResearch ? 20000 : 12000),
+      signal: AbortSignal.timeout(deepResearch ? 12000 : 9000),
     });
     if (!response.ok) throw new Error("search_source_failed");
     const payload = await response.json() as any;
@@ -475,7 +475,7 @@ export default async function handler(req: any, res: any) {
           name: "openrouter",
           endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
           key: openRouterApiKey,
-          model: fallbackModel,
+          model: selectedModel === "dadgpt-beast" && (process.env.OPENROUTER_BEAST_MODEL || "").trim()\n            ? (process.env.OPENROUTER_BEAST_MODEL || "").trim()\n            : fallbackModel,
         });
       }
     }
@@ -502,7 +502,7 @@ export default async function handler(req: any, res: any) {
             max_tokens: extended ? 4096 : 2048,
             temperature: 0.7,
           }),
-          signal: AbortSignal.timeout(45000),
+          signal: AbortSignal.timeout(provider.name === "primary" ? 18000 : 12000),
         });
         const payload: any = await upstream.json().catch(() => ({}));
         if (!upstream.ok) {
