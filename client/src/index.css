@@ -666,3 +666,30 @@ html[data-theme="light"] .conversation-delete-action { color: #b42318; }
 @media (hover: none) {
   .conversation-more-button { opacity: 1; }
 }
+
+
+/* Persistent status notice for enabled composer modes. */
+.active-mode-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 8px;
+  padding: 7px 11px;
+  border: 1px solid rgba(105, 190, 180, .28);
+  border-radius: 10px;
+  background: rgba(40, 145, 130, .10);
+  color: var(--text-secondary, #b8c4c9);
+  font-size: 12px;
+  line-height: 1.45;
+  direction: inherit;
+}
+.active-mode-indicator {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #55c6a7;
+  box-shadow: 0 0 0 3px rgba(85, 198, 167, .13);
+}
