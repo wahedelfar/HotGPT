@@ -288,7 +288,7 @@ export default async function handler(req: any, res: any) {
   const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const openRouterApiKey = (process.env.OPENROUTER_API_KEY || "").trim();
   const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
-  const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
+  const hasPrimaryProvider = false; // TEMPORARY FALLBACK TEST: primary disabled on this test branch only.
 
   // Keep the current DadGPT provider first; OpenRouter is a silent fallback.
   if (!hasPrimaryProvider && !openRouterApiKey) {
