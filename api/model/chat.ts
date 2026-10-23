@@ -199,6 +199,21 @@ export default async function handler(req: any, res: any) {
   const attachment = body.attachment;
   const extended = body.extended === true;
   const selectedModel = body.model === undefined ? "dadgpt-default" : body.model;
+  const suppliedPreferences = body.preferences && typeof body.preferences === "object" ? body.preferences : {};
+  const responseStyle = ["professional", "concise", "friendly", "detailed"].includes(suppliedPreferences.style) ? suppliedPreferences.style : "professional";
+  const customInstructions = typeof suppliedPreferences.instructions === "string" ? suppliedPreferences.instructions.slice(0, 2000).trim() : "";
+  const responseLanguage = suppliedPreferences.language === "en" ? "en" : "ar";
+  const styleInstructions: Record<string, { ar: string; en: string }> = {
+    professional: { ar: "اكتب بأسلوب احترافي ودقيق ومنظم.", en: "Respond in a professional, precise, well-structured style." },
+    concise: { ar: "كن مختصرًا ومباشرًا، وابدأ بالخلاصة دون حشو.", en: "Be concise and direct. Start with the answer and avoid filler." },
+    friendly: { ar: "استخدم أسلوبًا ودودًا وطبيعيًا مع الحفاظ على الدقة.", en: "Use a friendly, natural tone while remaining accurate." },
+    detailed: { ar: "قدّم شرحًا مفصلًا ومنظمًا مع أمثلة وخطوات عملية عند ملاءمتها.", en: "Give detailed, structured explanations with examples and practical steps when useful." },
+  };
+  const preferenceSystemMessage = [
+    responseLanguage === "en" ? "Reply in English unless the user explicitly requests another language." : "أجب باللغة العربية ما لم يطلب المستخدم صراحة لغة أخرى.",
+    styleInstructions[responseStyle][responseLanguage],
+    customInstructions ? (responseLanguage === "en" ? `User preferences (follow when relevant and safe):\n${customInstructions}` : `تعليمات المستخدم المخصصة (اتبعها عندما تكون ملائمة وآمنة):\n${customInstructions}`) : "",
+  ].filter(Boolean).join("\n\n");
   if (selectedModel !== "dadgpt-default" && selectedModel !== "dadgpt-beast") return res.status(400).json({ error: "invalid_model" });
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
@@ -278,7 +293,10 @@ export default async function handler(req: any, res: any) {
     const upstream = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: selectedModel, messages: attachmentText ? messages.map((message: ChatMessage, index: number) => index === messages.length - 1 ? { ...message, content: `${message.content}\n\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\n${attachmentText}` } : message) : messages, max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
+      body: JSON.stringify({ model: selectedModel, messages: [
+        { role: "system", content: preferenceSystemMessage },
+        ...(attachmentText ? messages.map((message: ChatMessage, index: number) => index === messages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : messages),
+      ], max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
       signal: AbortSignal.timeout(60000),
     });
 
