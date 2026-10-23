@@ -475,7 +475,9 @@ export default async function handler(req: any, res: any) {
           name: "openrouter",
           endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
           key: openRouterApiKey,
-          model: selectedModel === "dadgpt-beast" && (process.env.OPENROUTER_BEAST_MODEL || "").trim()\n            ? (process.env.OPENROUTER_BEAST_MODEL || "").trim()\n            : fallbackModel,
+          model: selectedModel === "dadgpt-beast" && (process.env.OPENROUTER_BEAST_MODEL || "").trim()
+            ? (process.env.OPENROUTER_BEAST_MODEL || "").trim()
+            : fallbackModel,
         });
       }
     }
