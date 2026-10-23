@@ -415,7 +415,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="settings-actions">
         <Button onClick={savePreferences}>{saved ? tr(language, "تم الحفظ", "Saved") : tr(language, "حفظ التفضيلات", "Save preferences")}</Button>
       </div>
-      <div className="settings-quote"><Sparkles size={17} /><span>{tr(language, "تُحفظ تفضيلاتك على هذا الجهاز. أسلوب الرد والتعليمات يُجهّزان للاستخدام مع المحادثات.", "Your preferences are saved on this device. Response style and instructions are stored for use with chats.")}</span></div>
+      <div className="settings-quote"><Sparkles size={17} /><span>{tr(language, "تُحفظ تفضيلاتك على هذا الجهاز وتُطبّق على ردود النموذج الجديدة.", "Your preferences are saved on this device and applied to new model responses.")}</span></div>
     </div>
   );
 }
@@ -457,6 +457,8 @@ export default function Home() {
   const [language, setLanguage] = useState<Language>(() => typeof window !== "undefined" && localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar");
   const toggleLanguage = () => setLanguage(current => current === "ar" ? "en" : "ar");
   useEffect(() => {
+    const savedTheme = localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark";
+    document.documentElement.dataset.theme = savedTheme;
     localStorage.setItem("hotgpt-language", language);
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
@@ -631,7 +633,19 @@ export default function Home() {
       const response = await authFetch("/api/model/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: requestMessages, extended, model: selectedModel, requestId: crypto.randomUUID(), conversationId, attachment: filePayload }),
+        body: JSON.stringify({
+          messages: requestMessages,
+          extended,
+          model: selectedModel,
+          requestId: crypto.randomUUID(),
+          conversationId,
+          attachment: filePayload,
+          preferences: {
+            style: localStorage.getItem("hotgpt-response-style") || "professional",
+            instructions: (localStorage.getItem("hotgpt-custom-instructions") || "").slice(0, 2000),
+            language: localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar",
+          },
+        }),
         signal: AbortSignal.timeout(65000),
       });
       const payload = await response.json().catch(() => ({})) as {
