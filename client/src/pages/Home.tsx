@@ -177,7 +177,8 @@ function Sidebar({
                   : "conversation-item"
               }
               onClick={() => onSelect(conversation.id)}
-            >              <span className="conversation-icon">
+            >
+              <span className="conversation-icon">
                 <MessageSquare size={14} />
               </span>
               <span className="conversation-copy">
@@ -356,7 +357,8 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
         localStorage.setItem("hotgpt-theme", nextTheme);
         localStorage.setItem("hotgpt-response-style", nextStyle);
         localStorage.setItem("hotgpt-custom-instructions", nextInstructions);
-        document.documentElement.dataset.theme = nextTheme;        setTheme(nextTheme);
+        document.documentElement.dataset.theme = nextTheme;
+        setTheme(nextTheme);
         setStyle(nextStyle);
         setInstructions(nextInstructions);
         if ((preferences.language === "en") !== (localStorage.getItem("hotgpt-language") === "en")) toggleLanguage();
@@ -535,7 +537,8 @@ export default function Home() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark";
-    document.documentElement.dataset.theme = savedTheme;    localStorage.setItem("hotgpt-language", language);
+    document.documentElement.dataset.theme = savedTheme;
+    localStorage.setItem("hotgpt-language", language);
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
     const brandAsset = language === "ar" ? "/brand-ar.svg" : "/brand-en.svg";
@@ -753,7 +756,8 @@ export default function Home() {
         uploadBody.append("", attachment);
         const putResponse = await fetch(upload.uploadUrl, {
           method: "PUT",
-          body: uploadBody,        });
+          body: uploadBody,
+        });
         if (!putResponse.ok) throw new Error("تعذر رفع الملف إلى التخزين. حاول مرة أخرى.");
         filePayload = { name: attachment.name, type: upload.contentType || attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
       }
