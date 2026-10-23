@@ -300,6 +300,7 @@ export default async function handler(req: any, res: any) {
   const attachment = body.attachment;
   const extended = body.extended === true;
   const selectedModel = body.model === undefined ? "dadgpt-default" : body.model;
+  const requestId = globalThis.crypto?.randomUUID?.() || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const suppliedModes = body.modes && typeof body.modes === "object" ? body.modes : {};
   const writingAssist = suppliedModes.writingAssist === true;
   const webSearchEnabled = suppliedModes.webSearch === true;
@@ -359,10 +360,14 @@ export default async function handler(req: any, res: any) {
   if (hasPrimaryProvider) {
     try {
       endpoint = new URL(baseUrl + "/chat/completions");
+      if (endpoint.protocol !== "https:") {
+        console.warn("[Chat] Primary provider skipped; HTTPS is required", JSON.stringify({ requestId }));
+        endpoint = null;
+      }
     } catch {
-      return res.status(500).json({ error: "provider_invalid_base_url" });
+      console.warn("[Chat] Primary provider skipped; invalid base URL", JSON.stringify({ requestId }));
+      endpoint = null;
     }
-    if (endpoint.protocol !== "https:") return res.status(500).json({ error: "provider_https_required" });
   }
 
   const user = await requireUser(req, res);
@@ -458,7 +463,12 @@ export default async function handler(req: any, res: any) {
 
     let content = "";
     let lastFailure = "provider_request_failed";
+    let primaryFailed = false;
     for (const provider of providers) {
+      if (provider.name === "openrouter" && primaryFailed) {
+        console.info("[Chat] Switching to fallback provider", JSON.stringify({ requestId, from: "primary", to: "openrouter", reason: lastFailure }));
+      }
+      console.info("[Chat] Provider attempt started", JSON.stringify({ requestId, provider: provider.name, model: provider.model }));
       try {
         const upstream = await fetch(provider.endpoint, {
           method: "POST",
@@ -478,7 +488,8 @@ export default async function handler(req: any, res: any) {
         const payload: any = await upstream.json().catch(() => ({}));
         if (!upstream.ok) {
           lastFailure = upstream.status === 429 ? "provider_rate_limited" : "provider_request_failed";
-          console.warn("[Chat] Provider attempt failed", provider.name, upstream.status);
+          console.warn("[Chat] Provider attempt failed", JSON.stringify({ requestId, provider: provider.name, status: upstream.status, reason: lastFailure }));
+          if (provider.name === "primary") primaryFailed = true;
           continue;
         }
         const raw = payload?.choices?.[0]?.message?.content;
@@ -489,21 +500,24 @@ export default async function handler(req: any, res: any) {
             : "";
         if (!candidate.trim()) {
           lastFailure = "provider_empty_response";
-          console.warn("[Chat] Provider returned an empty response", provider.name);
+          console.warn("[Chat] Provider returned an empty response", JSON.stringify({ requestId, provider: provider.name, reason: lastFailure }));
+          if (provider.name === "primary") primaryFailed = true;
           continue;
         }
         content = candidate.trim();
-        if (provider.name !== "primary") console.info("[Chat] Fallback provider answered successfully");
+        console.info("[Chat] Provider answered successfully", JSON.stringify({ requestId, provider: provider.name, model: provider.model, fallbackUsed: provider.name !== "primary" }));
         break;
       } catch (providerError) {
         lastFailure = providerError instanceof Error && (providerError.name === "TimeoutError" || providerError.name === "AbortError")
           ? "provider_timeout"
           : "provider_request_failed";
-        console.warn("[Chat] Provider attempt failed", provider.name, lastFailure);
+        console.warn("[Chat] Provider attempt failed", JSON.stringify({ requestId, provider: provider.name, reason: lastFailure }));
+        if (provider.name === "primary") primaryFailed = true;
       }
     }
 
     if (!content) {
+      console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: Boolean(openRouterApiKey), lastFailure }));
       try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
       return res.status(lastFailure === "provider_timeout" ? 504 : 502).json({ error: lastFailure });
     }
