@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signIn, signUp } from "@/lib/auth";
+import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 function messageFor(error: unknown) {
   const code = error instanceof Error ? error.message : "";
@@ -17,6 +18,7 @@ function messageFor(error: unknown) {
 }
 
 export default function AuthPage() {
+  const { language } = useAppLanguage();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -48,7 +50,8 @@ export default function AuthPage() {
     }
   }
 
-  return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#080b10] px-4 py-10 text-white">
+  return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="flex min-h-screen items-center justify-center bg-[#080b10] px-4 py-10 text-white">
+    <LanguageToggle />
     <div className="w-full max-w-md">
       <a href="/" className="inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200"><ArrowLeft size={16} /> العودة إلى HotGPT</a>
       <form onSubmit={submit} className="mt-6 rounded-3xl border border-white/10 bg-white/[.04] p-6 shadow-2xl sm:p-8">
@@ -70,5 +73,5 @@ export default function AuthPage() {
         <p className="mt-5 text-center text-sm text-slate-400">{mode === "login" ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setNotice(""); setSuccess(false); }} className="font-semibold text-cyan-300 hover:text-cyan-200">{mode === "login" ? "إنشاء حساب جديد" : "تسجيل الدخول"}</button></p>
       </form>
     </div>
-  </main>;
+  </main></LocalizedText>;
 }
