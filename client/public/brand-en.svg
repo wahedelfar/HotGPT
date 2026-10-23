@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+<title id="title">NO LIMITS</title>
+<defs>
+ <linearGradient id="silver" x1="0" y1="0" x2="0.85" y2="1"><stop stop-color="#fff"/><stop offset=".48" stop-color="#d9dde1"/><stop offset="1" stop-color="#777f87"/></linearGradient>
+ <path id="arc" d="M 105,290 A 160,160 0 0 0 407,290"/>
+</defs>
+<circle cx="256" cy="270" r="176" fill="none" stroke="url(#silver)" stroke-width="15" stroke-linecap="round" stroke-dasharray="865 242" transform="rotate(12 256 270)"/>
+<path d="M 262,119 C 224,78 207,48 203,24 C 233,64 271,66 298,91 C 321,113 316,146 340,151 C 363,155 382,122 409,131 C 386,137 373,155 355,176 C 333,202 301,207 270,212 C 240,217 215,237 190,257 C 207,228 230,207 256,192 C 268,164 267,142 262,119 Z" fill="url(#silver)"/>
+<text fill="url(#silver)" font-family="Space Grotesk, Arial, sans-serif" font-size="49" font-weight="800" letter-spacing="2">
+ <textPath href="#arc" startOffset="50%" text-anchor="middle">NO LIMITS</textPath>
+</text>
+</svg>
