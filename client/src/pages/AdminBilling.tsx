@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type Member = { id: string; name: string | null; email: string | null; role: string; tokenBalance: number; freeAnswersUsed: number; createdAt: string };
 type Payment = { id: string; userId: string; email: string; paymentMethod: "vodafone_cash" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string };
 
 function AdminDashboard() {
+  const { language } = useAppLanguage();
   const [members, setMembers] = useState<Member[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [proofs, setProofs] = useState<Record<string, string>>({});
@@ -81,7 +83,8 @@ function AdminDashboard() {
     finally { setBusyId(null); }
   }
 
-  return <main dir="rtl" className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-8">
+  return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-8">
+    <LanguageToggle />
     <div className="mx-auto max-w-7xl">
       <a href="/" className="text-sm text-cyan-300 hover:text-cyan-200">← العودة إلى HotGPT</a>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold tracking-[.25em] text-cyan-300">ADMIN CONSOLE</p><h1 className="mt-2 text-3xl font-bold">إدارة الأعضاء والتوكينات</h1><p className="mt-2 text-sm text-slate-400">ضبط الرصيد مباشرة بالبريد المسجل ومراجعة إثباتات الدفع.</p></div><Button variant="outline" onClick={() => void load()}>تحديث البيانات</Button></div>
@@ -109,11 +112,11 @@ function AdminDashboard() {
         <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[650px] text-right text-sm"><thead className="text-slate-400"><tr><th className="p-3">العضو</th><th className="p-3">الدور</th><th className="p-3">إجابات مجانية مستخدمة</th><th className="p-3">الرصيد المدفوع</th><th className="p-3">تاريخ التسجيل</th></tr></thead><tbody>{members.map(member => <tr key={member.id} className="border-t border-white/10"><td className="p-3"><div>{member.name || "بدون اسم"}</div><div className="text-xs text-slate-400">{member.email || "لا يوجد بريد"}</div></td><td className="p-3">{member.role}</td><td className="p-3">{member.freeAnswersUsed}/2</td><td className="p-3 font-bold text-cyan-200">{member.tokenBalance}</td><td className="p-3 text-slate-400">{new Date(member.createdAt).toLocaleDateString("ar-EG")}</td></tr>)}</tbody></table></div>
       </section>
     </div>
-  </main>;
+  </main></LocalizedText>;
 }
 
-
 export default function AdminBillingPage() {
+  const { language } = useAppLanguage();
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -166,8 +169,9 @@ export default function AdminBillingPage() {
     setAuthenticated(false);
   }
 
-  if (authenticated === null) return <main dir="rtl" className="min-h-screen bg-[#080b10] p-6 text-white">جارٍ التحقق من جلسة الإدارة...</main>;
-  if (!authenticated) return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-[#080b10] px-4 py-10 text-white">
+  if (authenticated === null) return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#080b10] p-6 text-white">جارٍ التحقق من جلسة الإدارة...</main></LocalizedText>;
+  if (!authenticated) return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="flex min-h-screen items-center justify-center bg-[#080b10] px-4 py-10 text-white">
+    <LanguageToggle />
     <form onSubmit={login} className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[.04] p-6 shadow-2xl">
       <a href="/" className="text-sm text-cyan-300">← العودة إلى HotGPT</a>
       <p className="mt-7 text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT ADMIN</p>
@@ -180,7 +184,7 @@ export default function AdminBillingPage() {
       {notice && <p role="alert" className="mt-4 rounded-lg bg-red-400/10 p-3 text-sm text-red-200">{notice}</p>}
       <Button type="submit" disabled={busy} className="mt-5 w-full">{busy ? "جارٍ تسجيل الدخول..." : "دخول لوحة الإدارة"}</Button>
     </form>
-  </main>;
+  </main></LocalizedText>;
 
   return <div>
     <div dir="rtl" className="fixed left-4 top-4 z-20 flex gap-2">
@@ -199,5 +203,5 @@ export default function AdminBillingPage() {
       </div>
     </form>}
     <AdminDashboard />
-  </div>;
+  </div></LocalizedText>;
 }
