@@ -321,6 +321,9 @@ export default async function handler(req: any, res: any) {
   ].filter(Boolean);
   const preferenceSystemMessage = [
     responseLanguage === "en" ? "Reply in English unless the user explicitly requests another language." : "أجب باللغة العربية ما لم يطلب المستخدم صراحة لغة أخرى.",
+    responseLanguage === "en"
+      ? "Answer directly and clearly. Avoid unnecessary disclaimers, repetitive caveats, or moralizing; mention limitations only when they materially affect accuracy or safety."
+      : "أجب مباشرة وبوضوح. تجنب التنبيهات العامة المتكررة أو الوعظ غير الضروري، واذكر القيود فقط عندما تؤثر فعليًا في الدقة أو السلامة.",
     styleInstructions[responseStyle][responseLanguage],
     ...modeInstructions,
     customInstructions ? (responseLanguage === "en" ? `User preferences (follow when relevant and safe):\n${customInstructions}` : `تعليمات المستخدم المخصصة (اتبعها عندما تكون ملائمة وآمنة):\n${customInstructions}`) : "",
