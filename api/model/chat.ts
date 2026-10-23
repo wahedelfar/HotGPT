@@ -375,6 +375,11 @@ export default async function handler(req: any, res: any) {
   if (hasPrimaryProvider) {
     try {
       endpoint = new URL(baseUrl + "/chat/completions");
+      // The working test branch uses the apex DadGPT host. Normalize the
+      // production www alias to avoid redirects that can break or stall POST requests.
+      if (endpoint.hostname.toLowerCase() === "www.dadgpt.live") {
+        endpoint.hostname = "dadgpt.live";
+      }
       if (endpoint.protocol !== "https:") {
         console.warn("[Chat] Primary provider skipped; HTTPS is required", JSON.stringify({ requestId }));
         endpoint = null;
@@ -475,12 +480,25 @@ export default async function handler(req: any, res: any) {
         process.env.NEXA_PROVIDER_MODEL_PRO ||
         "dadgpt-beast"
       ).trim();
+      const primaryModel = selectedModel === "dadgpt-beast" ? beastModel : model;
       providers.push({
         name: "primary",
         endpoint,
         key: apiKey,
-        model: selectedModel === "dadgpt-beast" ? beastModel : model,
+        model: primaryModel,
       });
+      // Preserve a host-level fallback for DadGPT. If the canonical apex host
+      // is unavailable, try its www alias before leaving DadGPT for OpenRouter.
+      if (endpoint.hostname.toLowerCase() === "dadgpt.live") {
+        const alternateEndpoint = new URL(endpoint);
+        alternateEndpoint.hostname = "www.dadgpt.live";
+        providers.push({
+          name: "primary-alternate",
+          endpoint: alternateEndpoint,
+          key: apiKey,
+          model: primaryModel,
+        });
+      }
     }
     if (openRouterApiKey) {
       const beastFallbackModel = (process.env.OPENROUTER_BEAST_MODEL || "").trim();
