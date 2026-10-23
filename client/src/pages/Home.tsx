@@ -6,6 +6,7 @@ import {
   Crown,
   CreditCard,
   Check,
+  Copy,
   ChevronDown,
   CircleHelp,
   FileText,
@@ -210,6 +211,25 @@ function Sidebar({
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const { language } = useLanguage();
+  const [copied, setCopied] = useState(false);
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = message.content;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    }
+  };
   if (message.notice) {
     return (
       <div className="provider-notice">
@@ -247,6 +267,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
         <div className="message-content">
           <Streamdown>{message.content}</Streamdown>
+        </div>
+        <div className="message-actions">
+          <button
+            type="button"
+            className={`message-copy-button${copied ? " copied" : ""}`}
+            onClick={copyMessage}
+            aria-label={tr(language, "نسخ الرسالة", "Copy message")}
+            title={copied ? tr(language, "تم النسخ", "Copied") : tr(language, "نسخ", "Copy")}
+          >
+            {copied ? <Check size={13} strokeWidth={1.8} /> : <Copy size={13} strokeWidth={1.8} />}
+            <span>{copied ? tr(language, "تم النسخ", "Copied") : tr(language, "نسخ", "Copy")}</span>
+          </button>
         </div>
       </div>
     </div>
