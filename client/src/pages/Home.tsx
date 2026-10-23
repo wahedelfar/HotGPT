@@ -957,7 +957,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p></div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("Beast Pro") || requestError.includes("الباقات المدفوعة")) && <a href="/billing" className="mt-2 inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
               <div
                 className={
@@ -1002,6 +1002,9 @@ export default function Home() {
                   <Send size={17} />
                 </button>
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
+                  <button type="button" className="composer-mode" onClick={() => document.querySelector<HTMLInputElement>(".composer-tools input[type='file']")?.click()} title={tr(language, "الملفات والأدوات", "Files and tools")} aria-label={tr(language, "الملفات والأدوات", "Files and tools")}>
+                    <FolderOpen size={18} />
+                  </button>
                   <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "مساعد الكتابة", "Writing assistant")}>
                     <WandSparkles size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
                   </button>
@@ -1032,7 +1035,7 @@ export default function Home() {
                   setSelectedModel(next);
                 }} className="rounded-lg border border-white/10 bg-[#101722] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300">
                   <option value="dadgpt-default">Default — {tr(language, "مجاني", "Free")}</option>
-                  <option value="dadgpt-beast" disabled={walletBalance < 2}>Beast — {tr(language, "مدفوع", "Paid")}</option>
+                  <option value="dadgpt-beast">Beast — {tr(language, "مدفوع", "Paid")}</option>
                 </select>
                 {selectedModel === "dadgpt-beast" && <span>{tr(language, "ميزة مدفوعة: يُخصم توكينان لكل إجابة ناجحة.", "Paid feature: 2 tokens are charged per successful answer.")}</span>}
                 {attachment && <span>{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</span>}
