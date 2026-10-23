@@ -177,8 +177,7 @@ function Sidebar({
                   : "conversation-item"
               }
               onClick={() => onSelect(conversation.id)}
-            >
-              <span className="conversation-icon">
+            >              <span className="conversation-icon">
                 <MessageSquare size={14} />
               </span>
               <span className="conversation-copy">
@@ -357,8 +356,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
         localStorage.setItem("hotgpt-theme", nextTheme);
         localStorage.setItem("hotgpt-response-style", nextStyle);
         localStorage.setItem("hotgpt-custom-instructions", nextInstructions);
-        document.documentElement.dataset.theme = nextTheme;
-        setTheme(nextTheme);
+        document.documentElement.dataset.theme = nextTheme;        setTheme(nextTheme);
         setStyle(nextStyle);
         setInstructions(nextInstructions);
         if ((preferences.language === "en") !== (localStorage.getItem("hotgpt-language") === "en")) toggleLanguage();
@@ -537,8 +535,7 @@ export default function Home() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark";
-    document.documentElement.dataset.theme = savedTheme;
-    localStorage.setItem("hotgpt-language", language);
+    document.documentElement.dataset.theme = savedTheme;    localStorage.setItem("hotgpt-language", language);
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
     const brandAsset = language === "ar" ? "/brand-ar.svg" : "/brand-en.svg";
@@ -564,11 +561,50 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showAuthGateModal, setShowAuthGateModal] = useState(false);
 
   useEffect(() => {
     if (auth.loading) return;
     setShowWelcomeModal(!auth.isAuthenticated);
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
+
+  // Gate interactive workspace features for visitors. Public auth links remain accessible.
+  useEffect(() => {
+    if (auth.loading || auth.isAuthenticated) return;
+    const root = document.querySelector(".app-shell");
+    if (!root) return;
+    const protectedSelector = [
+      ".new-chat-button",
+      ".nav-item",
+      ".conversation-item",
+      ".starter-card",
+      ".composer textarea",
+      ".composer-icon",
+      ".send-button",
+      ".composer-mode",
+      ".extended-toggle",
+      ".topbar-home-brand",
+      ".profile-row",
+      ".upload-empty button",
+    ].join(",");
+    const gateClick = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const protectedControl = target.closest(protectedSelector);
+      if (!protectedControl) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if ("stopImmediatePropagation" in event) event.stopImmediatePropagation();
+      setShowWelcomeModal(false);
+      setShowAuthGateModal(true);
+    };
+    root.addEventListener("click", gateClick, true);
+    root.addEventListener("focusin", gateClick, true);
+    return () => {
+      root.removeEventListener("click", gateClick, true);
+      root.removeEventListener("focusin", gateClick, true);
+    };
+  }, [auth.loading, auth.isAuthenticated]);
   const [activeView, setActiveView] = useState("chat");
   const [activeConversation, setActiveConversation] = useState<string | null>(
     null
@@ -717,8 +753,7 @@ export default function Home() {
         uploadBody.append("", attachment);
         const putResponse = await fetch(upload.uploadUrl, {
           method: "PUT",
-          body: uploadBody,
-        });
+          body: uploadBody,        });
         if (!putResponse.ok) throw new Error("تعذر رفع الملف إلى التخزين. حاول مرة أخرى.");
         filePayload = { name: attachment.name, type: upload.contentType || attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
       }
@@ -897,8 +932,7 @@ export default function Home() {
             <button className="language-button" type="button" onClick={toggleLanguage} aria-label={tr(language, "التبديل إلى الإنجليزية", "Switch to Arabic")} title={tr(language, "English", "العربية")}>
               <span aria-hidden="true">{language === "ar" ? "🇺🇸" : "🇸🇦"}</span>
             </button>
-            {auth.isAuthenticated ? (
-              <div className="profile-menu-wrap">
+            {auth.isAuthenticated ? (              <div className="profile-menu-wrap">
                 <button
                   className="topbar-avatar profile-menu-trigger"
                   aria-label={tr(language, "الحساب الشخصي", "Account menu")}
@@ -1058,6 +1092,19 @@ export default function Home() {
           </section>
         )}
       </main>
+      {showAuthGateModal && !auth.loading && !auth.isAuthenticated && (
+        <div className="welcome-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowAuthGateModal(false); }}>
+          <section className="welcome-modal auth-required-modal" role="dialog" aria-modal="true" aria-labelledby="auth-required-title" dir={language === "ar" ? "rtl" : "ltr"}>
+            <button type="button" className="welcome-modal-close" onClick={() => setShowAuthGateModal(false)} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>
+            <div className="welcome-modal-brand"><BrandMark compact /></div>
+            <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
+            <h2 id="auth-required-title">{tr(language, "يلزم تسجيل الدخول", "Sign in required")}</h2>
+            <p className="welcome-modal-lead">{tr(language, "يرجى تسجيل الدخول أو إنشاء حساب للاستفادة من هذه الخاصية ومتابعة محادثاتك.", "Please log in or create an account to use this feature and keep your conversations.")}</p>
+            <a href="/auth?mode=login" className="welcome-modal-cta">{tr(language, "تسجيل الدخول", "Log in")}</a>
+            <p className="welcome-modal-login">{tr(language, "ليس لديك حساب؟", "Don't have an account?")} <a href="/auth?mode=signup">{tr(language, "إنشاء حساب مجاني", "Create a free account")}</a></p>
+          </section>
+        </div>
+      )}
       {showWelcomeModal && !auth.loading && !auth.isAuthenticated && (
         <div className="welcome-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowWelcomeModal(false); }}>
           <section className="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
