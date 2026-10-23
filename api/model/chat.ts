@@ -288,6 +288,10 @@ export default async function handler(req: any, res: any) {
   const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const openRouterApiKey = (process.env.OPENROUTER_API_KEY || "").trim();
   const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
+  const openRouterModels = Array.from(new Set([
+    openRouterModel,
+    ...(process.env.OPENROUTER_FALLBACK_MODELS || "").split(",").map((value) => value.trim()).filter(Boolean),
+  ]));
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
 
   // Keep the current DadGPT provider first; OpenRouter is a silent fallback.
@@ -454,12 +458,16 @@ export default async function handler(req: any, res: any) {
     ];
     const providers: Array<{ name: string; endpoint: URL; key: string; model: string }> = [];
     if (endpoint && apiKey) providers.push({ name: "primary", endpoint, key: apiKey, model: selectedModel });
-    if (openRouterApiKey) providers.push({
-      name: "openrouter",
-      endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
-      key: openRouterApiKey,
-      model: openRouterModel,
-    });
+    if (openRouterApiKey) {
+      for (const fallbackModel of openRouterModels) {
+        providers.push({
+          name: "openrouter",
+          endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
+          key: openRouterApiKey,
+          model: fallbackModel,
+        });
+      }
+    }
 
     let content = "";
     let lastFailure = "provider_request_failed";
