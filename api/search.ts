@@ -96,7 +96,7 @@ async function refundCredit(userId: string, kind: "free" | "paid") {
   });
 }
 
-async function runTavily(query: string, deep: boolean, key: string): Promise<SearchItem[]> {
+async function runTavily(query: string, deep: boolean, key: string, maxResults: number): Promise<SearchItem[]> {
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -104,14 +104,14 @@ async function runTavily(query: string, deep: boolean, key: string): Promise<Sea
       api_key: key,
       query,
       search_depth: deep ? "advanced" : "basic",
-      max_results: tavilyKey && firecrawlKey ? 4 : 8,
+      max_results: maxResults,
       include_answer: true,
     }),
     signal: AbortSignal.timeout(deep ? 18000 : 12000),
   });
   if (!response.ok) throw new Error("search_source_failed");
   const data = await response.json() as any;
-  const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, tavilyKey && firecrawlKey ? 4 : 8).map((item: any) => ({
+  const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, maxResults).map((item: any) => ({
     title: String(item.title || "نتيجة بحث").slice(0, 200),
     url: String(item.url || "").slice(0, 1000),
     content: String(item.content || "").slice(0, deep ? 2200 : 1500),
@@ -122,13 +122,13 @@ async function runTavily(query: string, deep: boolean, key: string): Promise<Sea
   return items;
 }
 
-async function runFirecrawl(query: string, deep: boolean, key: string): Promise<SearchItem[]> {
+async function runFirecrawl(query: string, deep: boolean, key: string, maxResults: number): Promise<SearchItem[]> {
   const response = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({
       query,
-      limit: tavilyKey && firecrawlKey ? 4 : 8,
+      limit: maxResults,
       sources: ["web"],
       ...(deep ? { scrapeOptions: { formats: ["markdown"] } } : {}),
     }),
@@ -137,7 +137,7 @@ async function runFirecrawl(query: string, deep: boolean, key: string): Promise<
   if (!response.ok) throw new Error("search_source_failed");
   const payload = await response.json() as any;
   const data = Array.isArray(payload.data) ? payload.data : [];
-  return data.slice(0, tavilyKey && firecrawlKey ? 4 : 8).map((item: any): SearchItem => ({
+  return data.slice(0, maxResults).map((item: any): SearchItem => ({
     title: String(item.title || "نتيجة بحث").slice(0, 200),
     url: String(item.url || "").slice(0, 1000),
     content: String(item.markdown || item.description || item.content || "").slice(0, deep ? 2600 : 1500),
@@ -155,14 +155,14 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
   if (tavilyKey && firecrawlKey) {
     // Query both providers in parallel; merge up to four results from each.
     const results = await Promise.allSettled([
-      runTavily(query, deep, tavilyKey),
-      runFirecrawl(query, deep, firecrawlKey),
+      runTavily(query, deep, tavilyKey, 4),
+      runFirecrawl(query, deep, firecrawlKey, 4),
     ]);
     for (const result of results) if (result.status === "fulfilled") merged.push(...result.value);
   } else if (tavilyKey) {
-    try { merged = await runTavily(query, deep, tavilyKey); } catch {}
+    try { merged = await runTavily(query, deep, tavilyKey, 8); } catch {}
     if (!merged.length && firecrawlKey) {
-      try { merged = await runFirecrawl(query, deep, firecrawlKey); } catch {}
+      try { merged = await runFirecrawl(query, deep, firecrawlKey, 8); } catch {}
     }
   } else if (firecrawlKey) {
     try { merged = await runFirecrawl(query, deep, firecrawlKey); } catch {}
