@@ -565,7 +565,13 @@ export default async function handler(req: any, res: any) {
         }
 
         const choice = payload?.choices?.[0];
-        const raw = choice?.message?.content ?? payload?.output_text ?? (streamedContent || choice?.delta?.content || choice?.text || "");
+        const messageContent = choice?.message?.content;
+        const usableMessageContent = typeof messageContent === "string" && messageContent.trim()
+          ? messageContent
+          : Array.isArray(messageContent) && messageContent.length
+            ? messageContent
+            : undefined;
+        const raw = usableMessageContent ?? payload?.output_text ?? (streamedContent || choice?.delta?.content || choice?.text || "");
         const candidate = typeof raw === "string"
           ? raw
           : Array.isArray(raw)
