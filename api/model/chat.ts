@@ -285,7 +285,9 @@ export default async function handler(req: any, res: any) {
 
   const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\/+$/, "");
   const apiKey = process.env.NEXA_PROVIDER_API_KEY || "";
-  const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
+  const configuredModel = (process.env.NEXA_PROVIDER_MODEL || "").trim();
+  // DadGPT documents these model IDs in lowercase; normalize the known IDs to avoid case-sensitive routing failures.
+  const model = /^dadgpt-(default|beast)$/i.test(configuredModel) ? configuredModel.toLowerCase() : configuredModel;
   const openRouterApiKey = (process.env.OPENROUTER_API_KEY || "").trim();
   const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
   const configuredOpenRouterFallbacks = (process.env.OPENROUTER_FALLBACK_MODELS || "")
@@ -471,7 +473,7 @@ export default async function handler(req: any, res: any) {
         process.env.NEXA_PROVIDER_BEAST_MODEL ||
         process.env.NEXA_PROVIDER_PRO_MODEL ||
         process.env.NEXA_PROVIDER_MODEL_PRO ||
-        model
+        "dadgpt-beast"
       ).trim();
       providers.push({
         name: "primary",
@@ -516,11 +518,12 @@ export default async function handler(req: any, res: any) {
             messages: outgoingMessages,
             max_tokens: extended ? 4096 : 2048,
             temperature: 0.7,
+            stream: false,
           }),
           // Keep the primary's proven response window, but use shorter bounded
           // timeouts for fallback attempts so a failed provider cannot stall chat.
           signal: AbortSignal.timeout(
-            provider.name === "primary" ? 18000 : provider.model === "openrouter/free" ? 8000 : 10000
+            provider.name === "primary" ? 25000 : provider.model === "openrouter/free" ? 10000 : 12000
           ),
         });
         // Read the body once as text. Some compatible providers return SSE or
@@ -610,7 +613,17 @@ export default async function handler(req: any, res: any) {
           if (provider.name === "primary") primaryFailed = true;
           continue;
         }
-        content = candidate.trim();
+        const normalizedCandidate = candidate.trim();
+        // Some upstream safety preflight responses are metadata, not an assistant answer.
+        // Never show this marker to the user; treat a marker-only response as a failed attempt and fail over.
+        const withoutSafetyMarker = normalizedCandidate.replace(/^User Safety:\s*safe\s*\r?\n?/i, "").trim();
+        if (!withoutSafetyMarker || /^User Safety:\s*safe\s*$/i.test(normalizedCandidate)) {
+          lastFailure = "provider_non_answer_response";
+          console.warn("[Chat] Provider returned a non-answer safety marker", JSON.stringify({ requestId, provider: provider.name, model: provider.model }));
+          if (provider.name === "primary") primaryFailed = true;
+          continue;
+        }
+        content = withoutSafetyMarker;
         console.info("[Chat] Provider answered successfully", JSON.stringify({ requestId, provider: provider.name, model: provider.model, fallbackUsed: provider.name !== "primary" }));
         break;
       } catch (providerError) {
