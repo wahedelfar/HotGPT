@@ -360,7 +360,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
         setTheme(nextTheme);
         setStyle(nextStyle);
         setInstructions(nextInstructions);
-        if ((preferences.language === "en") !== (language === "en")) toggleLanguage();
+        if ((preferences.language === "en") !== (localStorage.getItem("hotgpt-language") === "en")) toggleLanguage();
       })
       .catch(() => { if (!cancelled) setSaveError(tr(language, "تعذر مزامنة التفضيلات من الحساب؛ يمكنك المحاولة عند الحفظ.", "Could not sync preferences from your account; try saving again.")); })
       .finally(() => { if (!cancelled) setSyncing(false); });
