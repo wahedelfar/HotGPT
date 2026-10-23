@@ -312,6 +312,12 @@ export default async function handler(req: any, res: any) {
   const writingAssist = suppliedModes.writingAssist === true;
   const webSearchEnabled = suppliedModes.webSearch === true;
   const darkWebEnabled = suppliedModes.darkWeb === true;
+
+  // Enforce incompatible modes on the server too; client-side checks alone
+  // can be bypassed by direct API requests.
+  if (webSearchEnabled && darkWebEnabled) {
+    return res.status(400).json({ error: "incompatible_modes", modes: ["webSearch", "darkWeb"] });
+  }
   const suppliedPreferences = body.preferences && typeof body.preferences === "object" ? body.preferences : {};
   const responseStyle = ["professional", "concise", "friendly", "detailed"].includes(suppliedPreferences.style) ? suppliedPreferences.style : "professional";
   const customInstructions = typeof suppliedPreferences.instructions === "string" ? suppliedPreferences.instructions.slice(0, 2000).trim() : "";
