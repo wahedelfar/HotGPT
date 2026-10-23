@@ -15,6 +15,8 @@ button:not(:disabled) { cursor: pointer; }
 .sidebar-top { padding: 0 7px 18px; }
 .sidebar-brand-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 23px; }
 .brand-mark { display: inline-flex; align-items: center; gap: 9px; color: #f4f7f8; letter-spacing: -.04em; }
+.brand-logo-img { width: 34px; height: 34px; display: block; object-fit: contain; flex: 0 0 auto; }
+.topbar-home-brand .brand-logo-img { width: 40px; height: 40px; }
 .brand-mark-icon { width: 28px; height: 28px; border: 1.5px solid #6bd5e9; border-radius: 9px 9px 9px 3px; position: relative; display: inline-block; transform: rotate(-9deg); box-shadow: 0 0 22px rgba(107,213,233,.14); }
 .brand-mark-icon:before, .brand-mark-icon:after, .brand-mark-icon span { content: ''; position: absolute; height: 1.5px; background: #6bd5e9; transform: rotate(9deg); right: 5px; left: 5px; }
 .brand-mark-icon:before { top: 8px; }.brand-mark-icon:after { top: 13px; width: 10px; left: auto; }.brand-mark-icon span { top: 18px; width: 14px; left: auto; }
@@ -113,6 +115,7 @@ body, .app-shell { background: #050505; }
   background: transparent;
 }
 .topbar-home-brand .brand-mark { gap: 10px; }
+  .topbar-home-brand .brand-logo-img { width: 34px; height: 34px; }
 .topbar-home-brand .brand-wordmark { font-size: 23px; }
 .hotgpt-topbar-actions { gap: 10px; }
 .token-balance {
