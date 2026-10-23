@@ -436,3 +436,42 @@ html[data-theme="light"] .settings-choice.active { color: #087b90; border-color:
   .settings-choice-row { gap: 6px; }
   .settings-choice { padding: 7px 9px; }
 }
+
+
+/* Welcome mark: keep the logo centered above the eyebrow, never render a second wordmark. */
+.brand-welcome-orbit {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  margin: 0 auto 18px;
+}
+.brand-welcome-orbit .brand-mark { display: grid; place-items: center; gap: 0; }
+.brand-welcome-orbit .brand-wordmark { display: none !important; }
+.settings-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #754747;
+  border-radius: 9px;
+  background: rgba(117, 45, 45, .16);
+  color: #ffb4b4;
+  font-size: 12px;
+  line-height: 1.6;
+}
+@media (max-width: 860px) {
+  .messages-scroll:not(.has-messages) {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: 26px;
+    padding-bottom: 26px;
+  }
+  .messages-scroll:not(.has-messages) .hotgpt-welcome {
+    margin: 0 auto;
+    padding-bottom: 18px;
+  }
+  .brand-welcome-orbit { margin-bottom: 14px; }
+}
+html[data-theme="light"] .settings-error {
+  color: #8d2020;
+  border-color: #e5bcbc;
+  background: #fff1f1;
+}
