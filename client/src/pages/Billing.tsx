@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth";
+import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type PackageOption = { tokens: number; priceEgp: number };
 type BillingConfig = {
@@ -12,6 +13,7 @@ type BillingConfig = {
 };
 
 export default function BillingPage() {
+  const { language } = useAppLanguage();
   const [config, setConfig] = useState<BillingConfig | null>(null);
   const [account, setAccount] = useState<{ email: string; tokenBalance: number; freeAnswersRemaining: number } | null>(null);
   const [packageTokens, setPackageTokens] = useState(500);
@@ -74,7 +76,8 @@ export default function BillingPage() {
     } finally { setBusy(false); }
   }
 
-  return <main dir="rtl" className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-8">
+  return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-8">
+    <LanguageToggle />
     <div className="mx-auto max-w-5xl">
       <a href="/" className="text-sm text-cyan-300 hover:text-cyan-200">← العودة إلى HotGPT</a>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
@@ -112,5 +115,5 @@ export default function BillingPage() {
         </div>
       </section>
     </div>
-  </main>;
+  </main></LocalizedText>;
 }
