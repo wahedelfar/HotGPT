@@ -187,7 +187,8 @@ export default function AdminBillingPage() {
   </main></LocalizedText>;
 
   return <LocalizedText><div>
-    <div dir={language === "ar" ? "rtl" : "ltr"} className="fixed left-4 top-4 z-20 flex gap-2">
+    <a href="/" aria-label={language === "ar" ? "العودة إلى الرئيسية" : "Back to home"} className="fixed left-4 top-4 z-40 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#11151b]/95 px-4 py-2 text-sm text-cyan-200 shadow-lg backdrop-blur hover:bg-white/10"><span aria-hidden="true">⌂</span><span>{language === "ar" ? "الرئيسية" : "Home"}</span></a>
+    <div dir={language === "ar" ? "rtl" : "ltr"} className="fixed right-4 top-4 z-20 flex gap-2">
       <Button variant="outline" onClick={() => setShowPasswordForm(v => !v)}>تغيير كلمة المرور</Button>
       <Button variant="outline" onClick={() => void logout()}>تسجيل الخروج</Button>
     </div>
