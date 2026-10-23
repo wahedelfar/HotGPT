@@ -49,7 +49,13 @@ async function startServer() {
       }
     }
 
-    const { messages, extended } = req.body ?? {};
+    const { messages, extended, preferences: rawPreferences } = req.body ?? {};
+    const allowedStyles = ["professional", "concise", "friendly", "detailed"] as const;
+    const preferences = {
+      style: allowedStyles.includes(rawPreferences?.style) ? rawPreferences.style : "professional",
+      instructions: typeof rawPreferences?.instructions === "string" ? rawPreferences.instructions.slice(0, 2000) : "",
+      language: rawPreferences?.language === "en" ? "en" : "ar",
+    };
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "messages_required" });
     }
@@ -94,7 +100,7 @@ async function startServer() {
     }
 
     try {
-      const content = await requestProviderCompletion(messages, extended === true);
+      const content = await requestProviderCompletion(messages, extended === true, preferences);
       const wallet = await db.getWallet(user.id);
       return res.json({ content, wallet });
     } catch (error) {
