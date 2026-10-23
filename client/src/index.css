@@ -312,3 +312,37 @@ html, body {
     flex-shrink: 0;
   }
 }
+
+
+/* Compact per-message copy action */
+.message-actions {
+  display: flex;
+  align-items: center;
+  min-height: 23px;
+  margin-top: 5px;
+}
+.message-copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: transparent;
+  color: #74818a;
+  font-size: 10px;
+  line-height: 1;
+  opacity: .78;
+  transition: color .15s ease, background .15s ease, opacity .15s ease;
+}
+.message-copy-button svg { flex: 0 0 auto; }
+.message-copy-button:hover,
+.message-copy-button:focus-visible {
+  color: #b8e8ee;
+  background: rgba(107, 213, 233, .08);
+  opacity: 1;
+  outline: none;
+}
+.message-copy-button.copied { color: #8ed9b0; opacity: 1; }
+@media (hover: none) {
+  .message-copy-button { opacity: .9; }
+}
