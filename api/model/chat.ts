@@ -200,7 +200,7 @@ async function searchInternet(query: string): Promise<string> {
         body: JSON.stringify({
           query: cleanQuery,
           limit: 5,
-          sources: [{ type: "web" }],
+          sources: ["web"],
           scrapeOptions: { formats: ["markdown"] },
         }),
         signal: AbortSignal.timeout(15000),
