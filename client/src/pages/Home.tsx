@@ -12,7 +12,7 @@ import {
   FileText,
   FolderOpen,
   Globe,
-  WandSparkles,
+  Wand,
   Menu,
   MessageSquare,
   Moon,
@@ -1006,7 +1006,7 @@ export default function Home() {
                     <FolderOpen size={18} />
                   </button>
                   <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "مساعد الكتابة", "Writing assistant")}>
-                    <WandSparkles size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
+                    <Wand size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
                   </button>
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث على الإنترنت — PRO", "Internet Search — PRO")}>
                     <Globe size={18} /><span>PRO</span>
