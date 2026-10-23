@@ -52,8 +52,8 @@ export default function AuthPage() {
 
   return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="flex min-h-screen items-center justify-center bg-[#080b10] px-4 py-10 text-white">
     <LanguageToggle />
+    <a href="/" aria-label={language === "ar" ? "العودة إلى الرئيسية" : "Back to home"} className="fixed left-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#11151b]/95 px-4 py-2 text-sm text-cyan-200 shadow-lg backdrop-blur hover:bg-white/10"><span aria-hidden="true">⌂</span><span>{language === "ar" ? "الرئيسية" : "Home"}</span></a>
     <div className="w-full max-w-md">
-      <a href="/" className="inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200"><ArrowLeft size={16} /> العودة إلى HotGPT</a>
       <form onSubmit={submit} className="mt-6 rounded-3xl border border-white/10 bg-white/[.04] p-6 shadow-2xl sm:p-8">
         <div className="flex size-12 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200"><Sparkles size={22} /></div>
         <p className="mt-6 text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT ACCOUNT</p>
