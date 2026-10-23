@@ -562,7 +562,7 @@ export default async function handler(req: any, res: any) {
         }
 
         const choice = payload?.choices?.[0];
-        const raw = choice?.message?.content ?? choice?.delta?.content ?? choice?.text ?? payload?.output_text ?? streamedContent;
+        const raw = choice?.message?.content ?? payload?.output_text ?? (streamedContent || choice?.delta?.content || choice?.text || "");
         const candidate = typeof raw === "string"
           ? raw
           : Array.isArray(raw)
