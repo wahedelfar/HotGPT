@@ -169,14 +169,14 @@ async function searchInternet(query: string): Promise<string> {
         api_key: tavilyKey,
         query: cleanQuery,
         search_depth: deepResearch ? "advanced" : "basic",
-        max_results: 5,
+        max_results: 8,
         include_answer: true,
       }),
       signal: AbortSignal.timeout(12000),
     });
     if (!response.ok) throw new Error("search_source_failed");
     const data = await response.json() as any;
-    const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) => ({
+    const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 8).map((item: any) => ({
       title: String(item.title || "Result").slice(0, 200),
       url: String(item.url || "").slice(0, 1000),
       content: String(item.content || "").slice(0, deepResearch ? 2200 : 1500),
@@ -196,7 +196,7 @@ async function searchInternet(query: string): Promise<string> {
       },
       body: JSON.stringify({
         query: cleanQuery,
-        limit: deepResearch ? 5 : 4,
+        limit: 8,
         sources: ["web"],
         ...(deepResearch ? { scrapeOptions: { formats: ["markdown"] } } : {}),
       }),
@@ -205,7 +205,7 @@ async function searchInternet(query: string): Promise<string> {
     if (!response.ok) throw new Error("search_source_failed");
     const payload = await response.json() as any;
     const data = Array.isArray(payload.data) ? payload.data : [];
-    return data.slice(0, 5).map((item: any): SearchItem => ({
+    return data.slice(0, 8).map((item: any): SearchItem => ({
       title: String(item.title || "Result").slice(0, 200),
       url: String(item.url || "").slice(0, 1000),
       content: String(item.markdown || item.description || item.content || "").slice(0, deepResearch ? 2600 : 1500),
@@ -243,7 +243,7 @@ async function searchInternet(query: string): Promise<string> {
     }
   });
 
-  return unique.slice(0, deepResearch ? 8 : 5).map((item) =>
+  return unique.filter((item) => item.url).slice(0, 8).map((item) =>
     `- ${item.title}\n  ${item.url ? `URL: ${item.url}\n  ` : ""}${item.content}`
   ).join("\n\n").slice(0, deepResearch ? 14000 : 8000);
 }
