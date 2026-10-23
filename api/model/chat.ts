@@ -523,7 +523,9 @@ export default async function handler(req: any, res: any) {
           // Keep the primary's proven response window, but use shorter bounded
           // timeouts for fallback attempts so a failed provider cannot stall chat.
           signal: AbortSignal.timeout(
-            provider.name === "primary" ? 25000 : provider.model === "openrouter/free" ? 10000 : 12000
+            // Keep the full sequential chain well below Vercel's 60-second function limit,
+            // including Supabase auth, credit reservation/refund, and message persistence.
+            provider.name === "primary" ? 15000 : provider.model === "openrouter/free" ? 7000 : 9000
           ),
         });
         // Read the body once as text. Some compatible providers return SSE or
