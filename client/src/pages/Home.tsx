@@ -18,6 +18,7 @@ import {
   Moon,
   Sun,
   MoreHorizontal,
+  Trash2,
   Paperclip,
   Plus,
   Search,
@@ -93,6 +94,7 @@ function Sidebar({
   conversations,
   activeId,
   onSelect,
+  onDelete,
   onNew,
   onSettings,
   onGuide,
@@ -103,6 +105,7 @@ function Sidebar({
   conversations: Conversation[];
   activeId: string | null;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
   onNew: () => void;
   onSettings: () => void;
   onGuide: () => void;
@@ -111,6 +114,7 @@ function Sidebar({
   displayName: string;
 }) {
   const { language } = useLanguage();
+  const [openConversationMenu, setOpenConversationMenu] = useState<string | null>(null);
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
@@ -169,24 +173,56 @@ function Sidebar({
         </div>
         <div className="conversation-list">
           {conversations.map(conversation => (
-            <button
-              key={conversation.id}
-              className={
-                activeId === conversation.id
-                  ? "conversation-item selected"
-                  : "conversation-item"
-              }
-              onClick={() => onSelect(conversation.id)}
-            >
-              <span className="conversation-icon">
-                <MessageSquare size={14} />
-              </span>
-              <span className="conversation-copy">
-                <strong>{conversation.title}</strong>
-                <small>{conversation.preview}</small>
-              </span>
-              <span className="conversation-date">{conversation.date}</span>
-            </button>
+            <div className="conversation-row-wrap" key={conversation.id}>
+              <button
+                type="button"
+                className={
+                  activeId === conversation.id
+                    ? "conversation-item selected"
+                    : "conversation-item"
+                }
+                onClick={() => { setOpenConversationMenu(null); onSelect(conversation.id); }}
+              >
+                <span className="conversation-icon">
+                  <MessageSquare size={14} />
+                </span>
+                <span className="conversation-copy">
+                  <strong>{conversation.title}</strong>
+                  <small>{conversation.preview}</small>
+                </span>
+                <span className="conversation-date">{conversation.date}</span>
+              </button>
+              <div className="conversation-actions">
+                <button
+                  type="button"
+                  className="conversation-more-button"
+                  aria-label={tr(language, "خيارات المحادثة", "Conversation options")}
+                  aria-haspopup="menu"
+                  aria-expanded={openConversationMenu === conversation.id}
+                  title={tr(language, "خيارات المحادثة", "Conversation options")}
+                  onClick={() => setOpenConversationMenu(current => current === conversation.id ? null : conversation.id)}
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+                {openConversationMenu === conversation.id && (
+                  <div className="conversation-context-menu" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="conversation-delete-action"
+                      onClick={() => {
+                        setOpenConversationMenu(null);
+                        const confirmed = window.confirm(tr(language, "هل تريد حذف هذه المحادثة نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.", "Delete this conversation permanently? This cannot be undone."));
+                        if (confirmed) onDelete(conversation.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      {tr(language, "حذف المحادثة", "Delete conversation")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -899,6 +935,25 @@ export default function Home() {
             }).catch(() => setRequestError("تعذر فتح المحادثة المحفوظة. حاول مرة أخرى."));
           }}
           onNew={startNew}
+          onDelete={id => {
+            void (async () => {
+              try {
+                setRequestError(null);
+                const response = await authFetch(`/api/conversations?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.success) throw new Error(payload.error || "conversation_delete_failed");
+                setConversations(current => current.filter(item => item.id !== id));
+                if (activeConversation === id) {
+                  setActiveConversation(null);
+                  setMessages([]);
+                  setDraft("");
+                  setActiveView("chat");
+                }
+              } catch {
+                setRequestError(tr(language, "تعذر حذف المحادثة. حاول مرة أخرى.", "Could not delete the conversation. Please try again."));
+              }
+            })();
+          }}
           onSettings={() => {
             setActiveView("settings");
             setSidebarOpen(false);
