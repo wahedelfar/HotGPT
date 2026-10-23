@@ -295,8 +295,8 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
   const { language } = useLanguage();
   return (
     <div className="welcome-state hotgpt-welcome">
-      <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit">
-        <BrandMark />
+      <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit" aria-hidden="true">
+        <BrandMark compact />
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
@@ -321,6 +321,7 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
 
 function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { language, toggleLanguage } = useLanguage();
+  const auth = useAuth();
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     typeof window !== "undefined" && localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark"
   );
@@ -331,16 +332,67 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
     typeof window !== "undefined" ? localStorage.getItem("hotgpt-custom-instructions") || "" : ""
   );
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("hotgpt-theme", theme);
   }, [theme]);
 
-  function savePreferences() {
+  useEffect(() => {
+    if (!auth.isAuthenticated || auth.loading) return;
+    let cancelled = false;
+    setSyncing(true);
+    void authFetch("/api/preferences", { method: "GET" })
+      .then(async response => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "preferences_unavailable");
+        const preferences = payload.preferences;
+        if (!preferences || cancelled) return;
+        const nextTheme = preferences.theme === "light" ? "light" : "dark";
+        const nextStyle = ["professional", "concise", "friendly", "detailed"].includes(preferences.style) ? preferences.style : "professional";
+        const nextInstructions = typeof preferences.instructions === "string" ? preferences.instructions.slice(0, 2000) : "";
+        localStorage.setItem("hotgpt-theme", nextTheme);
+        localStorage.setItem("hotgpt-response-style", nextStyle);
+        localStorage.setItem("hotgpt-custom-instructions", nextInstructions);
+        document.documentElement.dataset.theme = nextTheme;
+        setTheme(nextTheme);
+        setStyle(nextStyle);
+        setInstructions(nextInstructions);
+        if ((preferences.language === "en") !== (language === "en")) toggleLanguage();
+      })
+      .catch(() => { if (!cancelled) setSaveError(tr(language, "تعذر مزامنة التفضيلات من الحساب؛ يمكنك المحاولة عند الحفظ.", "Could not sync preferences from your account; try saving again.")); })
+      .finally(() => { if (!cancelled) setSyncing(false); });
+    return () => { cancelled = true; };
+  }, [auth.isAuthenticated, auth.loading, auth.user?.id]);
+
+  async function savePreferences() {
+    setSaveError("");
+    localStorage.setItem("hotgpt-theme", theme);
     localStorage.setItem("hotgpt-response-style", style);
     localStorage.setItem("hotgpt-custom-instructions", instructions);
+    const languagePreference = localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar";
     window.dispatchEvent(new CustomEvent("hotgpt-preferences-changed"));
+    if (auth.isAuthenticated) {
+      setSyncing(true);
+      try {
+        const response = await authFetch("/api/preferences", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ theme, style, instructions, language: languagePreference }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || "preferences_unavailable");
+      } catch {
+        setSaveError(tr(language, "تعذر حفظ التفضيلات في الحساب. تحقق من اتصال الخادم ثم أعد المحاولة.", "Could not save preferences to your account. Check the server connection and retry."));
+        setSyncing(false);
+        return;
+      }
+      setSyncing(false);
+    } else {
+      setSaveError(tr(language, "حُفظت التفضيلات على هذا الجهاز فقط. سجّل الدخول لمزامنتها بين أجهزتك.", "Preferences saved on this device only. Sign in to sync them across devices."));
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2200);
   }
@@ -415,7 +467,8 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="settings-actions">
         <Button onClick={savePreferences}>{saved ? tr(language, "تم الحفظ", "Saved") : tr(language, "حفظ التفضيلات", "Save preferences")}</Button>
       </div>
-      <div className="settings-quote"><Sparkles size={17} /><span>{tr(language, "تُحفظ تفضيلاتك على هذا الجهاز وتُطبّق على ردود النموذج الجديدة.", "Your preferences are saved on this device and applied to new model responses.")}</span></div>
+      <div className="settings-quote"><Sparkles size={17} /><span>{syncing ? tr(language, "جارٍ مزامنة تفضيلات الحساب...", "Syncing account preferences...") : auth.isAuthenticated ? tr(language, "تُحفظ تفضيلاتك في حسابك وتُطبّق على الردود الجديدة على أجهزتك.", "Your preferences are saved to your account and applied to new responses across devices.") : tr(language, "تُحفظ محليًا الآن؛ سجّل الدخول لحفظها في حسابك ومزامنتها بين الأجهزة.", "Saved locally for now; sign in to save them to your account and sync across devices.")}</span></div>
+      {saveError && <p className="settings-error" role="status">{saveError}</p>}
     </div>
   );
 }
