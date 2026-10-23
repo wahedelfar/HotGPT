@@ -159,68 +159,73 @@ async function searchInternet(query: string): Promise<string> {
   if (!tavilyKey && !firecrawlKey) throw new Error("web_search_not_configured");
 
   type SearchItem = { title: string; url: string; content: string };
-  const searches: Promise<SearchItem[]>[] = [];
+  const deepResearch = /\b(compare|comparison|research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth|versus|vs\.)\b|مقارنة|قارن|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|احدث|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(cleanQuery);
 
-  if (tavilyKey) {
-    searches.push((async () => {
-      const response = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          api_key: tavilyKey,
-          query: cleanQuery,
-          search_depth: "basic",
-          max_results: 5,
-          include_answer: true,
-        }),
-        signal: AbortSignal.timeout(12000),
-      });
-      if (!response.ok) throw new Error("search_source_failed");
-      const data = await response.json() as any;
-      const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) => ({
-        title: String(item.title || "Result").slice(0, 200),
-        url: String(item.url || "").slice(0, 1000),
-        content: String(item.content || "").slice(0, 1800),
-      })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url)) : [];
-      if (typeof data.answer === "string" && data.answer.trim()) {
-        items.unshift({ title: "Search summary", url: "", content: data.answer.slice(0, 1800) });
-      }
-      return items;
-    })());
+  const runTavily = async (): Promise<SearchItem[]> => {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        api_key: tavilyKey,
+        query: cleanQuery,
+        search_depth: deepResearch ? "advanced" : "basic",
+        max_results: 5,
+        include_answer: true,
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!response.ok) throw new Error("search_source_failed");
+    const data = await response.json() as any;
+    const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) => ({
+      title: String(item.title || "Result").slice(0, 200),
+      url: String(item.url || "").slice(0, 1000),
+      content: String(item.content || "").slice(0, deepResearch ? 2200 : 1500),
+    })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url)) : [];
+    if (typeof data.answer === "string" && data.answer.trim()) {
+      items.unshift({ title: "Search summary", url: "", content: data.answer.slice(0, 1800) });
+    }
+    return items;
+  };
+
+  const runFirecrawl = async (): Promise<SearchItem[]> => {
+    const response = await fetch("https://api.firecrawl.dev/v2/search", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${firecrawlKey}`,
+      },
+      body: JSON.stringify({
+        query: cleanQuery,
+        limit: deepResearch ? 5 : 4,
+        sources: ["web"],
+        ...(deepResearch ? { scrapeOptions: { formats: ["markdown"] } } : {}),
+      }),
+      signal: AbortSignal.timeout(deepResearch ? 20000 : 12000),
+    });
+    if (!response.ok) throw new Error("search_source_failed");
+    const payload = await response.json() as any;
+    const data = Array.isArray(payload.data) ? payload.data : [];
+    return data.slice(0, 5).map((item: any): SearchItem => ({
+      title: String(item.title || "Result").slice(0, 200),
+      url: String(item.url || "").slice(0, 1000),
+      content: String(item.markdown || item.description || item.content || "").slice(0, deepResearch ? 2600 : 1500),
+    })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url));
+  };
+
+  let merged: SearchItem[] = [];
+  if (tavilyKey && firecrawlKey && deepResearch) {
+    // Use both sources for explicit research/comparison requests, then synthesize one answer.
+    const results = await Promise.allSettled([runTavily(), runFirecrawl()]);
+    for (const result of results) if (result.status === "fulfilled") merged.push(...result.value);
+  } else if (tavilyKey) {
+    try { merged = await runTavily(); } catch { /* Use the secondary search source below if available. */ }
+    if (!merged.length && firecrawlKey) {
+      try { merged = await runFirecrawl(); } catch { /* Report a unified search failure below. */ }
+    }
+  } else if (firecrawlKey) {
+    try { merged = await runFirecrawl(); } catch { /* Report a unified search failure below. */ }
   }
 
-  if (firecrawlKey) {
-    searches.push((async () => {
-      const response = await fetch("https://api.firecrawl.dev/v2/search", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${firecrawlKey}`,
-        },
-        body: JSON.stringify({
-          query: cleanQuery,
-          limit: 5,
-          sources: ["web"],
-          scrapeOptions: { formats: ["markdown"] },
-        }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) throw new Error("search_source_failed");
-      const payload = await response.json() as any;
-      const data = Array.isArray(payload.data) ? payload.data : [];
-      return data.slice(0, 5).map((item: any): SearchItem => ({
-        title: String(item.title || "Result").slice(0, 200),
-        url: String(item.url || "").slice(0, 1000),
-        content: String(item.markdown || item.description || item.content || "").slice(0, 2200),
-      })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url));
-    })());
-  }
-
-  const settled = await Promise.allSettled(searches);
-  const merged: SearchItem[] = [];
-  for (const result of settled) {
-    if (result.status === "fulfilled") merged.push(...result.value);
-  }
   if (!merged.length) throw new Error("web_search_failed");
 
   const seen = new Set<string>();
@@ -238,9 +243,9 @@ async function searchInternet(query: string): Promise<string> {
     }
   });
 
-  return unique.slice(0, 8).map((item) =>
+  return unique.slice(0, deepResearch ? 8 : 5).map((item) =>
     `- ${item.title}\n  ${item.url ? `URL: ${item.url}\n  ` : ""}${item.content}`
-  ).join("\n\n").slice(0, 12000);
+  ).join("\n\n").slice(0, deepResearch ? 14000 : 8000);
 }
 async function getWallet(userId: string) {
   const rows = await supabaseRest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=free_answers_used,token_balance&limit=1`);
