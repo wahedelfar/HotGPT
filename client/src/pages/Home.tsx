@@ -1084,6 +1084,19 @@ export default function Home() {
                   <X size={13} />
                 </button>
               </div>
+              {(writingAssist || webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast") && (
+                <div className="active-mode-notice" role="status" aria-live="polite">
+                  <span className="active-mode-indicator" />
+                  <span>
+                    {[
+                      writingAssist ? tr(language, "تم تفعيل محسن الطلب", "Prompt enhancer enabled") : "",
+                      webSearchEnabled ? tr(language, "تم تفعيل البحث المتقدم", "Advanced search enabled") : "",
+                      darkWebEnabled ? tr(language, "تم تفعيل وضع الدارك ويب", "Dark Web mode enabled") : "",
+                      selectedModel === "dadgpt-beast" ? tr(language, "تم تفعيل نموذج Beast Pro", "Beast Pro model enabled") : "",
+                    ].filter(Boolean).join(" · ")}
+                  </span>
+                </div>
+              )}
               <div className="composer">
                 <div className="composer-tools">
                   <label className="composer-icon" aria-label={tr(language, "إرفاق ملف", "Attach file")} title={tr(language, "إرفاق ملف", "Attach file")}>
@@ -1113,10 +1126,10 @@ export default function Home() {
                   <Send size={17} />
                 </button>
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
-                  <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "مساعد الكتابة", "Writing assistant")}>
+                  <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "محسن الطلب", "Prompt enhancer")}>
                     <Wand size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
                   </button>
-                  <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث على الإنترنت — PRO", "Internet Search — PRO")}>
+                  <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم — PRO", "Advanced search — PRO")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
                   <button type="button" className={darkWebEnabled ? "composer-mode active" : "composer-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title={tr(language, "وضع الدارك ويب", "Dark Web mode")}>
