@@ -583,3 +583,9 @@ html[data-theme="light"] .composer-mode.pro-mode > span:last-child { background:
   .composer-mode { min-width: 43px; height: 39px; padding: 0 11px; }
   .composer-mode.beast-mode { padding-inline: 13px; }
 }
+
+/* Keep composer text row and mode shortcuts on separate full-width rows. */
+.composer { flex-wrap: wrap; }
+.composer-tools { flex: 0 0 auto; }
+.composer textarea { min-width: 0; }
+.composer-mode-row { flex: 0 0 100%; box-sizing: border-box; }
