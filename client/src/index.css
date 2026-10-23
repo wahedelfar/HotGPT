@@ -589,3 +589,24 @@ html[data-theme="light"] .composer-mode.pro-mode > span:last-child { background:
 .composer-tools { flex: 0 0 auto; }
 .composer textarea { min-width: 0; }
 .composer-mode-row { flex: 0 0 100%; box-sizing: border-box; }
+
+
+/* Composer mode toolbar: keep every mode on one compact row. */
+.composer-mode-row {
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.composer-mode-row::-webkit-scrollbar { display: none; }
+.composer-mode { flex: 0 0 auto; min-width: 40px; height: 38px; padding-inline: 10px; }
+.composer-mode.beast-mode { padding-inline: 12px; }
+.attachment-cost-note { padding: 0 12px 6px; color: #94a3b8; font-size: 11px; }
+@media (max-width: 520px) {
+  .composer-mode-row { gap: 5px !important; padding: 9px 8px !important; }
+  .composer-mode { min-width: 36px; height: 36px; padding-inline: 8px; gap: 5px; }
+  .composer-mode.beast-mode { padding-inline: 9px; }
+  .composer-mode.pro-mode > span:last-child { padding: 3px 5px; font-size: 10px; }
+}
