@@ -292,13 +292,14 @@ export default async function handler(req: any, res: any) {
   const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
   const configuredOpenRouterFallbacks = (process.env.OPENROUTER_FALLBACK_MODELS || "")
     .split(",").map((value) => value.trim()).filter(Boolean);
-  // Bound fallback work to keep requests responsive: primary OpenRouter model,
-  // at most one explicitly configured fallback, and the free-model router.
+  // Keep a bounded fallback chain so the request fits Vercel's function deadline.
+  // Prefer one configured fallback; use the free router only when no explicit fallback exists.
   const openRouterModels = Array.from(new Set([
     openRouterModel,
-    ...configuredOpenRouterFallbacks.slice(0, 1),
-    "openrouter/free",
-  ])).slice(0, 3);
+    ...(configuredOpenRouterFallbacks.length
+      ? configuredOpenRouterFallbacks.slice(0, 1)
+      : ["openrouter/free"]),
+  ])).slice(0, 2);
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
 
   // Keep DadGPT primary. OpenRouter is only used when the primary provider fails.
@@ -487,24 +488,12 @@ export default async function handler(req: any, res: any) {
         key: apiKey,
         model: primaryModel,
       });
-      // Preserve a host-level fallback for DadGPT. If the canonical apex host
-      // is unavailable, try its www alias before leaving DadGPT for OpenRouter.
-      if (endpoint.hostname.toLowerCase() === "dadgpt.live") {
-        const alternateEndpoint = new URL(endpoint);
-        alternateEndpoint.hostname = "www.dadgpt.live";
-        providers.push({
-          name: "primary-alternate",
-          endpoint: alternateEndpoint,
-          key: apiKey,
-          model: primaryModel,
-        });
-      }
     }
     if (openRouterApiKey) {
       const beastFallbackModel = (process.env.OPENROUTER_BEAST_MODEL || "").trim();
       const fallbackModels = (selectedModel === "dadgpt-beast" && beastFallbackModel
         ? [beastFallbackModel, ...openRouterModels.filter((candidate) => candidate !== beastFallbackModel)]
-        : openRouterModels).slice(0, 3);
+        : openRouterModels).slice(0, 2);
       for (const fallbackModel of fallbackModels) {
         providers.push({
           name: "openrouter",
@@ -534,16 +523,16 @@ export default async function handler(req: any, res: any) {
           body: JSON.stringify({
             model: provider.model,
             messages: outgoingMessages,
-            max_tokens: extended ? 4096 : 2048,
+            max_tokens: extended || selectedModel === "dadgpt-beast" ? 4096 : 3072,
             temperature: 0.7,
             stream: false,
           }),
           // Keep the primary's proven response window, but use shorter bounded
           // timeouts for fallback attempts so a failed provider cannot stall chat.
           signal: AbortSignal.timeout(
-            // Keep the full sequential chain well below Vercel's 60-second function limit,
-            // including Supabase auth, credit reservation/refund, and message persistence.
-            provider.name === "primary" ? 15000 : provider.model === "openrouter/free" ? 7000 : 9000
+            // Keep enough total time for a substantial answer plus one fallback within
+            // Vercel's 60-second function limit, including auth, billing, and persistence.
+            provider.name === "primary" ? 20000 : provider.model === "openrouter/free" ? 7000 : 16000
           ),
         });
         // Read the body once as text. Some compatible providers return SSE or
