@@ -555,3 +555,31 @@ html[dir="ltr"] .composer-footer { direction: ltr; }
 html[dir="ltr"] .conversation-copy { text-align: left; }
 html[dir="ltr"] .user-row .message-content { border-radius: 12px 4px 12px 12px; }
 html[dir="ltr"] .composer textarea { text-align: left; }
+
+
+/* Compact composer modes inspired by the requested HotGPT reference. */
+.composer { overflow: visible; }
+.composer-mode-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 12px 12px 10px; border-top: 1px solid rgba(140,150,160,.12); direction: inherit;
+}
+.composer-mode {
+  min-width: 48px; height: 42px; padding: 0 14px; display: inline-flex;
+  align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid #303030; border-radius: 24px; background: #0b0b0b;
+  color: #b9b9b9; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.composer-mode:hover, .composer-mode:focus-visible { border-color: #666; background: #171717; color: #fff; outline: none; }
+.composer-mode.active { border-color: #7bd8e8; background: rgba(107,213,233,.12); color: #a9edf7; }
+.composer-mode.pro-mode > span:last-child { padding: 4px 8px; border-radius: 7px; background: #242424; color: #f2f2f2; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.composer-mode.beast-mode { padding-inline: 18px; }
+.composer-mode.beast-mode > span:first-child { font-size: 14px; }
+html[data-theme="light"] .composer-mode { background: #fff; color: #44535e; border-color: #d4dde3; }
+html[data-theme="light"] .composer-mode:hover { background: #edf3f6; }
+html[data-theme="light"] .composer-mode.pro-mode > span:last-child { background: #e8edf1; color: #26343d; }
+@media (max-width: 520px) {
+  .composer-mode-row { gap: 7px; padding: 10px 9px 9px; }
+  .composer-mode { min-width: 43px; height: 39px; padding: 0 11px; }
+  .composer-mode.beast-mode { padding-inline: 13px; }
+}
