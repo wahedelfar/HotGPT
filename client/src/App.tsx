@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import AuthPage from "./pages/Auth";
 import BillingPage from "./pages/Billing";
 import AdminBillingPage from "./pages/AdminBilling";
@@ -27,12 +28,14 @@ function Router() {
 export default function App() {
   return (
     <ErrorBoundary>
+      <LanguageProvider>
       <ThemeProvider defaultTheme="dark" switchable>
         <TooltipProvider>
           <Toaster />
           <Router />
         </TooltipProvider>
       </ThemeProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }
