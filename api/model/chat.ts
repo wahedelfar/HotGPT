@@ -433,7 +433,7 @@ export default async function handler(req: any, res: any) {
   const creditCost = attachment || webSearchEnabled || darkWebEnabled ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
   let credit: "free" | "paid" | null = null;
   try {
-    credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
+    credit = await consumeCredit(user.id, creditCost, !attachment && !webSearchEnabled && !darkWebEnabled && selectedModel === "dadgpt-default");
   } catch (error) {
     console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
     return res.status(503).json({ error: "billing_unavailable" });
