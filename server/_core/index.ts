@@ -54,7 +54,7 @@ async function startServer() {
     const preferences = {
       style: allowedStyles.includes(rawPreferences?.style) ? rawPreferences.style : "professional",
       instructions: typeof rawPreferences?.instructions === "string" ? rawPreferences.instructions.slice(0, 2000) : "",
-      language: rawPreferences?.language === "en" ? "en" : "ar",
+      language: (rawPreferences?.language === "en" ? "en" : "ar") as "ar" | "en",
     };
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "messages_required" });
