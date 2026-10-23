@@ -72,11 +72,15 @@ function formatTime() {
 }
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
+  const { language } = useLanguage();
   return (
-    <div className="brand-mark" aria-label="HotGPT">
-      <span className="brand-mark-icon">
-        <Terminal size={compact ? 15 : 17} />
-      </span>
+    <div className="brand-mark" aria-label={language === "ar" ? "بدون قيود" : "No Limits"}>
+      <img
+        className="brand-logo-img"
+        src={language === "ar" ? "/brand-ar.svg" : "/brand-en.svg"}
+        alt={language === "ar" ? "بدون قيود" : "No Limits"}
+        draggable={false}
+      />
       {!compact && <span className="brand-wordmark">Hot<span>GPT</span></span>}
     </div>
   );
@@ -424,6 +428,25 @@ export default function Home() {
     localStorage.setItem("hotgpt-language", language);
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+    const brandAsset = language === "ar" ? "/brand-ar.svg" : "/brand-en.svg";
+    let favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!favicon) {
+      favicon = document.createElement("link");
+      favicon.rel = "icon";
+      document.head.appendChild(favicon);
+    }
+    favicon.type = "image/svg+xml";
+    favicon.href = brandAsset;
+    const appleIcon = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
+    if (appleIcon) appleIcon.href = brandAsset;
+    const ogImage = document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
+    if (ogImage) ogImage.content = new URL(brandAsset, window.location.origin).href;
+    const twitterImage = document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]');
+    if (twitterImage) twitterImage.content = new URL(brandAsset, window.location.origin).href;
+    const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
+    if (ogTitle) ogTitle.content = language === "ar" ? "HotGPT — بدون قيود" : "HotGPT — No Limits";
+    const pageTitle = language === "ar" ? "HotGPT — بدون قيود" : "HotGPT — No Limits";
+    document.title = pageTitle;
   }, [language]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
