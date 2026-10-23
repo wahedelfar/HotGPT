@@ -524,7 +524,7 @@ export default async function handler(req: any, res: any) {
           payload = null;
           // Accept OpenAI-compatible Server-Sent Events if a provider sends
           // them despite streaming not being explicitly requested.
-          for (const line of responseText.split(/\\r?\\n/)) {
+          for (const line of responseText.split(/\r?\n/)) {
             const trimmedLine = line.trim();
             if (!trimmedLine.startsWith("data:")) continue;
             const data = trimmedLine.slice(5).trim();
@@ -578,7 +578,7 @@ export default async function handler(req: any, res: any) {
             contentType,
             bodyLength: responseText.length,
             jsonParseFailed,
-            bodyLooksLikeHtml: /<\\s*!doctype|<\\s*html/i.test(responseText.slice(0, 300)),
+            bodyLooksLikeHtml: /<\s*!doctype|<\s*html/i.test(responseText.slice(0, 300)),
             payloadKeys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 12) : [],
             choiceCount: Array.isArray(payload?.choices) ? payload.choices.length : 0,
             finishReason: choice?.finish_reason ?? null,
