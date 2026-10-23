@@ -74,6 +74,25 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json({ conversations });
     }
 
+    if (req.method === "DELETE") {
+      const id = typeof req.query?.id === "string" ? req.query.id : "";
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "invalid_conversation_id" });
+
+      // Verify ownership before deleting either messages or the conversation.
+      const owned = await rest(`conversations?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}&select=id&limit=1`);
+      if (!owned?.length) return res.status(404).json({ error: "conversation_not_found" });
+
+      await rest(`messages?conversation_id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`, {
+        method: "DELETE",
+        headers: { Prefer: "return=minimal" },
+      });
+      await rest(`conversations?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`, {
+        method: "DELETE",
+        headers: { Prefer: "return=minimal" },
+      });
+      return res.status(200).json({ success: true, id });
+    }
+
     if (req.method === "POST") {
       const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 120) : "محادثة جديدة";
       const rows = await rest("conversations?select=id,title,created_at,updated_at", {
@@ -86,7 +105,7 @@ export default async function handler(req: any, res: any) {
       return res.status(201).json({ conversation: { id: String(row.id), title: String(row.title), createdAt: row.created_at, updatedAt: row.updated_at } });
     }
 
-    res.setHeader("Allow", "GET, POST");
+    res.setHeader("Allow", "GET, POST, DELETE");
     return res.status(405).json({ error: "method_not_allowed" });
   } catch (error) {
     console.error("[Conversations] Request failed", error instanceof Error ? error.message : "unknown");
