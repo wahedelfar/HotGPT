@@ -186,12 +186,12 @@ export default function AdminBillingPage() {
     </form>
   </main></LocalizedText>;
 
-  return <div>
-    <div dir="rtl" className="fixed left-4 top-4 z-20 flex gap-2">
+  return <LocalizedText><div>
+    <div dir={language === "ar" ? "rtl" : "ltr"} className="fixed left-4 top-4 z-20 flex gap-2">
       <Button variant="outline" onClick={() => setShowPasswordForm(v => !v)}>تغيير كلمة المرور</Button>
       <Button variant="outline" onClick={() => void logout()}>تسجيل الخروج</Button>
     </div>
-    {showPasswordForm && <form dir="rtl" onSubmit={changePassword} className="fixed inset-0 z-30 flex items-center justify-center bg-black/80 p-4">
+    {showPasswordForm && <form dir={language === "ar" ? "rtl" : "ltr"} onSubmit={changePassword} className="fixed inset-0 z-30 flex items-center justify-center bg-black/80 p-4">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#10151d] p-6 text-white">
         <h2 className="text-xl font-bold">تغيير كلمة مرور الإدارة</h2>
         <label className="mt-4 block text-sm">كلمة المرور الحالية</label>
