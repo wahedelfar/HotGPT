@@ -291,6 +291,9 @@ export default async function handler(req: any, res: any) {
   const openRouterModels = Array.from(new Set([
     openRouterModel,
     ...(process.env.OPENROUTER_FALLBACK_MODELS || "").split(",").map((value) => value.trim()).filter(Boolean),
+    // Last-resort router: OpenRouter selects an available free model when
+    // the configured DeepSeek/explicit fallback models fail or return no text.
+    "openrouter/free",
   ]));
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
 
@@ -508,14 +511,67 @@ export default async function handler(req: any, res: any) {
           }),
           signal: AbortSignal.timeout(provider.name === "primary" ? 18000 : 12000),
         });
-        const payload: any = await upstream.json().catch(() => ({}));
+        // Read the body once as text. Some compatible providers return SSE or
+        // non-JSON error pages even when the status is 200; response.json()
+        // silently replaced those useful diagnostics with an empty object.
+        const responseText = await upstream.text();
+        const contentType = upstream.headers.get("content-type") || "";
+        let payload: any = null;
+        let jsonParseFailed = false;
+        let streamedContent = "";
+
+        try {
+          payload = responseText.trim() ? JSON.parse(responseText) : null;
+        } catch {
+          jsonParseFailed = true;
+          payload = null;
+          // Accept OpenAI-compatible Server-Sent Events if a provider sends
+          // them despite streaming not being explicitly requested.
+          for (const line of responseText.split(/\r?\n/)) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine.startsWith("data:")) continue;
+            const data = trimmedLine.slice(5).trim();
+            if (!data || data === "[DONE]") continue;
+            try {
+              const event = JSON.parse(data);
+              const choice = event?.choices?.[0];
+              const piece = choice?.delta?.content ?? choice?.message?.content ?? choice?.text;
+              if (typeof piece === "string") streamedContent += piece;
+              else if (Array.isArray(piece)) {
+                streamedContent += piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("");
+              }
+              if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
+            } catch {
+              // Ignore SSE metadata/keepalive lines; validate the final content below.
+            }
+          }
+        }
+
         if (!upstream.ok) {
+          const providerError = payload?.error;
           lastFailure = upstream.status === 429 ? "provider_rate_limited" : "provider_request_failed";
-          console.warn("[Chat] Provider attempt failed", JSON.stringify({ requestId, provider: provider.name, status: upstream.status, reason: lastFailure }));
+          console.warn("[Chat] Provider attempt failed", JSON.stringify({
+            requestId,
+            provider: provider.name,
+            status: upstream.status,
+            reason: lastFailure,
+            contentType,
+            bodyLength: responseText.length,
+            errorCode: providerError?.code ?? null,
+            errorType: providerError?.type ?? null,
+          }));
           if (provider.name === "primary") primaryFailed = true;
           continue;
         }
-        const raw = payload?.choices?.[0]?.message?.content;
+
+        const choice = payload?.choices?.[0];
+        const messageContent = choice?.message?.content;
+        const usableMessageContent = typeof messageContent === "string" && messageContent.trim()
+          ? messageContent
+          : Array.isArray(messageContent) && messageContent.length
+            ? messageContent
+            : undefined;
+        const raw = usableMessageContent ?? payload?.output_text ?? (streamedContent || choice?.delta?.content || choice?.text || "");
         const candidate = typeof raw === "string"
           ? raw
           : Array.isArray(raw)
@@ -523,16 +579,19 @@ export default async function handler(req: any, res: any) {
             : "";
         if (!candidate.trim()) {
           lastFailure = "provider_empty_response";
-          const firstChoice = Array.isArray(payload?.choices) ? payload.choices[0] : null;
           console.warn("[Chat] Provider returned an empty response", JSON.stringify({
             requestId,
             provider: provider.name,
             status: upstream.status,
             reason: lastFailure,
+            contentType,
+            bodyLength: responseText.length,
+            jsonParseFailed,
+            bodyLooksLikeHtml: /<\s*!doctype|<\s*html/i.test(responseText.slice(0, 300)),
             payloadKeys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 12) : [],
             choiceCount: Array.isArray(payload?.choices) ? payload.choices.length : 0,
-            finishReason: firstChoice?.finish_reason ?? null,
-            messageKeys: firstChoice?.message && typeof firstChoice.message === "object" ? Object.keys(firstChoice.message).slice(0, 12) : [],
+            finishReason: choice?.finish_reason ?? null,
+            messageKeys: choice?.message && typeof choice.message === "object" ? Object.keys(choice.message).slice(0, 12) : [],
             errorCode: payload?.error?.code ?? null,
             errorType: payload?.error?.type ?? null,
           }));
