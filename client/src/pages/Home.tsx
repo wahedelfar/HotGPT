@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { Button } from "@/components/ui/button";
-import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { authFetch } from "@/lib/auth";
 
