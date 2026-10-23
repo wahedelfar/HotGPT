@@ -475,3 +475,83 @@ html[data-theme="light"] .settings-error {
   border-color: #e5bcbc;
   background: #fff1f1;
 }
+
+
+/* Settings functionality fix: keep controls accessible on mobile and apply a complete light palette. */
+@media (max-width: 860px) {
+  .settings-card button { display: inline-flex !important; flex: 0 0 auto; align-self: center; }
+}
+html[data-theme="light"] body,
+html[data-theme="light"] #root,
+html[data-theme="light"] .app-shell,
+html[data-theme="light"] .main-shell,
+html[data-theme="light"] .chat-workspace,
+html[data-theme="light"] .messages-scroll,
+html[data-theme="light"] .content-panel,
+html[data-theme="light"] .topbar {
+  background: #f5f7f9 !important;
+  color: #17212a !important;
+}
+html[data-theme="light"] .sidebar-drawer { background: #edf1f4 !important; border-color: #d6dee4 !important; }
+html[data-theme="light"] .topbar { border-bottom-color: #dbe2e7 !important; }
+html[data-theme="light"] .topbar h2,
+html[data-theme="light"] .message-meta strong,
+html[data-theme="light"] .welcome-state h1,
+html[data-theme="light"] .settings-card h3,
+html[data-theme="light"] .panel-heading h1,
+html[data-theme="light"] .hotgpt-starter-card,
+html[data-theme="light"] .profile-row,
+html[data-theme="light"] .nav-item,
+html[data-theme="light"] .conversation-item { color: #17212a !important; }
+html[data-theme="light"] .hotgpt-welcome h1 span { color: #17212a !important; }
+html[data-theme="light"] .hotgpt-starter-card,
+html[data-theme="light"] .settings-card,
+html[data-theme="light"] .conversation-item:hover,
+html[data-theme="light"] .conversation-item.selected,
+html[data-theme="light"] .nav-item:hover,
+html[data-theme="light"] .nav-item.active,
+html[data-theme="light"] .composer,
+html[data-theme="light"] .profile-menu {
+  background: #fff !important;
+  border-color: #d5dee4 !important;
+  color: #17212a !important;
+}
+html[data-theme="light"] .composer textarea,
+html[data-theme="light"] .settings-instructions,
+html[data-theme="light"] .sidebar-search input { color: #17212a !important; }
+html[data-theme="light"] .composer textarea::placeholder,
+html[data-theme="light"] .welcome-copy,
+html[data-theme="light"] .hotgpt-starter-card .starter-copy small,
+html[data-theme="light"] .settings-card p,
+html[data-theme="light"] .panel-heading p:not(.eyebrow),
+html[data-theme="light"] .topbar-kicker,
+html[data-theme="light"] .message-content,
+html[data-theme="light"] .message-meta span { color: #586773 !important; }
+html[data-theme="light"] .sidebar-search,
+html[data-theme="light"] .settings-instructions,
+html[data-theme="light"] .upload-empty { background: #fff !important; border-color: #d5dee4 !important; }
+html[data-theme="light"] .user-row .message-content { background: #e8edf2 !important; color: #17212a !important; }
+html[data-theme="light"] .profile-menu { box-shadow: 0 18px 55px rgba(20,35,45,.16); }
+html[data-theme="light"] .profile-menu-item,
+html[data-theme="light"] .profile-menu-identity strong { color: #17212a !important; }
+html[data-theme="light"] .profile-menu-identity,
+html[data-theme="light"] .profile-menu-logout,
+html[data-theme="light"] .profile-menu-item:first-of-type { border-color: #dbe2e7 !important; }
+html[data-theme="light"] .profile-token-badge { background: #edf1f4 !important; color: #17212a !important; }
+html[data-theme="light"] .token-balance,
+html[data-theme="light"] .language-button,
+html[data-theme="light"] .profile-menu-trigger { background: #fff !important; color: #17212a !important; border-color: #d5dee4 !important; }
+html[data-theme="light"] .settings-card button { color: #263843 !important; border-color: #c5d0d7 !important; }
+html[dir="ltr"] .nav-item,
+html[dir="ltr"] .conversation-item,
+html[dir="ltr"] .starter-card,
+html[dir="ltr"] .profile-row { text-align: left; }
+html[dir="ltr"] .nav-item.active { box-shadow: inset 2px 0 #6bd5e9; }
+html[dir="ltr"] .sidebar-search,
+html[dir="ltr"] .message-row,
+html[dir="ltr"] .message-meta,
+html[dir="ltr"] .composer,
+html[dir="ltr"] .composer-footer { direction: ltr; }
+html[dir="ltr"] .conversation-copy { text-align: left; }
+html[dir="ltr"] .user-row .message-content { border-radius: 12px 4px 12px 12px; }
+html[dir="ltr"] .composer textarea { text-align: left; }
