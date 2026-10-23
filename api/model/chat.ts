@@ -500,7 +500,19 @@ export default async function handler(req: any, res: any) {
             : "";
         if (!candidate.trim()) {
           lastFailure = "provider_empty_response";
-          console.warn("[Chat] Provider returned an empty response", JSON.stringify({ requestId, provider: provider.name, reason: lastFailure }));
+          const firstChoice = Array.isArray(payload?.choices) ? payload.choices[0] : null;
+          console.warn("[Chat] Provider returned an empty response", JSON.stringify({
+            requestId,
+            provider: provider.name,
+            status: upstream.status,
+            reason: lastFailure,
+            payloadKeys: payload && typeof payload === "object" ? Object.keys(payload).slice(0, 12) : [],
+            choiceCount: Array.isArray(payload?.choices) ? payload.choices.length : 0,
+            finishReason: firstChoice?.finish_reason ?? null,
+            messageKeys: firstChoice?.message && typeof firstChoice.message === "object" ? Object.keys(firstChoice.message).slice(0, 12) : [],
+            errorCode: payload?.error?.code ?? null,
+            errorType: payload?.error?.type ?? null,
+          }));
           if (provider.name === "primary") primaryFailed = true;
           continue;
         }
