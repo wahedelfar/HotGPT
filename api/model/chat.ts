@@ -363,6 +363,7 @@ export default async function handler(req: any, res: any) {
     try {
       const wallet = await getWallet(user.id);
       if (wallet.tokenBalance <= 0) return res.status(403).json({ error: "pro_required" });
+      if (darkWebEnabled && wallet.tokenBalance < 3) return res.status(402).json({ error: "insufficient_credits", wallet });
     } catch (error) {
       console.error("[Billing] Pro entitlement check failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -415,7 +416,7 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const creditCost = attachment ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
+  const creditCost = attachment || webSearchEnabled || darkWebEnabled ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
   let credit: "free" | "paid" | null = null;
   try {
     credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
