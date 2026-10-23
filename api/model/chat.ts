@@ -153,36 +153,95 @@ async function refundCredit(userId: string, kind: "free" | "paid", cost: number)
 async function searchInternet(query: string): Promise<string> {
   const cleanQuery = query.trim().slice(0, 500);
   if (!cleanQuery) throw new Error("web_search_failed");
-  const tavilyKey = process.env.TAVILY_API_KEY || "";
-  if (tavilyKey) {
-    const response = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ api_key: tavilyKey, query: cleanQuery, search_depth: "basic", max_results: 5, include_answer: true }),
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!response.ok) throw new Error("web_search_failed");
-    const data = await response.json() as any;
-    const results = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) =>
-      `- ${String(item.title || "Result").slice(0, 200)}\n  URL: ${String(item.url || "").slice(0, 1000)}\n  ${String(item.content || "").slice(0, 1200)}`
-    ) : [];
-    return [typeof data.answer === "string" ? `Summary: ${data.answer.slice(0, 2000)}` : "", ...results].filter(Boolean).join("\n\n").slice(0, 8000);
-  }
-  const braveKey = process.env.BRAVE_SEARCH_API_KEY || "";
-  if (braveKey) {
-    const url = new URL("https://api.search.brave.com/res/v1/web/search");
-    url.searchParams.set("q", cleanQuery);
-    url.searchParams.set("count", "5");
-    const response = await fetch(url, { headers: { "X-Subscription-Token": braveKey, Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
-    if (!response.ok) throw new Error("web_search_failed");
-    const data = await response.json() as any;
-    return (Array.isArray(data.web?.results) ? data.web.results.slice(0, 5).map((item: any) =>
-      `- ${String(item.title || "Result").slice(0, 200)}\n  URL: ${String(item.url || "").slice(0, 1000)}\n  ${String(item.description || "").slice(0, 1200)}`
-    ) : []).join("\n\n").slice(0, 8000);
-  }
-  throw new Error("web_search_not_configured");
-}
 
+  const tavilyKey = (process.env.TAVILY_API_KEY || "").trim();
+  const firecrawlKey = (process.env.FIRECRAWL_API_KEY || "").trim();
+  if (!tavilyKey && !firecrawlKey) throw new Error("web_search_not_configured");
+
+  type SearchItem = { title: string; url: string; content: string };
+  const searches: Promise<SearchItem[]>[] = [];
+
+  if (tavilyKey) {
+    searches.push((async () => {
+      const response = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          api_key: tavilyKey,
+          query: cleanQuery,
+          search_depth: "basic",
+          max_results: 5,
+          include_answer: true,
+        }),
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) throw new Error("search_source_failed");
+      const data = await response.json() as any;
+      const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) => ({
+        title: String(item.title || "Result").slice(0, 200),
+        url: String(item.url || "").slice(0, 1000),
+        content: String(item.content || "").slice(0, 1800),
+      })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url)) : [];
+      if (typeof data.answer === "string" && data.answer.trim()) {
+        items.unshift({ title: "Search summary", url: "", content: data.answer.slice(0, 1800) });
+      }
+      return items;
+    })());
+  }
+
+  if (firecrawlKey) {
+    searches.push((async () => {
+      const response = await fetch("https://api.firecrawl.dev/v2/search", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${firecrawlKey}`,
+        },
+        body: JSON.stringify({
+          query: cleanQuery,
+          limit: 5,
+          sources: [{ type: "web" }],
+          scrapeOptions: { formats: ["markdown"] },
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error("search_source_failed");
+      const payload = await response.json() as any;
+      const data = Array.isArray(payload.data) ? payload.data : [];
+      return data.slice(0, 5).map((item: any): SearchItem => ({
+        title: String(item.title || "Result").slice(0, 200),
+        url: String(item.url || "").slice(0, 1000),
+        content: String(item.markdown || item.description || item.content || "").slice(0, 2200),
+      })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url));
+    })());
+  }
+
+  const settled = await Promise.allSettled(searches);
+  const merged: SearchItem[] = [];
+  for (const result of settled) {
+    if (result.status === "fulfilled") merged.push(...result.value);
+  }
+  if (!merged.length) throw new Error("web_search_failed");
+
+  const seen = new Set<string>();
+  const unique = merged.filter((item) => {
+    if (!item.url) return true;
+    try {
+      const parsed = new URL(item.url);
+      parsed.hash = "";
+      const key = parsed.toString().replace(/\/$/, "").toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  return unique.slice(0, 8).map((item) =>
+    `- ${item.title}\n  ${item.url ? `URL: ${item.url}\n  ` : ""}${item.content}`
+  ).join("\n\n").slice(0, 12000);
+}
 async function getWallet(userId: string) {
   const rows = await supabaseRest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=free_answers_used,token_balance&limit=1`);
   if (!rows?.[0]) throw new Error("wallet_not_found");
@@ -249,7 +308,7 @@ export default async function handler(req: any, res: any) {
   const modeInstructions = [
     writingAssist ? (responseLanguage === "en" ? "Writing assistant mode is enabled: help refine wording, structure, clarity, and tone when useful." : "وضع مساعد الكتابة مفعّل: ساعد في تحسين الصياغة والبنية والوضوح والنبرة عند الحاجة.") : "",
     darkWebEnabled ? (responseLanguage === "en" ? "Dark Web specialist mode is enabled. Answer questions about Tor, onion services, privacy, threat analysis, and dark-web concepts with technically accurate, risk-aware information." : "وضع متخصص الدارك ويب مفعّل. أجب عن الأسئلة المتعلقة بـ Tor وخدمات onion والخصوصية وتحليل التهديدات ومفاهيم الدارك ويب بمعلومات تقنية دقيقة وواعية بالمخاطر.") : "",
-    webSearchEnabled ? (responseLanguage === "en" ? "Internet search mode is enabled. Use the provided current search results, cite their URLs inline, distinguish verified findings from inference, and do not claim you searched if no results were supplied." : "وضع البحث على الإنترنت مفعّل. استخدم نتائج البحث الحديثة المرفقة، وأدرج روابط مصادرها داخل الإجابة، وميّز المعلومات المتحققة عن الاستنتاجات، ولا تدّعِ البحث إذا لم تُرفق نتائج.") : "",
+    webSearchEnabled ? (responseLanguage === "en" ? "Internet search mode is enabled. Synthesize the supplied current search results into one coherent answer, deduplicate overlapping evidence, prioritize directly relevant and corroborated facts, cite source URLs inline, distinguish facts from inference, and never mention internal search providers or claim to have searched if no results were supplied." : "وضع البحث على الإنترنت مفعّل. ادمج نتائج البحث الحديثة في إجابة واحدة متماسكة، واحذف التكرار، وقدّم المعلومات الأكثر صلة والمدعومة من أكثر من مصدر، وأدرج روابط المصادر داخل الإجابة، وميّز الحقائق عن الاستنتاجات. لا تذكر أسماء خدمات البحث الداخلية ولا تدّعِ البحث إذا لم تُرفق نتائج.") : "",
   ].filter(Boolean);
   const preferenceSystemMessage = [
     responseLanguage === "en" ? "Reply in English unless the user explicitly requests another language." : "أجب باللغة العربية ما لم يطلب المستخدم صراحة لغة أخرى.",
