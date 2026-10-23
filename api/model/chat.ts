@@ -449,7 +449,7 @@ export default async function handler(req: any, res: any) {
     const outgoingMessages = [
       { role: "system", content: preferenceSystemMessage },
       ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1
-        ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` }
+        ? { ...message, content: `${message.content}\n\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\n${attachmentText}` }
         : message) : providerMessages),
     ];
     const providers: Array<{ name: string; endpoint: URL; key: string; model: string }> = [];
