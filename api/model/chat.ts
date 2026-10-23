@@ -288,13 +288,15 @@ export default async function handler(req: any, res: any) {
   const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const openRouterApiKey = (process.env.OPENROUTER_API_KEY || "").trim();
   const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
+  const configuredOpenRouterFallbacks = (process.env.OPENROUTER_FALLBACK_MODELS || "")
+    .split(",").map((value) => value.trim()).filter(Boolean);
+  // Bound fallback work to keep requests responsive: primary OpenRouter model,
+  // at most one explicitly configured fallback, and the free-model router.
   const openRouterModels = Array.from(new Set([
     openRouterModel,
-    ...(process.env.OPENROUTER_FALLBACK_MODELS || "").split(",").map((value) => value.trim()).filter(Boolean),
-    // Last-resort router: OpenRouter selects an available free model when
-    // the configured DeepSeek/explicit fallback models fail or return no text.
+    ...configuredOpenRouterFallbacks.slice(0, 1),
     "openrouter/free",
-  ]));
+  ])).slice(0, 3);
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
 
   // Keep DadGPT primary. OpenRouter is only used when the primary provider fails.
@@ -480,9 +482,9 @@ export default async function handler(req: any, res: any) {
     }
     if (openRouterApiKey) {
       const beastFallbackModel = (process.env.OPENROUTER_BEAST_MODEL || "").trim();
-      const fallbackModels = selectedModel === "dadgpt-beast" && beastFallbackModel
+      const fallbackModels = (selectedModel === "dadgpt-beast" && beastFallbackModel
         ? [beastFallbackModel, ...openRouterModels.filter((candidate) => candidate !== beastFallbackModel)]
-        : openRouterModels;
+        : openRouterModels).slice(0, 3);
       for (const fallbackModel of fallbackModels) {
         providers.push({
           name: "openrouter",
@@ -515,7 +517,11 @@ export default async function handler(req: any, res: any) {
             max_tokens: extended ? 4096 : 2048,
             temperature: 0.7,
           }),
-          signal: AbortSignal.timeout(provider.name === "primary" ? 18000 : 12000),
+          // Keep the primary's proven response window, but use shorter bounded
+          // timeouts for fallback attempts so a failed provider cannot stall chat.
+          signal: AbortSignal.timeout(
+            provider.name === "primary" ? 18000 : provider.model === "openrouter/free" ? 8000 : 10000
+          ),
         });
         // Read the body once as text. Some compatible providers return SSE or
         // non-JSON error pages even when the status is 200; response.json()
