@@ -14,6 +14,7 @@ import {
   Menu,
   MessageSquare,
   Moon,
+  Sun,
   MoreHorizontal,
   Paperclip,
   Plus,
@@ -23,6 +24,7 @@ import {
   Sparkles,
   Upload,
   Terminal,
+  SlidersHorizontal,
   Shield,
   Wifi,
   Cpu,
@@ -293,8 +295,8 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
   const { language } = useLanguage();
   return (
     <div className="welcome-state hotgpt-welcome">
-      <div className="welcome-orbit hotgpt-orbit">
-        <div className="welcome-glyph hotgpt-glyph"><Terminal size={29} /></div>
+      <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit">
+        <BrandMark />
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
@@ -318,72 +320,102 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
 }
 
 function SettingsPanel({ onBack }: { onBack: () => void }) {
-  const { language } = useLanguage();
+  const { language, toggleLanguage } = useLanguage();
+  const [theme, setTheme] = useState<"dark" | "light">(() =>
+    typeof window !== "undefined" && localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark"
+  );
+  const [style, setStyle] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("hotgpt-response-style") || "professional" : "professional"
+  );
+  const [instructions, setInstructions] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("hotgpt-custom-instructions") || "" : ""
+  );
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("hotgpt-theme", theme);
+  }, [theme]);
+
+  function savePreferences() {
+    localStorage.setItem("hotgpt-response-style", style);
+    localStorage.setItem("hotgpt-custom-instructions", instructions);
+    window.dispatchEvent(new CustomEvent("hotgpt-preferences-changed"));
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
+
   return (
     <div className="settings-panel content-panel">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">{tr(language, "الإعدادات", "Settings")}</p>
           <h1>{tr(language, "مساحتك، بطريقتك", "Your space, your way")}</h1>
-          <p>{tr(language, "تحكم في تفاصيل التجربة التي تناسبك.", "Customize the experience to fit you.")}</p>
+          <p>{tr(language, "خصص المظهر وطريقة رد النموذج لتناسب أسلوبك.", "Personalize the appearance and how the model responds.")}</p>
         </div>
-        <button
-          className="icon-button"
-          onClick={onBack}
-          aria-label={tr(language, "العودة للمحادثة", "Back to chat")}
-        >
-          <X size={18} />
-        </button>
+        <button className="icon-button" onClick={onBack} aria-label={tr(language, "العودة للمحادثة", "Back to chat")}><X size={18} /></button>
       </div>
+
       <div className="settings-grid">
         <section className="settings-card">
-          <div className="settings-card-icon purple">
-            <Moon size={18} />
-          </div>
+          <div className="settings-card-icon purple">{theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}</div>
           <div>
             <h3>{tr(language, "المظهر", "Appearance")}</h3>
-            <p>{tr(language, "واجهة داكنة هادئة للقراءة والتركيز لفترة أطول.", "A calm dark interface for reading and focus.")}</p>
-            <span className="setting-status">
-              <Check size={14} /> {tr(language, "الوضع الداكن مفعّل", "Dark mode enabled")}
-            </span>
+            <p>{tr(language, "اختر الوضع الداكن الافتراضي أو الوضع الفاتح.", "Choose the default dark theme or a light theme.")}</p>
+            <span className="setting-status">{theme === "dark" ? tr(language, "الوضع الداكن", "Dark mode") : tr(language, "الوضع الفاتح", "Light mode")}</span>
           </div>
-          <Button variant="outline">{tr(language, "مفعّل", "Enabled")}</Button>
+          <Button variant="outline" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? tr(language, "تفعيل الفاتح", "Use light") : tr(language, "تفعيل الداكن", "Use dark")}</Button>
         </section>
+
         <section className="settings-card">
-          <div className="settings-card-icon cyan">
-            <Sparkles size={18} />
-          </div>
+          <div className="settings-card-icon cyan"><Sparkles size={18} /></div>
           <div>
             <h3>{tr(language, "اللغة والاتجاه", "Language & direction")}</h3>
-            <p>
-              {tr(language, "العربية هي لغة الواجهة الأساسية مع دعم كامل للكتابة من اليمين.", "Switch between Arabic RTL and English LTR across the interface.")}
-            </p>
-            <span className="setting-status">
-              <Check size={14} /> {language === "ar" ? "العربية · RTL" : "English · LTR"}
-            </span>
+            <p>{tr(language, "غيّر لغة الواجهة واتجاهها بالكامل.", "Change the interface language and direction.")}</p>
+            <span className="setting-status">{language === "ar" ? "العربية · RTL" : "English · LTR"}</span>
           </div>
-          <Button variant="outline">{language === "ar" ? "العربية" : "English"}</Button>
+          <Button variant="outline" onClick={toggleLanguage}>{language === "ar" ? "English" : "العربية"}</Button>
         </section>
-        <section className="settings-card">
-          <div className="settings-card-icon lime">
-            <Check size={18} />
+
+        <section className="settings-card settings-card-column">
+          <div className="settings-card-icon lime"><SlidersHorizontal size={18} /></div>
+          <div className="settings-wide-content">
+            <h3>{tr(language, "أسلوب رد النموذج", "Response style")}</h3>
+            <p>{tr(language, "اختر النبرة المفضلة للردود الجديدة.", "Choose the preferred tone for new responses.")}</p>
+            <div className="settings-choice-row">
+              {[
+                ["professional", tr(language, "احترافي", "Professional")],
+                ["concise", tr(language, "مختصر ومباشر", "Concise")],
+                ["friendly", tr(language, "ودود", "Friendly")],
+                ["detailed", tr(language, "مفصل", "Detailed")],
+              ].map(([value, label]) => <button key={value} type="button" className={style === value ? "settings-choice active" : "settings-choice"} onClick={() => setStyle(value)}>{label}</button>)}
+            </div>
           </div>
+        </section>
+
+        <section className="settings-card settings-card-column">
+          <div className="settings-card-icon cyan"><FileText size={18} /></div>
+          <div className="settings-wide-content">
+            <h3>{tr(language, "تعليماتك للنموذج", "Custom instructions")}</h3>
+            <p>{tr(language, "اكتب ما تريد من النموذج مراعاته دائمًا، مثل لغتك المفضلة أو مستوى التفاصيل أو مجال عملك.", "Tell the model what to keep in mind, such as your preferred language, detail level, or area of work.")}</p>
+            <textarea className="settings-instructions" value={instructions} onChange={(event) => setInstructions(event.target.value)} maxLength={2000} placeholder={tr(language, "مثال: أجب بالعربية، وابدأ بالخلاصة، ثم اذكر خطوات عملية مع أمثلة.", "Example: Start with a concise summary, then give practical steps and examples.")} />
+            <small className="settings-counter">{instructions.length}/2000</small>
+          </div>
+        </section>
+
+        <section className="settings-card">
+          <div className="settings-card-icon purple"><Check size={18} /></div>
           <div>
             <h3>{tr(language, "تجربة الكتابة", "Writing experience")}</h3>
-            <p>{tr(language, "اختصارات بسيطة تجعل الانتقال من الفكرة إلى الرسالة أسرع.", "Simple shortcuts help you turn ideas into messages faster.")}</p>
-            <span className="setting-status">
-              {tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}
-            </span>
+            <p>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</p>
           </div>
-          <Button variant="outline">{tr(language, "تعديل", "Edit")}</Button>
+          <span className="setting-status">{tr(language, "مفعّلة", "Enabled")}</span>
         </section>
       </div>
-      <div className="settings-quote">
-        <Sparkles size={17} />
-        <span>
-          {tr(language, "صممت HotGPT لتبقى الفكرة في المقدمة، وكل ما عداها في الخلفية.", "HotGPT keeps your ideas in focus and everything else in the background.")}
-        </span>
+      <div className="settings-actions">
+        <Button onClick={savePreferences}>{saved ? tr(language, "تم الحفظ", "Saved") : tr(language, "حفظ التفضيلات", "Save preferences")}</Button>
       </div>
+      <div className="settings-quote"><Sparkles size={17} /><span>{tr(language, "تُحفظ تفضيلاتك على هذا الجهاز. أسلوب الرد والتعليمات يُجهّزان للاستخدام مع المحادثات.", "Your preferences are saved on this device. Response style and instructions are stored for use with chats.")}</span></div>
     </div>
   );
 }
