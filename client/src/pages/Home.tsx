@@ -509,6 +509,31 @@ export default function Home() {
   const auth = useAuth();
   const [language, setLanguage] = useState<Language>(() => typeof window !== "undefined" && localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar");
   const toggleLanguage = () => setLanguage(current => current === "ar" ? "en" : "ar");
+
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated) return;
+    let cancelled = false;
+    void authFetch("/api/preferences", { method: "GET" })
+      .then(async response => {
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => ({}));
+        const preferences = payload.preferences;
+        if (!preferences || cancelled) return;
+        const theme = preferences.theme === "light" ? "light" : "dark";
+        const style = ["professional", "concise", "friendly", "detailed"].includes(preferences.style) ? preferences.style : "professional";
+        const instructions = typeof preferences.instructions === "string" ? preferences.instructions.slice(0, 2000) : "";
+        const nextLanguage = preferences.language === "en" ? "en" : "ar";
+        localStorage.setItem("hotgpt-theme", theme);
+        localStorage.setItem("hotgpt-response-style", style);
+        localStorage.setItem("hotgpt-custom-instructions", instructions);
+        localStorage.setItem("hotgpt-language", nextLanguage);
+        document.documentElement.dataset.theme = theme;
+        if (nextLanguage !== language) setLanguage(nextLanguage);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
+
   useEffect(() => {
     const savedTheme = localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark";
     document.documentElement.dataset.theme = savedTheme;
