@@ -8,7 +8,8 @@
   ],
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "server/**/*.ts"
+      "includeFiles": "server/**/*.ts",
+      "maxDuration": 60
     }
   }
 }
