@@ -3,6 +3,34 @@ type ProviderMessage = {
   content: string;
 };
 
+export type ModelPreferences = {
+  style: "professional" | "concise" | "friendly" | "detailed";
+  instructions: string;
+  language: "ar" | "en";
+};
+
+function buildSystemPrompt(preferences: ModelPreferences): string {
+  const styleGuidance: Record<ModelPreferences["style"], string> = {
+    professional: "Use a professional, precise, well-structured tone. Lead with the answer and use headings or steps when helpful.",
+    concise: "Be concise and direct. Lead with the conclusion, avoid repetition, and include only necessary context.",
+    friendly: "Use a friendly, natural, approachable tone while remaining accurate and useful.",
+    detailed: "Give thorough explanations, practical steps, examples, and relevant caveats without unnecessary repetition.",
+  };
+  const languageGuidance = preferences.language === "en"
+    ? "Respond in English unless the user explicitly requests another language."
+    : "أجب باللغة العربية ما لم يطلب المستخدم لغة أخرى صراحةً.";
+  const custom = preferences.instructions.trim()
+    ? `\nUser's custom instructions (follow when relevant and safe):\n${preferences.instructions.trim()}`
+    : "";
+  return [
+    "You are HotGPT, a capable, accurate, and practical assistant.",
+    styleGuidance[preferences.style],
+    languageGuidance,
+    "Follow applicable safety requirements. Do not claim to have performed actions you did not perform.",
+    custom,
+  ].filter(Boolean).join("\n\n");
+}
+
 type ProviderResponse = {
   choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
   error?: { message?: string };
@@ -31,7 +59,8 @@ export function getProviderStatus(): ProviderStatus {
 
 export async function requestProviderCompletion(
   messages: ProviderMessage[],
-  extended = false
+  extended = false,
+  preferences: ModelPreferences = { style: "professional", instructions: "", language: "ar" }
 ): Promise<string> {
   const status = getProviderStatus();
   if (!status.configured) {
@@ -60,7 +89,7 @@ export async function requestProviderCompletion(
       },
       body: JSON.stringify({
         model: status.model,
-        messages,
+        messages: [{ role: "system", content: buildSystemPrompt(preferences) }, ...messages],
         max_tokens: extended ? 4096 : 2048,
         temperature: 0.7,
       }),
