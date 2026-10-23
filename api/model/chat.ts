@@ -286,8 +286,12 @@ export default async function handler(req: any, res: any) {
   const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\/+$/, "");
   const apiKey = process.env.NEXA_PROVIDER_API_KEY || "";
   const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
+  const openRouterApiKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
+  const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
 
-  if (!baseUrl || !apiKey || !model) {
+  // Keep the current DadGPT provider first; OpenRouter is a silent fallback.
+  if (!hasPrimaryProvider && !openRouterApiKey) {
     return res.status(503).json({ error: "provider_not_configured" });
   }
 
@@ -348,13 +352,15 @@ export default async function handler(req: any, res: any) {
     if (!/\.(pdf|txt|md|csv|json)$/.test(attachment.name.toLowerCase()) || !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(pdf|txt|md|csv|json)$/i.test(attachment.path)) return res.status(400).json({ error: "unsupported_attachment" });
   }
 
-  let endpoint: URL;
-  try {
-    endpoint = new URL(baseUrl + "/chat/completions");
-  } catch {
-    return res.status(500).json({ error: "provider_invalid_base_url" });
+  let endpoint: URL | null = null;
+  if (hasPrimaryProvider) {
+    try {
+      endpoint = new URL(baseUrl + "/chat/completions");
+    } catch {
+      return res.status(500).json({ error: "provider_invalid_base_url" });
+    }
+    if (endpoint.protocol !== "https:") return res.status(500).json({ error: "provider_https_required" });
   }
-  if (endpoint.protocol !== "https:") return res.status(500).json({ error: "provider_https_required" });
 
   const user = await requireUser(req, res);
   if (!user) return;
@@ -432,38 +438,77 @@ export default async function handler(req: any, res: any) {
 
   try {
     await saveMessage(user.id, conversationId, "user", messages[messages.length - 1].content);
-    const upstream = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: selectedModel, messages: [
-        { role: "system", content: preferenceSystemMessage },
-        ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : providerMessages),
-      ], max_tokens: extended ? 4096 : 2048, temperature: 0.7 }),
-      signal: AbortSignal.timeout(60000),
+    const outgoingMessages = [
+      { role: "system", content: preferenceSystemMessage },
+      ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1
+        ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` }
+        : message) : providerMessages),
+    ];
+    const providers: Array<{ name: string; endpoint: URL; key: string; model: string }> = [];
+    if (endpoint && apiKey) providers.push({ name: "primary", endpoint, key: apiKey, model: selectedModel });
+    if (openRouterApiKey) providers.push({
+      name: "openrouter",
+      endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
+      key: openRouterApiKey,
+      model: openRouterModel,
     });
 
-    const payload: any = await upstream.json().catch(() => ({}));
-    if (!upstream.ok) {
-      console.error("[DadGPT] Provider returned HTTP", upstream.status);
-      try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
-      return res.status(502).json({ error: "provider_request_failed" });
+    let content = "";
+    let lastFailure = "provider_request_failed";
+    for (const provider of providers) {
+      try {
+        const upstream = await fetch(provider.endpoint, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${provider.key}`,
+            ...(provider.name === "openrouter" ? { "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" } : {}),
+          },
+          body: JSON.stringify({
+            model: provider.model,
+            messages: outgoingMessages,
+            max_tokens: extended ? 4096 : 2048,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(45000),
+        });
+        const payload: any = await upstream.json().catch(() => ({}));
+        if (!upstream.ok) {
+          lastFailure = upstream.status === 429 ? "provider_rate_limited" : "provider_request_failed";
+          console.warn("[Chat] Provider attempt failed", provider.name, upstream.status);
+          continue;
+        }
+        const raw = payload?.choices?.[0]?.message?.content;
+        const candidate = typeof raw === "string"
+          ? raw
+          : Array.isArray(raw)
+            ? raw.map((part: any) => typeof part?.text === "string" ? part.text : "").join("")
+            : "";
+        if (!candidate.trim()) {
+          lastFailure = "provider_empty_response";
+          console.warn("[Chat] Provider returned an empty response", provider.name);
+          continue;
+        }
+        content = candidate.trim();
+        if (provider.name !== "primary") console.info("[Chat] Fallback provider answered successfully");
+        break;
+      } catch (providerError) {
+        lastFailure = providerError instanceof Error && (providerError.name === "TimeoutError" || providerError.name === "AbortError")
+          ? "provider_timeout"
+          : "provider_request_failed";
+        console.warn("[Chat] Provider attempt failed", provider.name, lastFailure);
+      }
     }
 
-    const raw = payload?.choices?.[0]?.message?.content;
-    const content = typeof raw === "string"
-      ? raw
-      : Array.isArray(raw)
-        ? raw.map((part: any) => typeof part?.text === "string" ? part.text : "").join("")
-        : "";
-    if (!content.trim()) {
+    if (!content) {
       try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
-      return res.status(502).json({ error: "provider_empty_response" });
+      return res.status(lastFailure === "provider_timeout" ? 504 : 502).json({ error: lastFailure });
     }
 
-    await saveMessage(user.id, conversationId, "assistant", content.trim());
+    await saveMessage(user.id, conversationId, "assistant", content);
     let wallet = null;
     try { wallet = await getWallet(user.id); } catch { /* Do not charge twice if the answer was persisted. */ }
-    return res.status(200).json({ content: content.trim(), wallet, conversationId });
+    return res.status(200).json({ content, wallet, conversationId });
   } catch (error: any) {
     try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
       console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
