@@ -245,3 +245,70 @@ body, .app-shell { background: #050505; }
 .app-shell[dir="ltr"] .composer textarea { text-align: left; }
 .app-shell[dir="ltr"] .profile-menu { direction: ltr; text-align: left; }
 .app-shell[dir="ltr"] .profile-menu-item { direction: ltr; }
+
+
+/* Mobile viewport and chat scroll fix: keep the composer in layout and reserve
+   a real scroll area for messages above it, including Android browser chrome. */
+html, body, #root {
+  min-height: 100%;
+}
+html, body {
+  height: 100%;
+}
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.main-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.chat-workspace {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+.messages-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overscroll-behavior-y: contain;
+  scroll-padding-bottom: 24px;
+  padding-bottom: 28px;
+}
+.messages-scroll.has-messages {
+  align-items: flex-start;
+}
+.messages-list {
+  padding-bottom: max(56px, env(safe-area-inset-bottom));
+}
+.composer-area {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+@media (max-width: 520px) {
+  .app-shell, .main-shell {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+  }
+  .messages-scroll {
+    padding: 20px 14px 32px;
+  }
+  .messages-list {
+    padding-top: 12px;
+    padding-bottom: 72px;
+    gap: 22px;
+  }
+  .composer-area {
+    width: calc(100% - 24px);
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .composer {
+    flex-shrink: 0;
+  }
+}
