@@ -291,6 +291,9 @@ export default async function handler(req: any, res: any) {
   const openRouterModels = Array.from(new Set([
     openRouterModel,
     ...(process.env.OPENROUTER_FALLBACK_MODELS || "").split(",").map((value) => value.trim()).filter(Boolean),
+    // Last-resort router: OpenRouter selects an available free model when
+    // the configured DeepSeek/explicit fallback models fail or return no text.
+    "openrouter/free",
   ]));
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
 
