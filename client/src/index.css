@@ -405,3 +405,34 @@ html, body {
   }
   .topbar-home-brand .brand-wordmark { line-height: 1.2; }
 }
+
+
+/* Settings controls and full welcome brand emblem */
+.brand-welcome-orbit { width: 76px; height: 76px; margin: 0 auto 18px; overflow: visible; }
+.brand-welcome-orbit .brand-mark { width: 76px; height: 76px; display: grid; place-items: center; overflow: visible; }
+.brand-welcome-orbit .brand-logo-img { display: block; width: 76px !important; height: 76px !important; min-width: 76px; min-height: 76px; object-fit: contain; object-position: center; }
+.settings-card-column { align-items: flex-start; flex-wrap: wrap; }
+.settings-card-column .settings-wide-content { flex: 1 1 100%; min-width: 0; }
+.settings-choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.settings-choice { border: 1px solid #39464d; border-radius: 9px; padding: 8px 12px; background: transparent; color: #aab8bd; font-size: 12px; cursor: pointer; }
+.settings-choice.active { color: #6bd5e9; border-color: #6bd5e9; background: rgba(107,213,233,.1); }
+.settings-instructions { display: block; width: 100%; min-height: 108px; margin-top: 10px; padding: 12px; border: 1px solid #39464d; border-radius: 10px; background: #0d1217; color: #e8eff1; font: inherit; font-size: 13px; line-height: 1.7; resize: vertical; }
+.settings-counter { display: block; margin-top: 5px; color: #7f9097; text-align: end; font-size: 10px; }
+.settings-actions { display: flex; justify-content: flex-start; margin-top: 18px; }
+.settings-quote { flex-wrap: wrap; }
+html[data-theme="light"] body { background: #f4f6f8; color: #17212a; }
+html[data-theme="light"] .app-shell, html[data-theme="light"] .chat-workspace,
+html[data-theme="light"] .topbar, html[data-theme="light"] .sidebar-drawer,
+html[data-theme="light"] .content-panel { background-color: #f4f6f8; color: #17212a; }
+html[data-theme="light"] .settings-card, html[data-theme="light"] .starter-card,
+html[data-theme="light"] .settings-instructions { background: #fff; color: #17212a; border-color: #d9e0e5; }
+html[data-theme="light"] .settings-card p, html[data-theme="light"] .welcome-copy { color: #586773; }
+html[data-theme="light"] .settings-quote { background: #edf7f9; color: #37545a; border-color: #c9e2e7; }
+html[data-theme="light"] .settings-choice { color: #34434d; border-color: #ccd6dc; }
+html[data-theme="light"] .settings-choice.active { color: #087b90; border-color: #087b90; background: #e6f7fa; }
+@media (max-width: 520px) {
+  .brand-welcome-orbit, .brand-welcome-orbit .brand-mark, .brand-welcome-orbit .brand-logo-img { width: 64px !important; height: 64px !important; min-width: 64px; min-height: 64px; }
+  .settings-card-column { gap: 10px; }
+  .settings-choice-row { gap: 6px; }
+  .settings-choice { padding: 7px 9px; }
+}
