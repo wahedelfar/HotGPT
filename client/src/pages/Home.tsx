@@ -637,6 +637,10 @@ export default function Home() {
   const sendMessage = async (value = draft) => {
     const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
     if (!trimmed || isSending) return;
+    if (webSearchEnabled && attachment) {
+      setRequestError(tr(language, "افصل الملف المرفق لإجراء بحث مباشر على الإنترنت.", "Remove the attachment to run a direct web search."));
+      return;
+    }
     if (!auth.isAuthenticated) {
       setRequestError("سجّل الدخول أولًا حتى تُحفظ محادثاتك ويُربط الرصيد بحسابك.");
       window.location.assign("/auth");
@@ -713,7 +717,7 @@ export default function Home() {
         if (!putResponse.ok) throw new Error("تعذر رفع الملف إلى التخزين. حاول مرة أخرى.");
         filePayload = { name: attachment.name, type: upload.contentType || attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
       }
-      const response = await authFetch("/api/model/chat", {
+      const response = await authFetch(webSearchEnabled ? "/api/search" : "/api/model/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
