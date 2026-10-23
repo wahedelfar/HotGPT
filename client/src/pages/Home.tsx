@@ -564,6 +564,12 @@ export default function Home() {
   }, [language]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  useEffect(() => {
+    if (auth.loading) return;
+    setShowWelcomeModal(!auth.isAuthenticated);
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
   const [activeView, setActiveView] = useState("chat");
   const [activeConversation, setActiveConversation] = useState<string | null>(
     null
@@ -883,41 +889,50 @@ export default function Home() {
             </button>
           </div>
           <div className="topbar-actions hotgpt-topbar-actions">
-            <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
-              <Coins size={20} />
-              <span>{walletBalance}</span>
-            </a>
+            {auth.isAuthenticated && (
+              <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
+                <Coins size={20} />
+                <span>{walletBalance}</span>
+              </a>
+            )}
             <button className="language-button" type="button" onClick={toggleLanguage} aria-label={tr(language, "التبديل إلى الإنجليزية", "Switch to Arabic")} title={tr(language, "English", "العربية")}>
               <span aria-hidden="true">{language === "ar" ? "🇺🇸" : "🇸🇦"}</span>
             </button>
-            <div className="profile-menu-wrap">
-              <button
-                className="topbar-avatar profile-menu-trigger"
-                aria-label={tr(language, "الحساب الشخصي", "Account menu")}
-                aria-expanded={profileMenuOpen}
-                aria-haspopup="menu"
-                title={auth.user?.name || auth.user?.email || tr(language, "الحساب الشخصي", "Account menu")}
-                onClick={() => auth.isAuthenticated ? setProfileMenuOpen(open => !open) : startLogin()}
-              >
-                {(auth.user?.name || auth.user?.email || "مستخدم HotGPT").trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}
-              </button>
-              {profileMenuOpen && auth.isAuthenticated && (
-                <>
-                  <button className="profile-menu-backdrop" aria-label={tr(language, "إغلاق قائمة الحساب", "Close account menu")} onClick={() => setProfileMenuOpen(false)} />
-                  <div className="profile-menu" role="menu">
-                    <div className="profile-menu-identity">
-                      <strong>{auth.user?.name || tr(language, "المستخدم", "User")}</strong>
-                      <span>{auth.user?.email}</span>
-                      <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
+            {auth.isAuthenticated ? (
+              <div className="profile-menu-wrap">
+                <button
+                  className="topbar-avatar profile-menu-trigger"
+                  aria-label={tr(language, "الحساب الشخصي", "Account menu")}
+                  aria-expanded={profileMenuOpen}
+                  aria-haspopup="menu"
+                  title={auth.user?.name || auth.user?.email || tr(language, "الحساب الشخصي", "Account menu")}
+                  onClick={() => setProfileMenuOpen(open => !open)}
+                >
+                  {(auth.user?.name || auth.user?.email || "مستخدم HotGPT").trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}
+                </button>
+                {profileMenuOpen && (
+                  <>
+                    <button className="profile-menu-backdrop" aria-label={tr(language, "إغلاق قائمة الحساب", "Close account menu")} onClick={() => setProfileMenuOpen(false)} />
+                    <div className="profile-menu" role="menu">
+                      <div className="profile-menu-identity">
+                        <strong>{auth.user?.name || tr(language, "المستخدم", "User")}</strong>
+                        <span>{auth.user?.email}</span>
+                        <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
+                      </div>
+                      <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
+                      <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
+                      <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
+                      <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={() => { setProfileMenuOpen(false); void auth.logout().catch(() => {}); }}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
                     </div>
-                    <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
-                    <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
-                    <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
-                    <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={() => { setProfileMenuOpen(false); void auth.logout().catch(() => {}); }}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
-                  </div>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="auth-entry-actions">
+                <a href="/auth?mode=login" className="auth-entry-login">{tr(language, "تسجيل الدخول", "Log in")}</a>
+                <a href="/auth?mode=signup" className="auth-entry-signup">{tr(language, "سجل الآن", "Sign up")}</a>
+              </div>
+            )}
           </div>
         </header>
         {activeView === "settings" ? (
@@ -1044,6 +1059,25 @@ export default function Home() {
           </section>
         )}
       </main>
+      {showWelcomeModal && !auth.loading && !auth.isAuthenticated && (
+        <div className="welcome-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowWelcomeModal(false); }}>
+          <section className="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
+            <button type="button" className="welcome-modal-close" onClick={() => setShowWelcomeModal(false)} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>
+            <div className="welcome-modal-brand"><BrandMark compact /></div>
+            <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
+            <h2 id="welcome-modal-title">{tr(language, "مرحبًا بك في HotGPT", "Welcome to HotGPT")}</h2>
+            <p className="welcome-modal-lead">{tr(language, "حيث الحرية المطلقة وذكاء اصطناعي متقدم.", "Where freedom meets advanced artificial intelligence.")}</p>
+            <div className="welcome-modal-features">
+              <span>{tr(language, "بحث شامل على الشبكة", "Comprehensive web search")}</span>
+              <span>{tr(language, "خبير بعالم الدارك ويب", "Dark web expertise")}</span>
+              <span>{tr(language, "أدوات الاختراق والأمن السيبراني", "Cybersecurity and penetration-testing tools")}</span>
+            </div>
+            <p className="welcome-modal-free">{tr(language, "التسجيل مجاني ويمكنك تجربة نماذجنا المتقدمة.", "Registration is free. Try our advanced models.")}</p>
+            <a href="/auth?mode=signup" className="welcome-modal-cta">{tr(language, "سجل الآن", "Sign up now")}</a>
+            <p className="welcome-modal-login">{tr(language, "لديك حساب بالفعل؟", "Already have an account?")} <a href="/auth?mode=login">{tr(language, "تسجيل الدخول", "Log in")}</a></p>
+          </section>
+        </div>
+      )}
     </div>
     </LanguageContext.Provider>
   );
