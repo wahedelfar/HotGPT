@@ -763,8 +763,8 @@ export default function Home() {
         role: message.role,
         content: writingAssist && index === all.length - 1 && message.role === "user"
           ? (localStorage.getItem("hotgpt-language") === "en"
-              ? `Improve and execute the user's request below. First infer the intended outcome, then silently clarify the task into specific actionable requirements. Preserve the user's intent and constraints; do not invent requirements or ask for information that is not necessary. Give the requested result directly, with an appropriate structure and level of detail. User's original request:\\n${message.content}`
-              : `حسّن فهمك ونفّذ طلب المستخدم التالي: استنتج النتيجة المقصودة، ونظّم المطلوب إلى خطوات ومتطلبات واضحة داخليًا، مع الحفاظ على المعنى والقيود وعدم اختراع متطلبات جديدة أو طرح أسئلة غير ضرورية. قدّم النتيجة المطلوبة مباشرة وبالتنسيق ومستوى التفصيل المناسب. نص المستخدم الأصلي:\\n${message.content}`)
+              ? `Improve and execute the user's request below. First infer the intended outcome, then silently clarify the task into specific actionable requirements. Preserve the user's intent and constraints; do not invent requirements or ask for information that is not necessary. Give the requested result directly, with an appropriate structure and level of detail. User's original request:\n${message.content}`
+              : `حسّن فهمك ونفّذ طلب المستخدم التالي: استنتج النتيجة المقصودة، ونظّم المطلوب إلى خطوات ومتطلبات واضحة داخليًا، مع الحفاظ على المعنى والقيود وعدم اختراع متطلبات جديدة أو طرح أسئلة غير ضرورية. قدّم النتيجة المطلوبة مباشرة وبالتنسيق ومستوى التفصيل المناسب. نص المستخدم الأصلي:\n${message.content}`)
           : message.content,
       }));
       setMessages(current => [...current, userMessage]);
