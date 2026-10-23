@@ -104,14 +104,14 @@ async function runTavily(query: string, deep: boolean, key: string): Promise<Sea
       api_key: key,
       query,
       search_depth: deep ? "advanced" : "basic",
-      max_results: 5,
+      max_results: tavilyKey && firecrawlKey ? 4 : 8,
       include_answer: true,
     }),
     signal: AbortSignal.timeout(deep ? 18000 : 12000),
   });
   if (!response.ok) throw new Error("search_source_failed");
   const data = await response.json() as any;
-  const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) => ({
+  const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, tavilyKey && firecrawlKey ? 4 : 8).map((item: any) => ({
     title: String(item.title || "نتيجة بحث").slice(0, 200),
     url: String(item.url || "").slice(0, 1000),
     content: String(item.content || "").slice(0, deep ? 2200 : 1500),
@@ -128,7 +128,7 @@ async function runFirecrawl(query: string, deep: boolean, key: string): Promise<
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({
       query,
-      limit: deep ? 5 : 4,
+      limit: tavilyKey && firecrawlKey ? 4 : 8,
       sources: ["web"],
       ...(deep ? { scrapeOptions: { formats: ["markdown"] } } : {}),
     }),
@@ -137,7 +137,7 @@ async function runFirecrawl(query: string, deep: boolean, key: string): Promise<
   if (!response.ok) throw new Error("search_source_failed");
   const payload = await response.json() as any;
   const data = Array.isArray(payload.data) ? payload.data : [];
-  return data.slice(0, 5).map((item: any): SearchItem => ({
+  return data.slice(0, tavilyKey && firecrawlKey ? 4 : 8).map((item: any): SearchItem => ({
     title: String(item.title || "نتيجة بحث").slice(0, 200),
     url: String(item.url || "").slice(0, 1000),
     content: String(item.markdown || item.description || item.content || "").slice(0, deep ? 2600 : 1500),
@@ -152,10 +152,11 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
   const deep = /\b(compare|comparison|research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth|versus|vs\.)\b|مقارنة|قارن|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(query);
   let merged: SearchItem[] = [];
 
-  if (deep && tavilyKey && firecrawlKey) {
+  if (tavilyKey && firecrawlKey) {
+    // Query both providers in parallel; merge up to four results from each.
     const results = await Promise.allSettled([
-      runTavily(query, true, tavilyKey),
-      runFirecrawl(query, true, firecrawlKey),
+      runTavily(query, deep, tavilyKey),
+      runFirecrawl(query, deep, firecrawlKey),
     ]);
     for (const result of results) if (result.status === "fulfilled") merged.push(...result.value);
   } else if (tavilyKey) {
@@ -179,7 +180,7 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
       seen.add(normalized);
       return true;
     } catch { return false; }
-  }).slice(0, deep ? 8 : 5);
+  }).slice(0, 8);
 
   const content = [
     `## ${deep ? "نتائج البحث الموسع" : "نتائج البحث"}`,
@@ -189,7 +190,7 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
       : `### ملخص البحث\n\n${item.content}`),
     "",
     `عدد المصادر: ${unique.filter(item => item.url).length}`,
-  ].join("\n\n").slice(0, deep ? 14000 : 8000);
+  ].join("\n\n").slice(0, 14000);
   return { content, sources: unique.filter(item => item.url).length };
 }
 
