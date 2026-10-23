@@ -644,3 +644,25 @@ html[data-theme="light"] .composer-mode.pro-mode > span:last-child { background:
   .welcome-modal-brand .brand-logo-img { width: 60px !important; height: 60px !important; }
   .welcome-modal-features span { font-size: 12px; }
 }
+
+
+/* Conversation-specific actions: compact, accessible, and responsive. */
+.conversation-row-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
+.conversation-row-wrap > .conversation-item { flex: 1; width: auto; min-width: 0; }
+.conversation-actions { position: relative; flex: 0 0 auto; margin-inline-start: 2px; }
+.conversation-more-button { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; border: 1px solid transparent; border-radius: 7px; color: #87929a; background: transparent; opacity: .72; }
+.conversation-row-wrap:hover .conversation-more-button,
+.conversation-row-wrap:focus-within .conversation-more-button,
+.conversation-more-button[aria-expanded="true"] { opacity: 1; color: #e7f0f2; background: #292e34; }
+.conversation-context-menu { position: absolute; z-index: 80; inset-inline-end: 0; top: calc(100% + 3px); min-width: 154px; padding: 4px; border: 1px solid #343a40; border-radius: 10px; background: #111315; box-shadow: 0 10px 28px rgba(0,0,0,.42); }
+.conversation-delete-action { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 7px; text-align: start; color: #f28b82; background: transparent; font-size: 12px; }
+.conversation-delete-action:hover { background: rgba(242,139,130,.12); }
+html[data-theme="light"] .conversation-more-button { color: #56616a; }
+html[data-theme="light"] .conversation-row-wrap:hover .conversation-more-button,
+html[data-theme="light"] .conversation-row-wrap:focus-within .conversation-more-button,
+html[data-theme="light"] .conversation-more-button[aria-expanded="true"] { color: #17212a; background: #e5e9ed; }
+html[data-theme="light"] .conversation-context-menu { background: #fff; border-color: #d8dee4; box-shadow: 0 10px 28px rgba(0,0,0,.14); }
+html[data-theme="light"] .conversation-delete-action { color: #b42318; }
+@media (hover: none) {
+  .conversation-more-button { opacity: 1; }
+}
