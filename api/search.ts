@@ -85,14 +85,14 @@ async function getWallet(userId: string) {
 async function consumeCredit(userId: string): Promise<"free" | "paid" | null> {
   const result = await supabaseRest("rpc/hotgpt_consume_credit", {
     method: "POST",
-    body: JSON.stringify({ p_user_id: userId, p_cost: 3, p_allow_free: false }),
+    body: JSON.stringify({ p_user_id: userId, p_cost: 5, p_allow_free: false }),
   });
   return result === "free" || result === "paid" ? result : null;
 }
 async function refundCredit(userId: string, kind: "free" | "paid") {
   await supabaseRest("rpc/hotgpt_refund_credit", {
     method: "POST",
-    body: JSON.stringify({ p_user_id: userId, p_kind: kind, p_cost: 3 }),
+    body: JSON.stringify({ p_user_id: userId, p_kind: kind, p_cost: 5 }),
   });
 }
 
