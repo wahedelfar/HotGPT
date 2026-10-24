@@ -805,7 +805,7 @@ export default async function handler(req: any, res: any) {
           if (provider.name === "primary") primaryFailed = true;
           continue;
         }        const normalizedCandidate = candidate.trim();
-        const darkWebMinimumChars = darkWebDeepQuery ? 1500 : 600;
+        const darkWebMinimumChars = darkWebEnabled ? 1500 : 600;
         const finishReason = choice?.finish_reason ?? payload?.choices?.[0]?.finish_reason ?? null;
         if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || finishReason === "length")) {          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
           console.warn("[DarkWeb] Provider response incomplete; trying next provider", JSON.stringify({
