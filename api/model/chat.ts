@@ -425,6 +425,154 @@ export default async function handler(req: any, res: any) {
   const user = await requireUser(req, res);
   if (!user) return;
 
+  // Dark Web is not a live breach checker unless HIBP is configured.
+  // Fail closed before credit reservation: never ask the language model to pretend it queried a breach database.
+  const hibpApiKey = (process.env.HAVEIBEENPWNED_API_KEY || "").trim();
+  const darkWebUnavailableMessage = "خدمة فحص التسريبات غير متصلة حالياً. لم يتم إجراء فحص ولم يُخصم أي رصيد.";
+  if (darkWebEnabled && !hibpApiKey) {
+    console.warn("[DarkWeb] Disabled: Have I Been Pwned API key is not configured", JSON.stringify({ requestId }));
+    let wallet = null;
+    try { wallet = await getWallet(user.id); } catch { /* Availability response must not depend on wallet lookup. */ }
+    return res.status(200).json({
+      content: darkWebUnavailableMessage,
+      wallet,
+      conversationId,
+      noCharge: true,
+      darkWebStatus: "unavailable",
+    });
+  }
+
+  const lastUserText = String(messages[messages.length - 1]?.content || "");
+  const breachEmail = lastUserText.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0]?.toLowerCase();
+  const asksAboutLeaks = /\b(leak(?:ed|s)?|breach(?:ed|es)?|pwned|compromis(?:ed|e)|expos(?:ed|ure))\b|تسريب|مسرب|مسرّب|اختراق|مخترق|انكشف|تسرّب|تسرب|فحص.*(?:بريد|ايميل|إيميل)|(?:بريد|ايميل|إيميل).*تسريب/i.test(lastUserText);
+
+  if (darkWebEnabled && breachEmail && asksAboutLeaks) {
+    let hibpResponse: Response;
+    try {
+      hibpResponse = await fetch(
+        `https://haveibeenpwned.com/api/v3/breachedaccount/${encodeURIComponent(breachEmail)}?truncateResponse=false`,
+        {
+          method: "GET",
+          headers: {
+            "hibp-api-key": hibpApiKey,
+            "user-agent": "HotGPT-DarkWeb-Breach-Checker",
+            accept: "application/json",
+          },
+          cache: "no-store",
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+    } catch (error) {
+      console.warn("[DarkWeb] HIBP request failed", JSON.stringify({
+        requestId,
+        reason: error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError") ? "timeout" : "network_error",
+      }));
+      let wallet = null;
+      try { wallet = await getWallet(user.id); } catch {}
+      return res.status(200).json({
+        content: darkWebUnavailableMessage,
+        wallet,
+        conversationId,
+        noCharge: true,
+        darkWebStatus: "unavailable",
+      });
+    }
+
+    let breaches: any[] = [];
+    if (hibpResponse.status === 404) {
+      breaches = [];
+    } else if (!hibpResponse.ok) {
+      // 401/403 means an invalid key; 429 means provider throttling; 5xx means HIBP is unavailable.
+      console.warn("[DarkWeb] HIBP returned non-success status", JSON.stringify({ requestId, status: hibpResponse.status }));
+      let wallet = null;
+      try { wallet = await getWallet(user.id); } catch {}
+      return res.status(200).json({
+        content: darkWebUnavailableMessage,
+        wallet,
+        conversationId,
+        noCharge: true,
+        darkWebStatus: "unavailable",
+      });
+    } else {
+      try {
+        const payload = await hibpResponse.json();
+        if (!Array.isArray(payload)) throw new Error("invalid_hibp_payload");
+        breaches = payload;
+      } catch {
+        console.warn("[DarkWeb] HIBP returned an invalid payload", JSON.stringify({ requestId }));
+        let wallet = null;
+        try { wallet = await getWallet(user.id); } catch {}
+        return res.status(200).json({
+          content: darkWebUnavailableMessage,
+          wallet,
+          conversationId,
+          noCharge: true,
+          darkWebStatus: "unavailable",
+        });
+      }
+    }
+
+    const report = breaches.length
+      ? [
+          `## نتيجة فحص التسريبات للبريد: ${breachEmail}`,
+          "",
+          `عثر Have I Been Pwned على ${breaches.length} حادثة/حوادث تسريب مرتبطة بهذا البريد.`,
+          "",
+          ...breaches.slice(0, 30).map((breach: any, index: number) =>
+            `${index + 1}. **${String(breach.Name || "تسريب غير مسمى").slice(0, 160)}** — التاريخ: ${String(breach.BreachDate || "غير متوفر").slice(0, 20)}\n   أنواع البيانات: ${Array.isArray(breach.DataClasses) ? breach.DataClasses.map((item: unknown) => String(item).slice(0, 100)).join("، ") : "غير متوفرة"}`
+          ),
+          "",
+          "المصدر: Have I Been Pwned API. النتيجة تعكس قاعدة بيانات الخدمة وقت الفحص ولا تثبت عدم وجود تسريبات في مصادر أخرى.",
+        ].join("\n")
+      : [
+          `## نتيجة فحص التسريبات للبريد: ${breachEmail}`,
+          "",
+          "لم يعثر Have I Been Pwned على تسريبات معروفة لهذا البريد في قاعدة بياناته وقت الفحص.",
+          "",
+          "المصدر: Have I Been Pwned API. عدم ظهور نتائج لا يثبت أن البريد لم يتعرض لأي تسريب في مصادر أخرى.",
+        ].join("\n");
+
+    let checkCredit: "free" | "paid" | null = null;
+    try {
+      const walletBeforeCharge = await getWallet(user.id);
+      if (walletBeforeCharge.tokenBalance < 3) {
+        return res.status(402).json({ error: "insufficient_credits", wallet: walletBeforeCharge });
+      }
+      checkCredit = await consumeCredit(user.id, 3, false);
+      if (!checkCredit) {
+        let wallet = null;
+        try { wallet = await getWallet(user.id); } catch {}
+        return res.status(402).json({ error: "insufficient_credits", wallet });
+      }
+      await saveMessage(user.id, conversationId, "user", lastUserText);
+      await saveMessage(user.id, conversationId, "assistant", report);
+      let wallet = null;
+      try { wallet = await getWallet(user.id); } catch {}
+      console.info("[DarkWeb] HIBP check completed", JSON.stringify({ requestId, breachCount: breaches.length }));
+      return res.status(200).json({
+        content: report,
+        wallet,
+        conversationId,
+        darkWebStatus: "checked",
+        breachCount: breaches.length,
+        source: "haveibeenpwned",
+      });
+    } catch (error) {
+      if (checkCredit) {
+        try { await refundCredit(user.id, checkCredit, 3); } catch (refundError) {
+          console.error("[Billing] HIBP failed-check refund failed", refundError instanceof Error ? refundError.message : "unknown");
+        }
+      }
+      console.error("[DarkWeb] Failed to complete HIBP check", error instanceof Error ? error.message : "unknown");
+      return res.status(200).json({
+        content: darkWebUnavailableMessage,
+        conversationId,
+        noCharge: true,
+        darkWebStatus: "unavailable",
+      });
+    }
+  }
+
   if (webSearchEnabled || darkWebEnabled) {
     try {
       const wallet = await getWallet(user.id);
