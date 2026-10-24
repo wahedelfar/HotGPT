@@ -693,3 +693,37 @@ html[data-theme="light"] .conversation-delete-action { color: #b42318; }
   background: #55c6a7;
   box-shadow: 0 0 0 3px rgba(85, 198, 167, .13);
 }
+
+
+/* Always isolate code from surrounding RTL text. */
+.message-content pre,
+.message-content pre code,
+.message-content code,
+.message-content .streamdown-code-block {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+}
+.message-content pre {
+  overflow-x: auto !important;
+  white-space: pre !important;
+  max-width: 100%;
+  text-align: left !important;
+}
+.message-content pre code { display: block; overflow-x: auto; white-space: pre; }
+.message-content :not(pre) > code { direction: ltr; unicode-bidi: isolate; }
+
+/* Search result cards isolate Arabic and Latin text to prevent bidi overlap. */
+.search-results-panel { display: grid; gap: 10px; margin: 12px 0; width: 100%; }
+.search-results-heading { color: #dce7e9; font-size: 13px; font-weight: 700; }
+.search-results-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.search-result-card { display: flex; min-width: 0; flex-direction: column; gap: 9px; padding: 13px; border: 1px solid #2a3a41; border-radius: 12px; background: #151c22; color: inherit; text-decoration: none; transition: border-color .15s, background .15s; }
+.search-result-card:hover { border-color: #59808a; background: #19252b; }
+.search-result-card-top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.search-result-card-top strong { min-width: 0; flex: 1 1 140px; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; unicode-bidi: isolate; }
+.search-result-domain { flex: 0 0 auto; max-width: 100%; overflow-wrap: anywhere; padding: 3px 7px; border: 1px solid #34484f; border-radius: 999px; color: #8ddce7; font: 10px ui-monospace, monospace; unicode-bidi: isolate; }
+.search-result-card p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 0; color: #94a4aa; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; unicode-bidi: isolate; }
+.search-result-open { align-self: flex-start; margin-top: auto; color: #8ddce7; font-size: 11px; }
+.more-results-heading { margin-top: 8px; }
+@media (max-width: 640px) { .search-results-grid { grid-template-columns: 1fr; } }
