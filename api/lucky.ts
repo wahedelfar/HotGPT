@@ -13,7 +13,39 @@ async function request(path: string, init: RequestInit = {}) {
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = String(req.query?.action || "");
-  if (action === "config" && req.method === "GET") return res.status(200).json({ paypalPaymentUrl: process.env.HOTLUCKY_PAYPAL_URL || null, vodafoneCashNumber: "01063537686" });
+  if (action === "config" && req.method === "GET") {
+    let paypalPaymentUrl: string | null = null;
+    try {
+      const configured = String(process.env.HOTLUCKY_PAYPAL_URL || "").trim();
+      if (configured) {
+        const parsed = new URL(configured);
+        if (parsed.protocol === "https:") paypalPaymentUrl = parsed.toString();
+      }
+    } catch {}
+    return res.status(200).json({ paypalPaymentUrl, vodafoneCashNumber: "01063537686" });
+  }
+  if (action === "stats" && req.method === "GET") {
+    try {
+      const url = supabaseUrl(), key = serviceKey();
+      if (!url || !key) return res.status(503).json({ error: "stats_unavailable" });
+      const r = await fetch(url + "/rest/v1/hotlucky_orders?select=id&status=in.(pending,approved)", {
+        headers: {
+          apikey: key,
+          authorization: "Bearer " + key,
+          Prefer: "count=exact",
+          Range: "0-0",
+        },
+        cache: "no-store",
+      });
+      if (!r.ok) return res.status(503).json({ error: "stats_unavailable" });
+      const range = r.headers.get("content-range") || "";
+      const match = range.match(/\/(\d+)$/);
+      if (!match) return res.status(503).json({ error: "stats_unavailable" });
+      return res.status(200).json({ participants: Number(match[1]) });
+    } catch {
+      return res.status(503).json({ error: "stats_unavailable" });
+    }
+  }
   if (action === "transparency" && req.method === "GET") {
     try {
       const url = supabaseUrl(), key = serviceKey();
