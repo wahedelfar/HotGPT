@@ -8,9 +8,9 @@ export default async function handler(req: any, res: any) {
   const action = typeof req.query?.action === "string" ? req.query.action : "";
   if (action === "auth") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
-    const token = String(req.headers?.authorization || "").match(/^Bearer\\s+(.+)$/i)?.[1];
+    const token = String(req.headers?.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return res.status(401).json({ error: "login_required" });
-    const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\\/+$/, "");
+    const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
     const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
     if (!url || !key) return res.status(503).json({ error: "auth_unavailable" });
     try {
