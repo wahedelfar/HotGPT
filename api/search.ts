@@ -149,8 +149,8 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
   const firecrawlKey = (process.env.FIRECRAWL_API_KEY || "").trim();
   if (!tavilyKey && !firecrawlKey) throw new Error("web_search_not_configured");
 
-  const comparisonQuery = /\\b(compare|comparison|rank|ranking|top\\s+\\d+|versus|vs\\.)\\b|مقارنة|قارن|ترتيب|رتب|أفضل\\s+\\d+|افضل\\s+\\d+|الأفضل|الافضل/i.test(query);
-  const deep = comparisonQuery || /\\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(query);
+  const comparisonQuery = /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل/i.test(query);
+  const deep = comparisonQuery || /\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(query);
   const maxResults = comparisonQuery ? 6 : 10;
   let merged: SearchItem[] = [];
 
@@ -198,12 +198,12 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
 
 
 async function summarizeSearchResults(query: string, sourceContent: string): Promise<string | null> {
-  const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\\/+$/, "");
+  const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\/+$/, "");
   const primaryKey = (process.env.NEXA_PROVIDER_API_KEY || "").trim();
   const primaryModel = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
   const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
-  const comparison = /\\b(compare|comparison|rank|ranking|top\\s+\\d+|versus|vs\\.)\\b|مقارنة|قارن|ترتيب|رتب|أفضل\\s+\\d+|افضل\\s+\\d+|الأفضل|الافضل/i.test(query);
+  const comparison = /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل/i.test(query);
   const system = comparison
     ? "You are a rigorous web-research summarizer. Answer in Arabic because the user's query is Arabic. ALWAYS produce the requested comparison/ranking as a Markdown table with exactly the requested number of distinct items when sources support them. Required columns: الأداة | السعر | السهولة | المميزات. If a source does not state pricing, put «غير متوفر في المصادر»; only say «مجاني / مفتوح المصدر» when the source supports it. Never omit the table because pricing is missing. Use only the supplied source material, cite source URLs inline, mark uncertainty, and ignore navigation, sidebars, and unrelated articles."
     : "You are a web-research summarizer. Answer in the same language as the user's query (Arabic for Arabic queries). Synthesize the supplied source excerpts, prioritize relevance and corroboration, cite source URLs inline, distinguish sourced facts from inference, and do not invent facts or claim missing details are verified.";
@@ -225,7 +225,7 @@ async function summarizeSearchResults(query: string, sourceContent: string): Pro
       if (!response.ok) continue;
       const payload = await response.json() as any;
       const answer = payload?.choices?.[0]?.message?.content;
-      if (typeof answer === "string" && answer.trim() && !/^User Safety:\\s*safe\\s*$/i.test(answer.trim())) return answer.trim();
+      if (typeof answer === "string" && answer.trim() && !/^User Safety:\s*safe\s*$/i.test(answer.trim())) return answer.trim();
     } catch {
       // Search results remain useful even when both summarization providers fail.
     }
