@@ -333,22 +333,10 @@ export default async function handler(req: any, res: any) {
   // Preserve the exact provider model ID from Vercel. Model identifiers can be case-sensitive;
   // the verified configuration uses "Dadgpt-default", so do not rewrite its casing.
   const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
-  const openRouterApiKey = (process.env.OPENROUTER_API_KEY || "").trim();
-  const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
-  const configuredOpenRouterFallbacks = (process.env.OPENROUTER_FALLBACK_MODELS || "")
-    .split(",").map((value) => value.trim()).filter(Boolean);
-  // Keep a bounded fallback chain so the request fits Vercel's function deadline.
-  // Prefer one configured fallback; use the free router only when no explicit fallback exists.
-  const openRouterModels = Array.from(new Set([
-    openRouterModel,
-    ...(configuredOpenRouterFallbacks.length
-      ? configuredOpenRouterFallbacks.slice(0, 1)
-      : ["openrouter/free"]),
-  ])).slice(0, 2);
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
 
-  // Keep DadGPT primary. OpenRouter is only used when the primary provider fails.
-  if (!hasPrimaryProvider && !openRouterApiKey) {
+  // DadGPT is the sole chat provider. Never send prompts or user data to a fallback provider.
+  if (!hasPrimaryProvider) {
     return res.status(503).json({ error: "provider_not_configured" });
   }
 
@@ -486,7 +474,7 @@ export default async function handler(req: any, res: any) {
     try {
       const wallet = await getWallet(user.id);
       if (wallet.tokenBalance <= 0) return res.status(403).json({ error: "pro_required" });
-      if (wallet.tokenBalance < 3) return res.status(402).json({ error: "insufficient_credits", wallet });
+      if (wallet.tokenBalance < 9) return res.status(402).json({ error: "insufficient_credits", wallet });
     } catch (error) {
       console.error("[Billing] Beast entitlement check failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -546,8 +534,8 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  let creditCost = attachment ? 3 : webSearchEnabled ? 5 : (darkWebEnabled || selectedModel === "dadgpt-beast") ? 3 : 1;
-  const usageBasedPremium = !attachment && !webSearchEnabled && (darkWebEnabled || selectedModel === "dadgpt-beast");
+  const creditCost = attachment ? 1 : (webSearchEnabled || darkWebEnabled) ? 5 : selectedModel === "dadgpt-beast" ? 9 : 1;
+  const usageBasedPremium = false;
   let credit: "free" | "paid" | null = null;
   let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
 
@@ -577,9 +565,6 @@ export default async function handler(req: any, res: any) {
       ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : providerMessages),
     ];
     const providers: Array<{ name: string; endpoint: URL; key: string; model: string }> = [];
-    const requestOpenRouterModels = webSearchEnabled || darkWebEnabled
-      ? openRouterModels.filter((candidate) => candidate !== "openrouter/free")
-      : openRouterModels;
     if (endpoint && apiKey) {
       // UI mode labels are not valid provider model IDs.
       const beastModel = (
@@ -599,21 +584,7 @@ export default async function handler(req: any, res: any) {
       // If the default model is missing, slow, or returns metadata instead of an
       // answer, retry through the same DadGPT endpoint with the known-working Beast
       // model before using a third-party fallback. Beast's own selected path is unchanged.
-      if (selectedModel === "dadgpt-default" && !webSearchEnabled && !darkWebEnabled && beastModel && beastModel !== model) {
-        providers.push({ name: "primary-beast-fallback", endpoint, key: apiKey, model: beastModel });
-      }
-    }
-    if (openRouterApiKey) {
-      const beastFallbackModel = (process.env.OPENROUTER_BEAST_MODEL || "").trim();
-      const availableFallbackModels = requestOpenRouterModels.length ? requestOpenRouterModels : ((webSearchEnabled || darkWebEnabled) ? ["deepseek/deepseek-chat"] : openRouterModels);      const fallbackModels = ((selectedModel === "dadgpt-beast" || darkWebEnabled) && beastFallbackModel
-        ? [beastFallbackModel, ...availableFallbackModels.filter((candidate) => candidate !== beastFallbackModel)]
-        : availableFallbackModels).slice(0, webSearchEnabled || darkWebEnabled ? 1 : 2);      for (const fallbackModel of fallbackModels) {
-        providers.push({
-          name: "openrouter",          endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
-          key: openRouterApiKey,
-          model: fallbackModel,
-        });
-      }
+
     }
 
     let content = "";
@@ -640,9 +611,6 @@ export default async function handler(req: any, res: any) {
     }
     for (const provider of providers) {
       if (streamToClient) writeStreamEvent({ type: "attempt", provider: provider.name });
-      if (provider.name === "openrouter" && primaryFailed) {
-        console.info("[Chat] Switching to fallback provider", JSON.stringify({ requestId, from: "primary", to: "openrouter", reason: lastFailure }));
-      }
       console.info("[Chat] Provider attempt started", JSON.stringify({ requestId, provider: provider.name, model: provider.model }));
       let attemptStreamedContent = "";
       try {
@@ -651,7 +619,7 @@ export default async function handler(req: any, res: any) {
           headers: {
             "content-type": "application/json",
             authorization: `Bearer ${provider.key}`,
-            ...(provider.name === "openrouter" ? { "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" } : {}),
+
           },
           body: JSON.stringify({
             model: provider.model,
@@ -662,14 +630,7 @@ export default async function handler(req: any, res: any) {
           }),
           // Keep the primary's proven response window, but use shorter bounded
           // timeouts for fallback attempts so a failed provider cannot stall chat.
-          signal: AbortSignal.timeout(
-            provider.name === "primary"
-              ? (selectedModel === "dadgpt-beast" ? 47000 : 18000)
-              : provider.name === "primary-beast-fallback" ? 16000
-                : provider.model === "openrouter/free"
-                  ? (selectedModel === "dadgpt-beast" ? 4000 : 5000)
-                  : (selectedModel === "dadgpt-beast" ? 7000 : 9000)
-          ),
+          signal: AbortSignal.timeout(60000),
         });
         // Read the body once as text. Some compatible providers return SSE or
         // non-JSON error pages even when the status is 200; response.json()
