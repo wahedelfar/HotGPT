@@ -959,6 +959,7 @@ export default function Home() {
           reader.releaseLock();
         }
         if (streamError) {
+          setMessages(current => current.filter(message => message.id !== streamedAssistantId));
           const streamErrors: Record<string, string> = {
             provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. لم يُخصم الرصيد، حاول مرة أخرى.",
             provider_rate_limited: "النموذج مشغول حاليًا. لم يُخصم الرصيد، حاول بعد قليل.",
