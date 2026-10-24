@@ -559,6 +559,7 @@ export default async function handler(req: any, res: any) {
     let content = "";
     let bestPartialContent = "";
     let partialResponse = false;
+    let searchSynthesisFallback = false;
     let lastFailure = "provider_request_failed";
     let primaryFailed = false;
     const streamToClient = body.stream === true;
@@ -775,10 +776,10 @@ export default async function handler(req: any, res: any) {
       console.warn("[Chat] Saving partial response after provider failure", JSON.stringify({ requestId, chars: content.length, lastFailure }));
     }
     if (!content && webSearchEnabled && directSearchContent) {
-      // Preserve useful search results if synthesis fails; do not turn a successful search
-      // into a total failure just because the summarization model is temporarily unavailable.
+      // Preserve source results when synthesis fails, but refund the failed model generation.
       content = directSearchContent;
-      console.warn("[Chat] Search synthesis failed; returning source results", JSON.stringify({ requestId, lastFailure }));
+      searchSynthesisFallback = true;
+      console.warn("[Chat] Search synthesis failed; returning source results and refunding credits", JSON.stringify({ requestId, lastFailure }));
     }
     if (!content) {
       console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: Boolean(openRouterApiKey), lastFailure }));
@@ -792,11 +793,19 @@ export default async function handler(req: any, res: any) {
     }
 
     const finalContent = partialResponse
-      ? `${content}\n\n> توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه.`
-      : content;
+      ? `${content}\\n\\n> توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه.`
+      : searchSynthesisFallback
+        ? `${content}\\n\\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
+        : content;
     await saveMessage(user.id, conversationId, "assistant", finalContent);
-    if (partialResponse) {
-      try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Partial-response credit refund failed", error instanceof Error ? error.message : "unknown"); }
+    if (partialResponse || searchSynthesisFallback) {
+      try { await refundCredit(user.id, credit, creditCost); } catch (error) {
+        console.error("[Billing] Failed-generation credit refund failed", JSON.stringify({
+          requestId,
+          reason: partialResponse ? "partial_response" : "search_synthesis_failed",
+          error: error instanceof Error ? error.message : "unknown",
+        }));
+      }
     }
     let wallet = null;
     try { wallet = await getWallet(user.id); } catch { /* Do not charge twice if the answer was persisted. */ }
