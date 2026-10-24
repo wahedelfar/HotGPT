@@ -949,6 +949,8 @@ export default function Home() {
                   payload = event;
                 } else if (event.type === "error") {
                   streamError = String(event.error || "provider_request_failed");
+                  streamedText = "";
+                  setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: "" } : message));
                 }
               } catch { /* Ignore malformed server frames. */ }
             }
@@ -956,7 +958,15 @@ export default function Home() {
         } finally {
           reader.releaseLock();
         }
-        if (streamError) throw new Error(streamError);
+        if (streamError) {
+          const streamErrors: Record<string, string> = {
+            provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. لم يُخصم الرصيد، حاول مرة أخرى.",
+            provider_rate_limited: "النموذج مشغول حاليًا. لم يُخصم الرصيد، حاول بعد قليل.",
+            provider_request_failed: "تعذر الاتصال بالنموذج. لم يُخصم الرصيد، حاول مرة أخرى.",
+            provider_empty_response: "لم يُرجع النموذج إجابة مكتملة. لم يُخصم الرصيد.",
+          };
+          throw new Error(streamErrors[streamError] || "تعذر إكمال الإجابة. لم يُخصم الرصيد.");
+        }
         if (typeof payload.content !== "string" || !payload.content.trim()) throw new Error("provider_request_failed");
       } else {
         payload = await response.json().catch(() => ({})) as typeof payload;
