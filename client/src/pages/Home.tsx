@@ -1162,6 +1162,11 @@ export default function Home() {
                   {messages.map(message => (
                     <MessageBubble message={message} key={message.id} />
                   ))}
+                  {isSending && webSearchEnabled && (
+                    <div className="search-skeleton-grid" aria-label={tr(language, "جارٍ تحميل نتائج البحث", "Loading search results")} aria-live="polite">
+                      {Array.from({ length: 3 }, (_, index) => <div className="search-skeleton-card" key={index}><i /><i /><i /></div>)}
+                    </div>
+                  )}
                   {isSending && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
