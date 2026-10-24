@@ -394,7 +394,7 @@ function SearchResultCards({ content, language }: { content: string; language: L
           <strong>{message.role === "user" ? tr(language, "أنت", "You") : "HotGPT"}</strong>
           <span>{message.timestamp}</span>
         </div>
-        <div className="message-content">
+        <div className="message-content" ref={codeContainerRef}>
           {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <Streamdown>{message.content}</Streamdown>}
         </div>
         <div className="message-actions">
