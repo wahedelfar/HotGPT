@@ -153,10 +153,10 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
   let merged: SearchItem[] = [];
 
   if (tavilyKey && firecrawlKey) {
-    // Query both providers in parallel; merge up to four results from each.
+    // Query both providers in parallel; merge up to five results from each.
     const results = await Promise.allSettled([
-      runTavily(query, deep, tavilyKey, 4),
-      runFirecrawl(query, deep, firecrawlKey, 4),
+      runTavily(query, deep, tavilyKey, 5),
+      runFirecrawl(query, deep, firecrawlKey, 5),
     ]);
     for (const result of results) if (result.status === "fulfilled") merged.push(...result.value);
   } else if (tavilyKey) {
@@ -180,7 +180,7 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
       seen.add(normalized);
       return true;
     } catch { return false; }
-  }).slice(0, 8);
+  }).slice(0, 10);
 
   const content = [
     `## ${deep ? "نتائج البحث الموسع" : "نتائج البحث"}`,
