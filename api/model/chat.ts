@@ -198,7 +198,6 @@ async function searchInternet(query: string): Promise<string> {
     console.info("[Search] Tavily completed", JSON.stringify({ resultCount: items.length, answerAvailable: Boolean(data.answer) }));
     return items;
   };
-
   const runFirecrawlSearch = async (): Promise<SearchItem[]> => {
     if (!firecrawlKey) return [];
     const response = await fetch("https://api.firecrawl.dev/v2/search", {
@@ -397,8 +396,7 @@ export default async function handler(req: any, res: any) {
       m.content.length <= 20000
     ) ||
     messages.reduce((sum: number, m: ChatMessage) => sum + m.content.length, 0) > 80000
-  ) {
-    return res.status(400).json({ error: "invalid_messages" });
+  ) {    return res.status(400).json({ error: "invalid_messages" });
   }
 
   let attachmentText = "";
@@ -581,7 +579,7 @@ export default async function handler(req: any, res: any) {
         process.env.NEXA_PROVIDER_MODEL_PRO ||
         "dadgpt-beast"
       ).trim();
-      const primaryModel = selectedModel === "dadgpt-beast" ? beastModel : model;
+      const primaryModel = (selectedModel === "dadgpt-beast" || darkWebEnabled) ? beastModel : model;
       providers.push({
         name: "primary",
         endpoint,
@@ -597,8 +595,7 @@ export default async function handler(req: any, res: any) {
     }
     if (openRouterApiKey) {
       const beastFallbackModel = (process.env.OPENROUTER_BEAST_MODEL || "").trim();
-      const availableFallbackModels = requestOpenRouterModels.length ? requestOpenRouterModels : ((webSearchEnabled || darkWebEnabled) ? ["deepseek/deepseek-chat"] : openRouterModels);
-      const fallbackModels = (selectedModel === "dadgpt-beast" && beastFallbackModel
+      const availableFallbackModels = requestOpenRouterModels.length ? requestOpenRouterModels : ((webSearchEnabled || darkWebEnabled) ? ["deepseek/deepseek-chat"] : openRouterModels);      const fallbackModels = ((selectedModel === "dadgpt-beast" || darkWebEnabled) && beastFallbackModel
         ? [beastFallbackModel, ...availableFallbackModels.filter((candidate) => candidate !== beastFallbackModel)]
         : availableFallbackModels).slice(0, webSearchEnabled || darkWebEnabled ? 1 : 2);
       for (const fallbackModel of fallbackModels) {
@@ -797,8 +794,7 @@ export default async function handler(req: any, res: any) {
             finishReason: choice?.finish_reason ?? null,
             messageKeys: choice?.message && typeof choice.message === "object" ? Object.keys(choice.message).slice(0, 12) : [],
             errorCode: payload?.error?.code ?? null,
-            errorType: payload?.error?.type ?? null,
-          }));
+            errorType: payload?.error?.type ?? null,          }));
           if (provider.name === "primary") primaryFailed = true;
           continue;
         }
