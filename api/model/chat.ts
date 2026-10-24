@@ -285,9 +285,9 @@ export default async function handler(req: any, res: any) {
 
   const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\/+$/, "");
   const apiKey = process.env.NEXA_PROVIDER_API_KEY || "";
-  const configuredModel = (process.env.NEXA_PROVIDER_MODEL || "").trim();
-  // DadGPT documents these model IDs in lowercase; normalize the known IDs to avoid case-sensitive routing failures.
-  const model = /^dadgpt-(default|beast)$/i.test(configuredModel) ? configuredModel.toLowerCase() : configuredModel;
+  // Preserve the exact provider model ID from Vercel. Model identifiers can be case-sensitive;
+  // the verified configuration uses "Dadgpt-default", so do not rewrite its casing.
+  const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const openRouterApiKey = (process.env.OPENROUTER_API_KEY || "").trim();
   const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
   const configuredOpenRouterFallbacks = (process.env.OPENROUTER_FALLBACK_MODELS || "")
