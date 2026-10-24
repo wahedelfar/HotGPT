@@ -287,6 +287,60 @@ function SearchResultCards({ content, language }: { content: string; language: L
 \nfunction MessageBubble({ message }: { message: ChatMessage }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
+  const codeContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = codeContainerRef.current;
+    if (!root) return;
+    const cleanups: Array<() => void> = [];
+    root.querySelectorAll("pre").forEach(pre => {
+      if (pre.parentElement?.classList.contains("code-block-shell")) return;
+      const code = pre.querySelector("code");
+      const languageClass = Array.from(code?.classList || []).find(name => name.startsWith("language-"));
+      const label = languageClass?.replace("language-", "") || "code";
+      const shell = document.createElement("section");
+      shell.className = "code-block-shell";
+      shell.setAttribute("dir", "ltr");
+      shell.style.cssText = "direction:ltr;text-align:left;unicode-bidi:isolate";
+      const header = document.createElement("div");
+      header.className = "code-block-header";
+      header.setAttribute("dir", "ltr");
+      const languageLabel = document.createElement("span");
+      languageLabel.className = "code-block-language";
+      languageLabel.textContent = label;
+      languageLabel.setAttribute("dir", "ltr");
+      const copyButton = document.createElement("button");
+      copyButton.type = "button";
+      copyButton.className = "code-block-copy";
+      copyButton.textContent = language === "ar" ? "نسخ الكود" : "Copy code";
+      copyButton.setAttribute("aria-label", copyButton.textContent);
+      const onCopy = async () => {
+        const text = pre.textContent || "";
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          textarea.style.cssText = "position:fixed;opacity:0;left:-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand("copy");
+          textarea.remove();
+        }
+        copyButton.textContent = language === "ar" ? "تم النسخ" : "Copied";
+        window.setTimeout(() => { copyButton.textContent = language === "ar" ? "نسخ الكود" : "Copy code"; }, 1400);
+      };
+      copyButton.addEventListener("click", onCopy);
+      cleanups.push(() => copyButton.removeEventListener("click", onCopy));
+      header.append(languageLabel, copyButton);
+      pre.parentNode?.insertBefore(shell, pre);
+      shell.append(header, pre);
+      pre.setAttribute("dir", "ltr");
+      pre.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;unicode-bidi:isolate";
+      if (code) code.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;unicode-bidi:isolate";
+    });
+    return () => cleanups.forEach(cleanup => cleanup());
+  }, [message.content, language]);
   const copyMessage = async () => {
     try {
       await navigator.clipboard.writeText(message.content);
