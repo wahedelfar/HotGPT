@@ -252,7 +252,39 @@ function Sidebar({
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+
+function SearchResultCards({ content, language }: { content: string; language: Language }) {
+  const items = Array.from(content.matchAll(/^###\\s+\\d+\\.\\s+\\[([^\\]]+)\\]\\((https?:\\/\\/[^)]+)\\)\\s*\\n+([\\s\\S]*?)(?=\\n\\s*###\\s|$)/gm))
+    .map(match => ({ title: match[1].trim(), url: match[2].trim(), snippet: match[3].replace(/\\[([^\\]]+)\\]\\((https?:\\/\\/[^)]+)\\)/g, "$1").replace(/\\s+/g, " ").trim() }))
+    .filter(item => item.title && item.snippet && !/profile image|jordan host|all right reserved/i.test(item.title + " " + item.snippet))
+    .filter((item, index, all) => all.findIndex(other => other.url.replace(/#.*$/, "").replace(/\\/$/, "") === item.url.replace(/#.*$/, "").replace(/\\/$/, "")) === index)
+    .slice(0, 10);
+  if (!items.length) return <div className="message-content"><Streamdown>{content}</Streamdown></div>;
+  const domain = (value: string) => {
+    try { return decodeURIComponent(new URL(value).hostname).replace(/^www\\./i, ""); }
+    catch { return value; }
+  };
+  const snippetDirection = (value: string) => /[\\u0600-\\u06FF]/.test(value) ? "rtl" as const : "ltr" as const;
+  return <div className="search-results-panel" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="search-results-heading">{language === "ar" ? "أفضل النتائج" : "Top results"}</div>
+    <div className="search-results-grid">{items.slice(0, 3).map((item, index) =>
+      <a className="search-result-card" key={item.url} href={item.url} target="_blank" rel="noopener noreferrer">
+        <div className="search-result-card-top"><strong>{item.title}</strong><span className="search-result-domain" dir="ltr">{domain(item.url)}</span></div>
+        <p dir={snippetDirection(item.snippet)}>{item.snippet}</p>
+        <span className="search-result-open">{language === "ar" ? "فتح المصدر ↗" : "Open source ↗"}</span>
+      </a>)}</div>
+    {items.length > 3 && <>
+      <div className="search-results-heading more-results-heading">{language === "ar" ? "مزيد من النتائج" : "More results"}</div>
+      <div className="search-results-grid">{items.slice(3).map(item =>
+        <a className="search-result-card" key={item.url} href={item.url} target="_blank" rel="noopener noreferrer">
+          <div className="search-result-card-top"><strong>{item.title}</strong><span className="search-result-domain" dir="ltr">{domain(item.url)}</span></div>
+          <p dir={snippetDirection(item.snippet)}>{item.snippet}</p>
+          <span className="search-result-open">{language === "ar" ? "فتح المصدر ↗" : "Open source ↗"}</span>
+        </a>)}</div>
+    </>}
+  </div>;
+}
+\nfunction MessageBubble({ message }: { message: ChatMessage }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const copyMessage = async () => {
@@ -309,7 +341,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <span>{message.timestamp}</span>
         </div>
         <div className="message-content">
-          <Streamdown>{message.content}</Streamdown>
+          {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <Streamdown>{message.content}</Streamdown>}
         </div>
         <div className="message-actions">
           <button
