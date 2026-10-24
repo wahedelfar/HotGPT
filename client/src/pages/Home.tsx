@@ -50,6 +50,7 @@ type ChatMessage = {
   content: string;
   timestamp: string;
   notice?: boolean;
+  billingLabel?: string;
 };
 
 type Conversation = {
@@ -422,6 +423,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
         <div className="message-content" ref={codeContainerRef}>
           {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
+          {message.billingLabel && <div className="message-billing-note" role="status">{message.billingLabel}</div>}
         </div>
         <div className="message-actions">
           <button
@@ -939,6 +941,7 @@ export default function Home() {
         wallet?: { tokenBalance?: number } | null;
         conversationId?: string;
         partial?: boolean;
+        billing?: { cost: number; tier: string; labelAr: string; labelEn: string } | null;
       };
       let streamedAssistantId: string | null = null;
       if (response.ok && response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
@@ -1029,13 +1032,14 @@ export default function Home() {
       if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
       setMessages(current => streamedAssistantId
         ? current.map(message => message.id === streamedAssistantId
-          ? { ...message, content: payload.content!, timestamp: formatTime() }
+          ? { ...message, content: payload.content!, timestamp: formatTime(), billingLabel: payload.billing ? tr(language, `تم خصم ${payload.billing.cost} توكن - ${payload.billing.labelAr}`, `Deducted ${payload.billing.cost} tokens - ${payload.billing.labelEn}`) : undefined }
           : message)
         : [...current, {
             id: crypto.randomUUID(),
             role: "assistant",
             content: payload.content!,
             timestamp: formatTime(),
+            billingLabel: payload.billing ? tr(language, `تم خصم ${payload.billing.cost} توكن - ${payload.billing.labelAr}`, `Deducted ${payload.billing.cost} tokens - ${payload.billing.labelEn}`) : undefined,
           }]);
       setAttachment(null);
       setConversations(current => current.map(item => item.id === conversationId
