@@ -16,7 +16,7 @@ export default async function handler(req: any, res: any) {
   const action = String(req.query?.action || ""), id = String(req.query?.id || "");
   try {
     if (action === "list" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,status,proof_path,prize_label,prize_code,reward_issued,consolation_awarded,created_at,hotlucky_daily_gifts(prize_code,prize_label,issued_at)&order=created_at.desc&limit=500");
+      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,status,proof_path,prize_key,prize_label,prize_code,reward_issued,consolation_awarded,created_at,hotlucky_daily_gifts(prize_code,prize_label,issued_at)&order=created_at.desc&limit=500");
       const result = await Promise.all((orders || []).map(async (o: any) => {
         let proof_url: string | null = null;
         if (o.proof_path) {
