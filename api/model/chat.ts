@@ -435,11 +435,6 @@ export default async function handler(req: any, res: any) {
   // Dark Web mode does not depend on the HIBP email-account API.
   // Use search for recent breach information and the public k-anonymity API for password prevalence.
   const lastUserText = String(messages[messages.length - 1]?.content || "");
-  const darkWebDeepQuery = lastUserText.length > 35 ||
-    /قارن|مقارنة|حماية|دفاعي|دفاع|\bIAB\b|Initial Access|استراتيجية|تحليل|أكبر\s*(?:3|٣|ثلاثة)|تفصيلي|عميق|كامل/i.test(lastUserText) ||
-    /(?:أكبر|أفضل|افضل|top|largest|best)\s*(?:3|٣|three|[3-9]\d*)|(?:[3-9]\d*|[٣٤٥٦٧٨٩]|three|four|five|six|seven|eight|nine)\s*(?:أسواق|اسواق|عناصر|نقاط|أمثلة|امثلة|أسئلة|اسئلة|خطوات|markets|items|points|examples|questions|steps)/i.test(lastUserText);
-  const darkWebCreditCost = darkWebDeepQuery ? 5 : 3;
-  const beastCreditCost = darkWebDeepQuery ? 5 : 3;
   const breachEmail = lastUserText.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0]?.toLowerCase();
   const asksAboutLeaks = /\b(leak(?:ed|s)?|breach(?:ed|es)?|pwned|compromis(?:ed|e)|expos(?:ed|ure)|password)\b|تسريب|مسرب|مسرّب|اختراق|مخترق|انكشف|تسرّب|تسرب|كلمة المرور|كلمه المرور|فحص.*(?:بريد|ايميل|إيميل)|(?:بريد|ايميل|إيميل).*تسريب/i.test(lastUserText);
   let passwordBreachContext = "";
