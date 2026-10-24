@@ -351,12 +351,15 @@ export default async function handler(req: any, res: any) {
   const messages = body.messages;
   const attachment = body.attachment;
   const extended = body.extended === true;
-  const selectedModel = body.model === undefined ? "dadgpt-default" : body.model;
+  const requestedModel = body.model === "dadgpt-beast" ? "dadgpt-beast" : "dadgpt-default";
   const requestId = globalThis.crypto?.randomUUID?.() || `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const suppliedModes = body.modes && typeof body.modes === "object" ? body.modes : {};
   const writingAssist = suppliedModes.writingAssist === true;
   const webSearchEnabled = suppliedModes.webSearch === true;
   const darkWebEnabled = suppliedModes.darkWeb === true;
+  // Search mode always uses the same professional instruction profile as the Beast control,
+  // without changing the model button selected in the client.
+  const selectedModel = webSearchEnabled ? "dadgpt-beast" : requestedModel;
 
   // Enforce incompatible modes on the server too; client-side checks alone
   // can be bypassed by direct API requests.
@@ -544,8 +547,8 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  let creditCost = attachment ? 3 : (darkWebEnabled || selectedModel === "dadgpt-beast") ? 3 : webSearchEnabled ? 3 : 1;
-  const usageBasedPremium = !attachment && (darkWebEnabled || selectedModel === "dadgpt-beast");
+  let creditCost = attachment ? 3 : webSearchEnabled ? 5 : (darkWebEnabled || selectedModel === "dadgpt-beast") ? 3 : 1;
+  const usageBasedPremium = !attachment && !webSearchEnabled && (darkWebEnabled || selectedModel === "dadgpt-beast");
   let credit: "free" | "paid" | null = null;
   let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
 
@@ -553,7 +556,7 @@ export default async function handler(req: any, res: any) {
   // Other modes retain the existing credit reservation/refund flow.
   if (!usageBasedPremium) {
     try {
-      credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
+      credit = await consumeCredit(user.id, creditCost, !attachment && !webSearchEnabled && selectedModel === "dadgpt-default");
     } catch (error) {
       console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -561,7 +564,7 @@ export default async function handler(req: any, res: any) {
     if (!credit) {
       let wallet = null;
       try { wallet = await getWallet(user.id); } catch {}
-      return res.status(402).json({ error: "insufficient_credits", wallet });
+      return res.status(webSearchEnabled ? 403 : 402).json({ error: webSearchEnabled ? "pro_required" : "insufficient_credits", wallet });
     }
   }
 
