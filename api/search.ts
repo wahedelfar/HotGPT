@@ -300,7 +300,7 @@ async function summarizeSearchResults(query: string, sourceContent: string): Pro
   }
   return null;
 }
-\nasync function saveMessage(userId: string, conversationId: string, role: "user" | "assistant", content: string) {
+async function saveMessage(userId: string, conversationId: string, role: "user" | "assistant", content: string) {
   const owners = await supabaseRest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,title&limit=1`);
   const conversation = owners?.[0];
   if (!conversation) throw new Error("conversation_not_found");
