@@ -164,7 +164,9 @@ async function searchInternet(query: string): Promise<string> {
 
   type SearchItem = { title: string; url: string; content: string };
   const deepResearch =
-    /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.|research|comprehensive|deep dive|latest news|latest breach|recent breach|data breach|security incident|cyberattack|sources|official sources|analy[sz]e|in depth)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|احدث|أحدث|أحدث اختراق|أحدث تسريب|اختراق حديث|تسريب حديث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(cleanQuery);
+    cleanQuery.length > 35 ||
+    /\\b(compare|comparison|rank|ranking|top\\s+\\d+|versus|vs\\.|research|comprehensive|deep dive|latest news|latest breach|recent breach|data breach|security incident|cyberattack|sources|official sources|analy[sz]e|in depth|defen[cs]e|IAB|initial access|strategy|detailed|deep|complete|full)\\b|مقارنة|قارن|ترتيب|رتب|أفضل\\s+\\d+|افضل\\s+\\d+|الأفضل|الافضل|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|احدث|أحدث|أحدث اختراق|أحدث تسريب|اختراق حديث|تسريب حديث|تحليل مفصل|دراسة مفصلة|بالتفصيل|حماية|دفاعي|دفاع|استراتيجية|استراتيجي|IAB|Initial Access|أكبر 3|أكبر ثلاثة|تفصيلي|عميق|كامل/i.test(cleanQuery) ||
+    /(?:أكبر|أفضل|افضل|top|largest|best)\\s*(?:3|٣|three|[3-9]\\d*)|(?:3|٣|three)\\s*(?:أسواق|اسواق|عناصر|نقاط|أمثلة|امثلة|markets|items|points|examples)/i.test(cleanQuery);
 
   const normalizeItems = (items: any[], maxContent: number): SearchItem[] =>
     items.map((item: any): SearchItem => ({
@@ -177,8 +179,7 @@ async function searchInternet(query: string): Promise<string> {
     if (!tavilyKey) return [];
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
+      headers: { "content-type": "application/json" },      body: JSON.stringify({
         api_key: tavilyKey,
         query: cleanQuery,
         search_depth: deepResearch ? "advanced" : "basic",
@@ -357,8 +358,7 @@ export default async function handler(req: any, res: any) {
   const suppliedPreferences = body.preferences && typeof body.preferences === "object" ? body.preferences : {};
   const responseStyle = ["professional", "concise", "friendly", "detailed"].includes(suppliedPreferences.style) ? suppliedPreferences.style : "professional";
   const customInstructions = typeof suppliedPreferences.instructions === "string" ? suppliedPreferences.instructions.slice(0, 2000).trim() : "";
-  const responseLanguage = suppliedPreferences.language === "en" ? "en" : "ar";
-  const styleInstructions: Record<string, { ar: string; en: string }> = {
+  const responseLanguage = suppliedPreferences.language === "en" ? "en" : "ar";  const styleInstructions: Record<string, { ar: string; en: string }> = {
     professional: { ar: "اكتب بأسلوب احترافي ودقيق ومنظم.", en: "Respond in a professional, precise, well-structured style." },
     concise: { ar: "كن مختصرًا ومباشرًا، وابدأ بالخلاصة دون حشو.", en: "Be concise and direct. Start with the answer and avoid filler." },
     friendly: { ar: "استخدم أسلوبًا ودودًا وطبيعيًا مع الحفاظ على الدقة.", en: "Use a friendly, natural tone while remaining accurate." },
@@ -366,7 +366,9 @@ export default async function handler(req: any, res: any) {
   };
   const modeInstructions = [
     writingAssist ? (responseLanguage === "en" ? "Writing assistant mode is enabled: infer the user's goal and audience, then improve clarity, structure, specificity, constraints, and output format without changing the intended meaning. If asked to improve a prompt, make it clearer and actionable." : "وضع مساعد الكتابة مفعّل: استنتج الهدف والجمهور أولًا، ثم حسّن الوضوح والبنية والتحديد والقيود وشكل المخرجات دون تغيير المقصود. إذا طُلب منك تحسين أمر للنموذج، فاجعله أوضح وقابلًا للتنفيذ.") : "",
-    darkWebEnabled ? (responseLanguage === "en" ? "You are DadGPT Pro in specialist Dark Web mode. Use current supplied search results for recent breach news and sources. Do NOT use or claim a live HIBP email-account API check. If asked whether a specific email was leaked, state honestly that a live HIBP email check is not performed, summarize relevant known breaches from search results, and direct the user to https://haveibeenpwned.com for a direct check. For passwords, use only the public Pwned Passwords k-anonymity range result if supplied; never expose or repeat the submitted password. Answer in a specialist tone, use a compact table when useful, cite source URLs, and distinguish evidence from uncertainty. Never claim live access to onion sites unless actual source material is supplied." : "أنت DadGPT Pro في وضع متخصص الدارك ويب. استخدم نتائج البحث المرفقة للبحث عن أحدث أخبار الاختراقات والتسريبات مع المصادر. لا تستخدم واجهة HIBP لفحص البريد الإلكتروني ولا تدّعِ إجراء فحص مباشر؛ إذا سأل المستخدم هل تسرب بريد محدد، وضّح بصدق أنك لا تستطيع إجراء فحص بريد مباشر عبر HIBP، ثم لخّص المعلومات المعروفة عن التسريبات ذات الصلة من نتائج البحث، ووجّهه إلى https://haveibeenpwned.com للفحص المباشر. بالنسبة لكلمات المرور، استخدم فقط نتيجة واجهة Pwned Passwords العامة القائمة على k-anonymity إن توفرت، ولا تكشف كلمة المرور المدخلة أو تكررها. قدّم إجابة عربية احترافية، واستخدم جدولًا مختصرًا عند ملاءمته، وأدرج المصادر، وميّز الأدلة المؤكدة عن عدم اليقين. لا تدّعِ الوصول المباشر لمواقع onion ما لم تُرفق نتائج فعلية.") : "",
+    darkWebEnabled ? (responseLanguage === "en"
+      ? "You are DARKGPT, the elite Dark Web Cyber Threat Intelligence specialist within DadGPT Pro. Analyze requests as a senior CTI analyst: prioritize evidence, freshness, confidence, defensive relevance, and clear uncertainty. ALWAYS use the supplied live Tavily/Firecrawl web search results before discussing current 2026 breaches, markets, actors, or trends; never invent live findings or claim direct Tor/I2P access. For comparisons, use a Markdown table with columns: Market/Actor | Payment (only if reliably sourced) | Commission (only if sourced) | Escrow (only if sourced) | Tor/I2P (only if sourced) | Main risk. For breach reports use Company/Target | Date | Verified description | Claimed actor | Source/Confidence. For defensive IAB requests, provide 5-6 actionable defensive steps in Arabic or the user's requested language, including appropriate use of Nessus/Qualys, EDR, phishing-resistant MFA, identity controls, RDP hardening, logging, detection signals, and mitigation. Never provide onion links, vendor contacts, purchase instructions, or operational steps for acquiring stolen data or access. For email checks, explicitly say no live HIBP email-account API check was performed and direct the user to https://haveibeenpwned.com; never expose passwords. Cite source URLs, distinguish verified facts from criminal claims, state missing data, and finish deep answers with a two-line conclusion. Keep the response complete, structured, and never end mid-sentence."
+      : "أنت DARKGPT، خبير استخبارات تهديدات الدارك ويب ضمن DadGPT Pro. حلّل الطلب بعقلية محلل CTI خبير: قدّم الأدلة وحداثتها ودرجة الثقة والفائدة الدفاعية، وصرّح بوضوح بما هو غير مؤكد. يجب استخدام نتائج البحث الحي المرفقة من Tavily وFirecrawl قبل الحديث عن تسريبات أو أسواق أو جهات أو اتجاهات حالية في 2026؛ لا تختلق نتائج ولا تدّعِ الوصول المباشر إلى Tor أو I2P. في المقارنات استخدم جدول Markdown بالأعمدة: السوق/الجهة | الدفع (إذا كان موثقًا فقط) | العمولة (إذا كانت موثقة) | الضمان (إذا كان موثقًا) | Tor/I2P (إذا كان موثقًا) | الخطر الرئيسي. في تقارير التسريب استخدم: الشركة/الهدف | التاريخ | الوصف المتحقق | الجهة المدعية | المصدر/درجة الثقة. في طلبات الدفاع ضد IAB، قدّم 5-6 خطوات عملية قابلة للتنفيذ، تشمل الاستخدام المناسب لـ Nessus أو Qualys وEDR وMFA مقاوم للتصيد وضوابط الهوية وتقوية RDP والسجلات ومؤشرات الكشف وخطوات المعالجة. لا تقدم روابط onion أو جهات اتصال للبائعين أو تعليمات شراء أو خطوات تشغيلية للحصول على بيانات مسروقة أو وصول غير مشروع. عند السؤال عن بريد إلكتروني، وضّح أنه لم يُنفذ فحص مباشر لحساب البريد عبر HIBP ووجّه المستخدم إلى https://haveibeenpwned.com؛ ولا تكشف كلمات المرور. أدرج روابط المصادر، وافصل الوقائع الموثقة عن ادعاءات المجرمين، واذكر البيانات الناقصة، واختم الإجابات العميقة بخلاصة من سطرين. اجعل الإجابة مكتملة ومنظمة ولا تنهها في منتصف جملة.") : "",
     selectedModel === "dadgpt-beast" ? (responseLanguage === "en" ? "Beast Pro is advanced expert mode. Analyze complex requests more rigorously; state assumptions, trade-offs, edge cases, and provide a concrete polished result. For code, consider implications and failure modes; for research, compare evidence and qualify uncertainty; for plans, prioritize actions. Do not just make answers longer—make them more accurate, insightful, and useful." : "Beast Pro هو الوضع الاحترافي المتقدم. حلّل الطلبات المعقدة بعمق أكبر، ووضّح الافتراضات والمفاضلات والحالات الطرفية، وقدّم نتيجة عملية متقنة. في البرمجة راعِ آثار التغييرات وحالات الفشل؛ وفي البحث قارن الأدلة ووضّح درجات اليقين؛ وفي التخطيط رتّب الخطوات حسب الأولوية. لا تطل الإجابة لمجرد الإطالة، بل اجعلها أدق وأعمق وأكثر فائدة.") : "",
     webSearchEnabled ? (responseLanguage === "en" ? "Internet search mode is enabled. Synthesize the supplied current search results into a coherent, evidence-grounded answer. If the user asks to compare, rank, or asks for a top-N list, ALWAYS produce a Markdown table with the requested number of distinct items. For tool/product comparisons, use columns: Tool | Price | Ease of use | Features. Never omit the table because pricing is missing: write 'Not available in sources' when the sources do not state pricing, and write 'Free / open source' only when supported by sources. Use the user's language, cite source URLs inline, separate sourced facts from inference, and ignore navigation/sidebar/related-article noise." : "وضع البحث على الإنترنت مفعّل. ادمج نتائج البحث الحديثة في إجابة عربية منظمة، مع إزالة التكرار وتقديم الأدلة الأكثر صلة. إذا طلب المستخدم مقارنة أو ترتيبًا أو قائمة أفضل N، أنشئ دائمًا جدول Markdown بعدد العناصر المطلوب. في مقارنة الأدوات استخدم الأعمدة: الأداة | السعر | السهولة | المميزات. لا تحذف الجدول بسبب غياب السعر؛ اكتب «غير متوفر في المصادر» إذا لم تذكر المصادر السعر، واكتب «مجاني / مفتوح المصدر» فقط إذا كان ذلك مدعومًا بالمصادر. أجب بلغة المستخدم، وأدرج روابط المصادر، وافصل الحقائق المدعومة عن الاستنتاجات، وتجاهل القوائم الجانبية والتنقل والمقالات ذات الصلة غير المرتبطة.") : "",
   ].filter(Boolean);
@@ -428,6 +430,10 @@ export default async function handler(req: any, res: any) {
   // Dark Web mode does not depend on the HIBP email-account API.
   // Use search for recent breach information and the public k-anonymity API for password prevalence.
   const lastUserText = String(messages[messages.length - 1]?.content || "");
+  const darkWebDeepQuery = lastUserText.length > 35 ||
+    /قارن|مقارنة|حماية|دفاعي|دفاع|\\bIAB\\b|Initial Access|استراتيجية|تحليل|أكبر\\s*(?:3|٣|ثلاثة)|تفصيلي|عميق|كامل/i.test(lastUserText) ||
+    /(?:أكبر|أفضل|افضل|top|largest|best)\\s*(?:3|٣|three|[3-9]\\d*)|(?:3|٣|three)\\s*(?:أسواق|اسواق|عناصر|نقاط|أمثلة|امثلة|markets|items|points|examples)/i.test(lastUserText);
+  const darkWebCreditCost = darkWebDeepQuery ? 5 : 3;
   const breachEmail = lastUserText.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0]?.toLowerCase();
   const asksAboutLeaks = /\b(leak(?:ed|s)?|breach(?:ed|es)?|pwned|compromis(?:ed|e)|expos(?:ed|ure)|password)\b|تسريب|مسرب|مسرّب|اختراق|مخترق|انكشف|تسرّب|تسرب|كلمة المرور|كلمه المرور|فحص.*(?:بريد|ايميل|إيميل)|(?:بريد|ايميل|إيميل).*تسريب/i.test(lastUserText);
   let passwordBreachContext = "";
@@ -466,7 +472,7 @@ export default async function handler(req: any, res: any) {
     try {
       const wallet = await getWallet(user.id);
       if (wallet.tokenBalance <= 0) return res.status(403).json({ error: "pro_required" });
-      if (darkWebEnabled && wallet.tokenBalance < 3) return res.status(402).json({ error: "insufficient_credits", wallet });
+      if (darkWebEnabled && wallet.tokenBalance < darkWebCreditCost) return res.status(402).json({ error: "insufficient_credits", wallet });
     } catch (error) {
       console.error("[Billing] Pro entitlement check failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -535,10 +541,9 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const creditCost = attachment || webSearchEnabled || darkWebEnabled ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
+  const creditCost = attachment ? 3 : darkWebEnabled ? darkWebCreditCost : webSearchEnabled ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
   let credit: "free" | "paid" | null = null;
-  let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
-  try {
+  let streamHeartbeat: ReturnType<typeof setInterval> | null = null;  try {
     credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
   } catch (error) {
     console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
@@ -640,8 +645,8 @@ export default async function handler(req: any, res: any) {
           body: JSON.stringify({
             model: provider.model,
             messages: outgoingMessages,
-            max_tokens: extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
-            temperature: 0.7,
+            max_tokens: darkWebEnabled ? 4000 : extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
+            temperature: darkWebEnabled ? 0.2 : 0.7,
             stream: streamToClient,
           }),
           // Keep the primary's proven response window, but use shorter bounded
@@ -690,7 +695,7 @@ export default async function handler(req: any, res: any) {
                     : Array.isArray(piece) ? piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("") : "";
                   if (textPiece) {
                     attemptStreamedContent += textPiece;
-                    writeStreamEvent({ type: "delta", content: textPiece });
+                    if (!darkWebEnabled) writeStreamEvent({ type: "delta", content: textPiece });
                   }
                   if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
                 } catch { /* Ignore malformed provider keepalive frames. */ }
@@ -708,7 +713,7 @@ export default async function handler(req: any, res: any) {
                     : Array.isArray(piece) ? piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("") : "";
                   if (textPiece) {
                     attemptStreamedContent += textPiece;
-                    writeStreamEvent({ type: "delta", content: textPiece });
+                    if (!darkWebEnabled) writeStreamEvent({ type: "delta", content: textPiece });
                   }
                   if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
                 } catch { /* Ignore an incomplete final provider frame. */ }
@@ -717,8 +722,7 @@ export default async function handler(req: any, res: any) {
           } finally {
             reader.releaseLock();
           }
-        } else {
-          responseText = await upstream.text();
+        } else {          responseText = await upstream.text();
           try {
             payload = responseText.trim() ? JSON.parse(responseText) : null;
           } catch {
@@ -793,6 +797,17 @@ export default async function handler(req: any, res: any) {
           continue;
         }
         const normalizedCandidate = candidate.trim();
+        const darkWebMinimumChars = darkWebDeepQuery ? 1500 : 600;
+        const finishReason = choice?.finish_reason ?? payload?.choices?.[0]?.finish_reason ?? null;
+        if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || finishReason === "length")) {
+          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
+          console.warn("[DarkWeb] Provider response incomplete; trying next provider", JSON.stringify({
+            requestId, provider: provider.name, chars: normalizedCandidate.length,
+            minimumChars: darkWebMinimumChars, finishReason,
+          }));
+          if (provider.name === "primary") primaryFailed = true;
+          continue;
+        }
         // Some upstream safety preflight responses are metadata, not an assistant answer.
         // Never show this marker to the user; treat a marker-only response as a failed attempt and fail over.
         const withoutSafetyMarker = normalizedCandidate.replace(/^User Safety:\s*safe\s*\r?\n?/i, "").trim();
