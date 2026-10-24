@@ -444,6 +444,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
   const { language } = useLanguage();
+  const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
+  useEffect(() => { try { const until = Number(localStorage.getItem("hotlucky-banner-dismissed-until") || 0); setHotLuckyBannerVisible(Date.now() >= until); } catch { setHotLuckyBannerVisible(true); } }, []);
+  const dismissHotLuckyBanner = () => { try { localStorage.setItem("hotlucky-banner-dismissed-until", String(Date.now() + 24 * 60 * 60 * 1000)); } catch {} setHotLuckyBannerVisible(false); };
   return (
     <div className="welcome-state hotgpt-welcome">
       <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit" aria-hidden="true">
@@ -452,6 +455,16 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
       <p className="welcome-copy">{tr(language, "ماذا يمكنني مساعدتك فيه اليوم؟", "What can I help you with today?")}<br />{tr(language, "مساعدك الذكي للبرمجة والتحليل والأمن الرقمي.", "Your AI assistant for coding, analysis, and digital security.")}</p>
+      {hotLuckyBannerVisible && (
+        <section dir={language === "ar" ? "rtl" : "ltr"} aria-label="HotLucky" style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,width:"min(100%,900px)",margin:"26px auto 10px",padding:"18px 42px 18px 18px",border:"1px solid rgba(247,207,101,.6)",borderRadius:18,background:"linear-gradient(115deg,#19150a,#080808 72%)",boxShadow:"0 10px 35px rgba(0,0,0,.22)",textAlign:"start",flexWrap:"wrap"}}>
+          <button type="button" onClick={dismissHotLuckyBanner} aria-label={tr(language,"إخفاء العرض لمدة 24 ساعة","Dismiss for 24 hours")} style={{position:"absolute",top:6,insetInlineEnd:10,border:0,background:"transparent",color:"#f7cf65",fontSize:22,cursor:"pointer"}}>×</button>
+          <div style={{display:"flex",flexDirection:"column",gap:6,flex:"1 1 320px"}}>
+            <strong style={{color:"#f7cf65",fontWeight:900}}>{tr(language,"🎁 مع HotGPT دايمًا كسبان","🎁 HotGPT HotLucky")}</strong>
+            <span style={{color:"#f4f0e6",fontSize:13,lineHeight:1.8}}>{tr(language,"باقة بـ 100 جنيه، 100 توكن مضمون + هدية رقمية عشوائية لحد 1000 توكن + Ultra","100 EGP package, 100 guaranteed tokens + a digital bonus up to 1000 tokens + Ultra")}</span>
+          </div>
+          <a href="/hotlucky" style={{flexShrink:0,borderRadius:10,background:"linear-gradient(135deg,#ffe69a,#e5a927)",padding:"11px 15px",color:"#171006",fontSize:13,fontWeight:900,textDecoration:"none"}}>{tr(language,"ادخل لصفحة الجوائز","Explore HotLucky")}</a>
+        </section>
+      )}
       <div className="starter-grid hotgpt-starter-grid">
         {starters.map(starter => {
           const Icon = starter.icon;
@@ -772,9 +785,30 @@ export default function Home() {
   const [darkWebEnabled, setDarkWebEnabled] = useState(false);
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
   const [walletBalance, setWalletBalance] = useState(0);
+  const [hotLuckyPrize, setHotLuckyPrize] = useState<{ label: string; code?: string; date?: string } | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated) { setHotLuckyPrize(null); return; }
+    let cancelled = false;
+    const loadPrize = async () => {
+      try {
+        const response = await authFetch("/api/lucky?action=status", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json();
+        const prize = payload.prize;
+        if (!cancelled && prize?.label) {
+          const timestamp = prize.date ? new Date(prize.date).getTime() : 0;
+          setHotLuckyPrize(!timestamp || Date.now() - timestamp <= 7 * 24 * 60 * 60 * 1000 ? { label: String(prize.label), code: prize.code ? String(prize.code) : undefined, date: prize.date } : null);
+        } else if (!cancelled) setHotLuckyPrize(null);
+      } catch {}
+    };
+    void loadPrize();
+    const interval = window.setInterval(() => void loadPrize(), 60_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
     if (auth.loading || !auth.isAuthenticated) { setWalletBalance(0); return; }
@@ -1192,11 +1226,14 @@ export default function Home() {
             </button>
           </div>
           <div className="topbar-actions hotgpt-topbar-actions">
+            <a href="/hotlucky" style={{border:"1px solid rgba(247,207,101,.6)",borderRadius:999,background:"linear-gradient(135deg,#ffe69a,#e5a927)",padding:"8px 12px",color:"#171006",fontSize:12,fontWeight:900,textDecoration:"none",whiteSpace:"nowrap"}}>{tr(language,"🎁 HotLucky - دايمًا كسبان","🎁 HotLucky - Always a bonus")}</a>
             {auth.isAuthenticated && (
-              <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
-                <Coins size={20} />
-                <span>{walletBalance}</span>
-              </a>
+              <>
+                <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
+                  <Coins size={20} /><span>{walletBalance}</span>
+                </a>
+                {hotLuckyPrize && <a href="/profile" title={hotLuckyPrize.code || hotLuckyPrize.label} style={{display:"inline-flex",alignItems:"center",gap:4,border:"1px solid rgba(247,207,101,.5)",borderRadius:999,background:"rgba(247,207,101,.1)",padding:"6px 9px",color:"#f7cf65",fontSize:11,fontWeight:800,textDecoration:"none"}}>🎉 {tr(language,"كسبت:","Won:")} {hotLuckyPrize.label}</a>}
+              </>
             )}
             <button className="language-button" type="button" onClick={toggleLanguage} aria-label={tr(language, "التبديل إلى الإنجليزية", "Switch to Arabic")} title={tr(language, "English", "العربية")}>
               <span aria-hidden="true">{language === "ar" ? "🇺🇸" : "🇸🇦"}</span>
@@ -1220,6 +1257,7 @@ export default function Home() {
                         <strong>{auth.user?.name || tr(language, "المستخدم", "User")}</strong>
                         <span>{auth.user?.email}</span>
                         <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
+                        {hotLuckyPrize && <a href="/profile" style={{display:"block",marginTop:8,color:"#f7cf65",fontSize:12,fontWeight:800}}>🎉 {tr(language,"كسبت:","Won:")} {hotLuckyPrize.label}</a>}
                       </div>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
@@ -1407,6 +1445,10 @@ export default function Home() {
             </div>
             <p className="welcome-modal-free">{tr(language, "التسجيل مجاني ويمكنك تجربة نماذجنا المتقدمة.", "Registration is free. Try our advanced models.")}</p>
             <a href="/auth?mode=signup" className="welcome-modal-cta">{tr(language, "سجل الآن", "Sign up now")}</a>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.1)",fontSize:12,lineHeight:1.8,color:"#d6d0c3"}}>
+              <span>{tr(language,"مش عايز تشترك؟ جرّب HotLucky - 100 جنيه ممكن تكسب Pro 30 يوم","Not ready to subscribe? Try HotLucky — a 100 EGP package includes a digital bonus.")}</span>
+              <a href="/hotlucky" target="_blank" rel="noopener noreferrer" style={{color:"#f7cf65",fontWeight:900,textDecoration:"underline",textUnderlineOffset:3}}>{tr(language,"جرّب HotLucky ↗","Try HotLucky ↗")}</a>
+            </div>
             <p className="welcome-modal-login">{tr(language, "لديك حساب بالفعل؟", "Already have an account?")} <a href="/auth?mode=login">{tr(language, "تسجيل الدخول", "Log in")}</a></p>
           </section>
         </div>
