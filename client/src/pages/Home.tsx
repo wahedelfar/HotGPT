@@ -292,6 +292,64 @@ function SearchResultCards({ content, language }: { content: string; language: L
   </div>;
 }
 
+function CodeBlock({ code, language }: { code: string; language: Language }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = code;
+      textarea.setAttribute("dir", "ltr");
+      textarea.style.cssText = "position:fixed;opacity:0;left:-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  };
+
+  return (
+    <section className="code-block-shell" dir="ltr" style={{ direction: "ltr", textAlign: "left", unicodeBidi: "isolate", overflowX: "auto", background: "#111", padding: 0, borderRadius: 12 }}>
+      <div className="code-block-header" dir="ltr" style={{ direction: "ltr", unicodeBidi: "isolate" }}>
+        <span className="code-block-language" dir="ltr">{language || "code"}</span>
+        <button type="button" className="code-block-copy" onClick={copy} dir="ltr" aria-label={language === "ar" ? "نسخ الكود" : "Copy code"}>
+          {copied ? (language === "ar" ? "تم النسخ" : "Copied") : (language === "ar" ? "نسخ الكود" : "Copy code")}
+        </button>
+      </div>
+      <pre dir="ltr" style={{ direction: "ltr", textAlign: "left", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", overflowX: "auto", whiteSpace: "pre", unicodeBidi: "isolate", margin: 0, padding: 16, background: "#111", color: "#fff" }}>
+        <code dir="ltr" style={{ direction: "ltr", textAlign: "left", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", overflowX: "auto", whiteSpace: "pre", unicodeBidi: "isolate" }}>{code}</code>
+      </pre>
+    </section>
+  );
+}
+
+function RenderedMessageContent({ content, language }: { content: string; language: Language }) {
+  // Parse fenced code before handing prose to Streamdown. This guarantees that
+  // Arabic comments/newlines remain literal code text inside one stable block.
+  const segments: Array<{ type: "text"; value: string } | { type: "code"; value: string; label: string }> = [];
+  const fence = /```([^\r\n`]*)\r?\n([\s\S]*?)(?:\r?\n?```|$)/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = fence.exec(content)) !== null) {
+    if (match.index > cursor) segments.push({ type: "text", value: content.slice(cursor, match.index) });
+    segments.push({ type: "code", label: match[1].trim().split(/\s+/)[0] || "code", value: match[2] });
+    cursor = fence.lastIndex;
+  }
+  if (cursor < content.length) segments.push({ type: "text", value: content.slice(cursor) });
+  if (!segments.length) return null;
+
+  return <>
+    {segments.map((segment, index) => segment.type === "code"
+      ? <CodeBlock key={`code-${index}`} code={segment.value} language={language} />
+      : segment.value.trim()
+        ? <Streamdown key={`text-${index}`}>{segment.value}</Streamdown>
+        : null)}
+  </>;
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
@@ -300,61 +358,15 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   useEffect(() => {
     const root = codeContainerRef.current;
     if (!root) return;
-    const cleanups: Array<() => void> = [];
-    root.querySelectorAll("pre").forEach(pre => {
-      if (pre.parentElement?.classList.contains("code-block-shell")) return;
-      const code = pre.querySelector("code");
-      const languageClass = Array.from(code?.classList || []).find(name => name.startsWith("language-"));
-      const label = languageClass?.replace("language-", "") || "code";
-      const shell = document.createElement("section");
-      shell.className = "code-block-shell";
-      shell.setAttribute("dir", "ltr");
-      shell.style.cssText = "direction:ltr;text-align:left;unicode-bidi:isolate;overflow-x:auto;background:#0f0f0f;color:#fff;border-radius:12px;padding:0";
-      const header = document.createElement("div");
-      header.className = "code-block-header";
-      header.setAttribute("dir", "ltr");
-      const languageLabel = document.createElement("span");
-      languageLabel.className = "code-block-language";
-      languageLabel.textContent = label;
-      languageLabel.setAttribute("dir", "ltr");
-      const copyButton = document.createElement("button");
-      copyButton.type = "button";
-      copyButton.className = "code-block-copy";
-      copyButton.textContent = language === "ar" ? "نسخ الكود" : "Copy code";
-      copyButton.setAttribute("aria-label", copyButton.textContent);
-      const onCopy = async () => {
-        const text = pre.textContent || "";
-        try {
-          await navigator.clipboard.writeText(text);
-        } catch {
-          const textarea = document.createElement("textarea");
-          textarea.value = text;
-          textarea.style.cssText = "position:fixed;opacity:0;left:-9999px";
-          document.body.appendChild(textarea);
-          textarea.select();
-          document.execCommand("copy");
-          textarea.remove();
-        }
-        copyButton.textContent = language === "ar" ? "تم النسخ" : "Copied";
-        window.setTimeout(() => { copyButton.textContent = language === "ar" ? "نسخ الكود" : "Copy code"; }, 1400);
-      };
-      copyButton.addEventListener("click", onCopy);
-      cleanups.push(() => copyButton.removeEventListener("click", onCopy));
-      header.append(copyButton, languageLabel);
-      pre.parentNode?.insertBefore(shell, pre);
-      shell.append(header, pre);
-      pre.setAttribute("dir", "ltr");
-      pre.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;unicode-bidi:isolate;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0f0f0f;color:#fff;border-radius:0;padding:16px;margin:0";
-      if (code) {
-        code.setAttribute("dir", "ltr");
-        code.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;unicode-bidi:isolate";
-        code.querySelectorAll(".hljs-comment,.token.comment,.hljs-quote").forEach(comment => {
-          (comment as HTMLElement).style.cssText += ";direction:rtl;unicode-bidi:plaintext;display:inline";
-        });
-      }
+    root.querySelectorAll("table").forEach(table => {
+      if (table.parentElement?.classList.contains("markdown-table-scroll")) return;
+      const wrapper = document.createElement("div");
+      wrapper.className = "markdown-table-scroll";
+      wrapper.setAttribute("dir", "rtl");
+      table.parentNode?.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
     });
-    return () => cleanups.forEach(cleanup => cleanup());
-  }, [message.content, language]);
+  }, [message.content]);
   const copyMessage = async () => {
     try {
       await navigator.clipboard.writeText(message.content);
@@ -409,7 +421,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <span>{message.timestamp}</span>
         </div>
         <div className="message-content" ref={codeContainerRef}>
-          {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <Streamdown>{message.content}</Streamdown>}
+          {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
         </div>
         <div className="message-actions">
           <button
