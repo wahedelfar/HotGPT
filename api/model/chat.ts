@@ -886,7 +886,7 @@ export default async function handler(req: any, res: any) {
       billing = { cost: classification.cost, tier: classification.tier, labelAr: classification.labelAr, labelEn: classification.labelEn };
     }
     await saveMessage(user.id, conversationId, "assistant", finalContent);
-    if (partialResponse || searchSynthesisFallback) {
+    if ((partialResponse || searchSynthesisFallback) && credit) {
       try { await refundCredit(user.id, credit, creditCost); } catch (error) {
         console.error("[Billing] Failed-generation credit refund failed", JSON.stringify({
           requestId,
@@ -910,7 +910,7 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
       console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
-    }
+    } }
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
     console.error("[Chat] Request failed", error instanceof Error ? error.message : "unknown");
     if (res.headersSent) {
