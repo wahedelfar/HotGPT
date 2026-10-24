@@ -87,7 +87,7 @@ function AdminDashboard() {
     <LanguageToggle />
     <div className="mx-auto max-w-7xl">
       <a href="/" className="text-sm text-cyan-300 hover:text-cyan-200">← العودة إلى HotGPT</a>
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold tracking-[.25em] text-cyan-300">ADMIN CONSOLE</p><h1 className="mt-2 text-3xl font-bold">إدارة الأعضاء والتوكينات</h1><p className="mt-2 text-sm text-slate-400">ضبط الرصيد مباشرة بالبريد المسجل ومراجعة إثباتات الدفع.</p></div><Button variant="outline" onClick={() => void load()}>تحديث البيانات</Button></div>
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold tracking-[.25em] text-cyan-300">ADMIN CONSOLE</p><h1 className="mt-2 text-3xl font-bold">إدارة الأعضاء والتوكينات</h1><p className="mt-2 text-sm text-slate-400">ضبط الرصيد مباشرة بالبريد المسجل ومراجعة إثباتات الدفع.</p></div><div className="flex flex-wrap gap-2"><a href="/admin/lucky.php" className="inline-flex items-center justify-center rounded-md bg-amber-300 px-4 py-2 text-sm font-bold text-black hover:bg-amber-200">🎁 إدارة جوائز HotLucky</a><Button variant="outline" onClick={() => void load()}>تحديث البيانات</Button></div></div>
       {message && <div role="status" className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4 text-sm">{message}</div>}
       <section className="mt-7 rounded-2xl border border-white/10 bg-white/[.03] p-5">
         <h2 className="text-xl font-bold">تعيين رصيد عضو يدويًا</h2>
