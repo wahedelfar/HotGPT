@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/auth";
 
 const gifts = [
@@ -20,6 +20,18 @@ export default function LuckyPage() {
   const [message, setMessage] = useState("");
   const [eligible, setEligible] = useState(false);
   const [gift, setGift] = useState("");
+  const [giftCode, setGiftCode] = useState("");
+
+  async function refreshStatus() {
+    try {
+      const response = await authFetch("/api/lucky?action=status", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json();
+      setEligible(Boolean(data.eligible));
+      if (data.prize?.label) { setGift(data.prize.label); setGiftCode(data.prize.code || ""); }
+    } catch {}
+  }
+  useEffect(() => { void refreshStatus(); }, []);
 
   function readProof(file?: File) {
     setMessage("");
@@ -45,6 +57,7 @@ export default function LuckyPage() {
       if (!response.ok) throw new Error(data.error === "login_required" ? "سجّل الدخول بنفس البريد المرتبط بحساب HotGPT أولًا." : "تعذر إرسال الطلب. تحقق من تسجيل الدخول ثم أعد المحاولة.");
       setMessage("تم إرسال الإثبات للمراجعة. بعد تأكيد الإدارة ستُضاف 100 توكين ويُفتح لك لفّ الهدية المجانية.");
       setProof("");
+      void refreshStatus();
     } catch (error) { setMessage(error instanceof Error ? error.message : "حدث خطأ."); }
     finally { setBusy(false); }
   }
@@ -56,6 +69,7 @@ export default function LuckyPage() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error === "spin_not_available" ? "لا توجد جولة متاحة لهذا الحساب حتى الآن." : "تعذر تنفيذ الهدية. أعد المحاولة.");
       setGift(data.prize?.label || "تم تسجيل الهدية");
+      setGiftCode(data.prize?.code || "");
       setEligible(false);
     } catch (error) { setMessage(error instanceof Error ? error.message : "حدث خطأ."); }
     finally { setBusy(false); }
@@ -88,7 +102,7 @@ export default function LuckyPage() {
           <div className="mt-5 space-y-3">{gifts.map((item,i)=><div key={item.label} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><span className="text-sm">{item.label}</span><span className="shrink-0 rounded-lg bg-cyan-300/10 px-3 py-1 text-sm font-bold text-cyan-200">{item.chance}</span></div>)}</div>
           <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/5 p-4 text-sm leading-6 text-emerald-100">شفافية: تأكيد التحويل ومراجعة الإثبات يتمان بواسطة الإدارة. لا يتم اعتبار صورة التحويل وحدها دليلًا نهائيًا على الدفع.</div>
           {eligible&&<button disabled={busy} onClick={()=>void spin()} className="mt-5 w-full rounded-xl bg-emerald-300 p-3 font-black text-slate-950">لفّ عجلة الهدية المجانية</button>}
-          {gift&&<div className="mt-5 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-5 text-center"><p className="text-sm text-cyan-200">مبروك! هديتك</p><p className="mt-2 text-2xl font-black">{gift}</p></div>}
+          {gift&&<div className="mt-5 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-5 text-center"><p className="text-sm text-cyan-200">مبروك! هديتك</p><p className="mt-2 text-2xl font-black">{gift}</p>{giftCode&&<p dir="ltr" className="mt-2 font-mono text-sm text-cyan-200">{giftCode}</p>}<p className="mt-2 text-xs text-slate-400">تُضاف الجوائز إلى الحساب بعد مراجعتها من الإدارة.</p></div>}
           <div className="mt-5 border-t border-white/10 pt-4 text-xs leading-6 text-slate-500">جولة الشفافية اليومية المستهدفة: 7 مساءً بتوقيت مصر. سيتم عرض آخر الفائزين بعد تسجيل نتائج حقيقية ومراجعتها، دون كشف البريد أو بيانات الحساب.</div>
         </div>
       </section>
