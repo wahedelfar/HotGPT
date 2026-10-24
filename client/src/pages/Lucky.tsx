@@ -21,6 +21,7 @@ export default function LuckyPage() {
   const [eligible, setEligible] = useState(false);
   const [gift, setGift] = useState("");
   const [giftCode, setGiftCode] = useState("");
+  const [paypalUrl, setPaypalUrl] = useState("");
 
   async function refreshStatus() {
     try {
@@ -31,7 +32,10 @@ export default function LuckyPage() {
       if (data.prize?.label) { setGift(data.prize.label); setGiftCode(data.prize.code || ""); }
     } catch {}
   }
-  useEffect(() => { void refreshStatus(); }, []);
+  useEffect(() => {
+    void refreshStatus();
+    fetch("/api/lucky?action=config", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => setPaypalUrl(typeof data?.paypalPaymentUrl === "string" ? data.paypalPaymentUrl : "")).catch(() => {});
+  }, []);
 
   function readProof(file?: File) {
     setMessage("");
@@ -91,9 +95,9 @@ export default function LuckyPage() {
           <p className="text-sm text-cyan-200">الباقة الأساسية</p><div className="mt-2 text-4xl font-black">100 <span className="text-lg font-semibold">توكين</span></div>
           <div className="mt-4 text-2xl font-bold">100 جنيه مصري <span className="text-sm text-slate-400">أو 2 دولار</span></div>
           <p className="mt-2 text-sm leading-6 text-slate-400">المنتج الأساسي معروف وثابت قبل الشراء. الهدية الإضافية مجانية ولا تستبدل الباقة الأساسية.</p>
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4"><p className="text-sm text-slate-300">فودافون كاش</p><p dir="ltr" className="mt-1 text-2xl font-bold tracking-wider text-white">01063537686</p><p className="mt-4 text-sm text-slate-300">PayPal</p><p className="mt-1 text-sm text-amber-200">يُفعّل عند توفير رابط الدفع الرسمي.</p></div>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4"><p className="text-sm text-slate-300">فودافون كاش</p><p dir="ltr" className="mt-1 text-2xl font-bold tracking-wider text-white">01063537686</p><p className="mt-4 text-sm text-slate-300">PayPal</p>{paypalUrl?<a href={paypalUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-bold text-cyan-200 underline">فتح رابط دفع PayPal الرسمي · 2 دولار</a>:<p className="mt-1 text-sm text-amber-200">غير متاح حتى إضافة HOTLUCKY_PAYPAL_URL في إعدادات Vercel.</p>}</div>
           <label className="mt-5 block text-sm text-slate-300">البريد المرتبط بحساب HotGPT<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 text-white outline-none focus:border-cyan-300" /></label>
-          <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={()=>setMethod("vodafone_cash")} className={`rounded-xl border p-3 text-sm ${method==="vodafone_cash"?"border-cyan-300 bg-cyan-300/10":"border-white/10"}`}>فودافون كاش · 100 جنيه</button><button onClick={()=>setMethod("paypal")} className={`rounded-xl border p-3 text-sm ${method==="paypal"?"border-cyan-300 bg-cyan-300/10":"border-white/10"}`}>PayPal · 2 دولار</button></div>
+          <div className="mt-4 grid grid-cols-2 gap-2"><button onClick={()=>setMethod("vodafone_cash")} className={`rounded-xl border p-3 text-sm ${method==="vodafone_cash"?"border-cyan-300 bg-cyan-300/10":"border-white/10"}`}>فودافون كاش · 100 جنيه</button><button disabled={!paypalUrl} onClick={()=>setMethod("paypal")} className={`rounded-xl border p-3 text-sm disabled:cursor-not-allowed disabled:opacity-40 ${method==="paypal"?"border-cyan-300 bg-cyan-300/10":"border-white/10"}`}>PayPal · 2 دولار</button></div>
           <label className="mt-4 block text-sm text-slate-300">صورة إثبات التحويل<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>readProof(e.target.files?.[0])} className="mt-2 block w-full text-sm text-slate-400 file:ml-3 file:rounded-lg file:border-0 file:bg-cyan-300 file:px-4 file:py-2 file:font-bold file:text-slate-950" /></label>
           <button disabled={busy} onClick={()=>void submit()} className="mt-5 w-full rounded-xl bg-cyan-300 px-5 py-3 font-black text-slate-950 disabled:opacity-50">{busy?"جارٍ الإرسال…":"إرسال إثبات الدفع"}</button>
           {message&&<p role="status" className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm leading-6 text-slate-200">{message}</p>}
