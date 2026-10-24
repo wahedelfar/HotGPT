@@ -578,7 +578,7 @@ export default async function handler(req: any, res: any) {
         let payload: any = null;
         let jsonParseFailed = false;
         let streamedContent = "";
-        if (streamToClient && upstream.ok && upstream.body && /text\\/event-stream/i.test(contentType)) {
+        if (streamToClient && upstream.ok && upstream.body && /text\/event-stream/i.test(contentType)) {
           const reader = upstream.body.getReader();
           const decoder = new TextDecoder();
           let pending = "";
@@ -589,7 +589,7 @@ export default async function handler(req: any, res: any) {
               const chunk = decoder.decode(value, { stream: true });
               responseText += chunk;
               pending += chunk;
-              const lines = pending.split(/\\r?\\n/);
+              const lines = pending.split(/\r?\n/);
               pending = lines.pop() || "";
               for (const line of lines) {
                 const trimmedLine = line.trim();
@@ -620,7 +620,7 @@ export default async function handler(req: any, res: any) {
             payload = responseText.trim() ? JSON.parse(responseText) : null;
           } catch {
             jsonParseFailed = true;
-            for (const line of responseText.split(/\\r?\\n/)) {
+            for (const line of responseText.split(/\r?\n/)) {
               const trimmedLine = line.trim();
               if (!trimmedLine.startsWith("data:")) continue;
               const data = trimmedLine.slice(5).trim();
