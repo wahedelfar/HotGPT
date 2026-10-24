@@ -70,9 +70,11 @@ export default async function handler(req: any, res: any) {
     if (action === "status" && req.method === "GET") {
       const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,prize_key,prize_label,prize_code,spun_at,hotlucky_daily_gifts(prize_code,prize_label,created_at)&order=created_at.desc&limit=20");
       const ready = (orders || []).find((o: any) => o.status === "approved" && !o.spun_at);
-      const previous = (orders || []).find((o: any) => !!o.prize_label);
-      const giftDate = previous?.spun_at || (Array.isArray(previous?.hotlucky_daily_gifts) ? previous.hotlucky_daily_gifts[0]?.created_at : previous?.hotlucky_daily_gifts?.created_at) || null;
-      return res.status(200).json({ eligible: !!ready, email: member.email || "", prize: previous ? { label: previous.prize_label, code: previous.prize_code, date: giftDate } : null });
+      const prizes = (orders || []).filter((o: any) => !!o.prize_label).map((o: any) => {
+        const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : o.hotlucky_daily_gifts;
+        return { label: String(o.prize_label), code: o.prize_code ? String(o.prize_code) : gift?.prize_code ? String(gift.prize_code) : undefined, date: o.spun_at || gift?.created_at || null };
+      });
+      return res.status(200).json({ eligible: !!ready, email: member.email || "", prize: prizes[0] || null, prizes });
     }
     if (action === "spin" && req.method === "POST") {
       const result = await request("rpc/hotlucky_spin", { method: "POST", body: JSON.stringify({ p_user_id: member.id }) });
