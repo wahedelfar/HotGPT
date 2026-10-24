@@ -16,14 +16,14 @@ export default async function handler(req: any, res: any) {
   const action = String(req.query?.action || ""), id = String(req.query?.id || "");
   try {
     if (action === "list" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,status,proof_path,prize_label,prize_code,reward_issued,created_at&order=created_at.desc&limit=500");
+      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,status,proof_path,prize_label,prize_code,reward_issued,created_at,hotlucky_daily_gifts(prize_code,prize_label,issued_at)&order=created_at.desc&limit=500");
       const result = await Promise.all((orders || []).map(async (o: any) => {
         let proof_url: string | null = null;
         if (o.proof_path) {
           const signed = await fetch(supabaseUrl() + "/storage/v1/object/sign/hotgpt-payment-proofs/" + o.proof_path, { method: "POST", headers: { apikey: serviceKey(), authorization: "Bearer " + serviceKey(), "content-type": "application/json" }, body: JSON.stringify({ expiresIn: 300 }) });
           if (signed.ok) { const body = await signed.json(); proof_url = supabaseUrl() + "/storage/v1" + body.signedURL; }
         }
-        return { ...o, proof_url, amount_label: o.currency === "USD" ? "$" + (o.amount_minor / 100) : (o.amount_minor / 100) + " جنيه" };
+        const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : null;\n        return { ...o, prize_code: gift?.prize_code || o.prize_code, prize_label: gift?.prize_label || o.prize_label, reward_issued: Boolean(o.reward_issued || gift?.issued_at), proof_url, amount_label: o.currency === "USD" ? "$" + (o.amount_minor / 100) : (o.amount_minor / 100) + " جنيه" };
       }));
       return res.status(200).json({ orders: result });
     }
