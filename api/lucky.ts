@@ -13,6 +13,7 @@ async function request(path: string, init: RequestInit = {}) {
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = String(req.query?.action || "");
+  if (action === "config" && req.method === "GET") return res.status(200).json({ paypalPaymentUrl: process.env.HOTLUCKY_PAYPAL_URL || null, vodafoneCashNumber: "01063537686" });
   const member = await requireMember(req, res); if (!member) return;
   const url = supabaseUrl(), key = serviceKey();
   if (!url || !key) return res.status(503).json({ error: "service_unavailable" });
