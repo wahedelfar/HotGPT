@@ -160,9 +160,9 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
     ]);
     for (const result of results) if (result.status === "fulfilled") merged.push(...result.value);
   } else if (tavilyKey) {
-    try { merged = await runTavily(query, deep, tavilyKey, 8); } catch {}
+    try { merged = await runTavily(query, deep, tavilyKey, 10); } catch {}
     if (!merged.length && firecrawlKey) {
-      try { merged = await runFirecrawl(query, deep, firecrawlKey, 8); } catch {}
+      try { merged = await runFirecrawl(query, deep, firecrawlKey, 10); } catch {}
     }
   } else if (firecrawlKey) {
     try { merged = await runFirecrawl(query, deep, firecrawlKey, 8); } catch {}
