@@ -96,7 +96,7 @@ async function refundCredit(userId: string, kind: "free" | "paid") {
   });
 }
 
-async function runTavily(query: string, deep: boolean, key: string, maxResults: number): Promise<SearchItem[]> {
+async function runTavily(query: string, deep: boolean, key: string, maxResults = 5): Promise<SearchItem[]> {
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -104,44 +104,60 @@ async function runTavily(query: string, deep: boolean, key: string, maxResults: 
       api_key: key,
       query,
       search_depth: deep ? "advanced" : "basic",
-      max_results: maxResults,
+      max_results: Math.min(5, maxResults),
       include_answer: true,
     }),
-    signal: AbortSignal.timeout(deep ? 18000 : 12000),
+    signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new Error("search_source_failed");
+  if (!response.ok) throw new Error(`tavily_http_${response.status}`);
   const data = await response.json() as any;
-  const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, maxResults).map((item: any) => ({
+  const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) => ({
     title: String(item.title || "نتيجة بحث").slice(0, 200),
     url: String(item.url || "").slice(0, 1000),
-    content: String(item.content || "").slice(0, deep ? 2200 : 1500),
-  })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url)) : [];
+    content: String(item.content || "").slice(0, deep ? 1800 : 1200),
+  })).filter((item: SearchItem) => /^https?:\\/\\//i.test(item.url)) : [];
   if (typeof data.answer === "string" && data.answer.trim()) {
-    items.unshift({ title: "ملخص البحث", url: "", content: data.answer.slice(0, 1500) });
+    items.unshift({ title: "ملخص البحث", url: "", content: data.answer.slice(0, 1200) });
   }
   return items;
 }
 
-async function runFirecrawl(query: string, deep: boolean, key: string, maxResults: number): Promise<SearchItem[]> {
+async function runFirecrawlSearch(query: string, key: string): Promise<SearchItem[]> {
+  // Search only returns URLs/snippets. Scraping is deliberately separate and limited to two URLs.
   const response = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      query,
-      limit: maxResults,
-      sources: ["web"],
-      ...(deep ? { scrapeOptions: { formats: ["markdown"], onlyMainContent: true } } : {}),
-    }),
-    signal: AbortSignal.timeout(deep ? 20000 : 12000),
+    body: JSON.stringify({ query, limit: 5, sources: ["web"] }),
+    signal: AbortSignal.timeout(3000),
   });
-  if (!response.ok) throw new Error("search_source_failed");
+  if (!response.ok) throw new Error(`firecrawl_search_http_${response.status}`);
   const payload = await response.json() as any;
   const data = Array.isArray(payload.data) ? payload.data : [];
-  return data.slice(0, maxResults).map((item: any): SearchItem => ({
+  return data.slice(0, 5).map((item: any): SearchItem => ({
     title: String(item.title || "نتيجة بحث").slice(0, 200),
     url: String(item.url || "").slice(0, 1000),
-    content: String(item.markdown || item.description || item.content || "").slice(0, deep ? 6000 : 1500),
-  })).filter((item: SearchItem) => /^https?:\/\//i.test(item.url));
+    content: String(item.description || item.snippet || item.content || "").slice(0, 1200),
+  })).filter((item: SearchItem) => /^https?:\\/\\//i.test(item.url));
+}
+
+async function scrapeFirecrawlTopUrls(items: SearchItem[], key: string): Promise<SearchItem[]> {
+  const top = items.filter(item => /^https?:\\/\\//i.test(item.url)).slice(0, 2);
+  const scraped = await Promise.allSettled(top.map(async item => {
+    const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+      body: JSON.stringify({ url: item.url, formats: ["markdown"], onlyMainContent: true }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!response.ok) throw new Error(`firecrawl_scrape_http_${response.status}`);
+    const payload = await response.json() as any;
+    const data = payload?.data ?? payload;
+    const content = String(data?.markdown || data?.content || "").trim();
+    return content ? { ...item, content: content.slice(0, 3500) } : item;
+  }));
+  return scraped.flatMap((result, index) =>
+    result.status === "fulfilled" ? [result.value] : [top[index]]
+  );
 }
 
 async function searchWeb(query: string): Promise<{ content: string; sources: number }> {
@@ -149,53 +165,52 @@ async function searchWeb(query: string): Promise<{ content: string; sources: num
   const firecrawlKey = (process.env.FIRECRAWL_API_KEY || "").trim();
   if (!tavilyKey && !firecrawlKey) throw new Error("web_search_not_configured");
 
-  const comparisonQuery = /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل/i.test(query);
-  const deep = comparisonQuery || /\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(query);
-  const maxResults = comparisonQuery ? 6 : 10;
-  let merged: SearchItem[] = [];
+  const comparisonQuery = /\\b(compare|comparison|rank|ranking|top\\s+\\d+|versus|vs\\.)\\b|مقارنة|قارن|ترتيب|رتب|أفضل\\s+\\d+|افضل\\s+\\d+|الأفضل|الافضل/i.test(query);
+  const deep = comparisonQuery || /\\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(query);
 
-  if (tavilyKey && firecrawlKey) {
-    // Query both providers in parallel; merge up to five results from each.
-    const results = await Promise.allSettled([
-      runTavily(query, deep, tavilyKey, maxResults),
-      runFirecrawl(query, deep, firecrawlKey, maxResults),
-    ]);
-    for (const result of results) if (result.status === "fulfilled") merged.push(...result.value);
-  } else if (tavilyKey) {
-    try { merged = await runTavily(query, deep, tavilyKey, maxResults); } catch {}
-    if (!merged.length && firecrawlKey) {
-      try { merged = await runFirecrawl(query, deep, firecrawlKey, maxResults); } catch {}
-    }
-  } else if (firecrawlKey) {
-    try { merged = await runFirecrawl(query, deep, firecrawlKey, maxResults); } catch {}
-  }
+  // Keep a usable Tavily result independently of the optional Firecrawl enrichment.
+  const tavilyPromise: Promise<SearchItem[]> = tavilyKey
+    ? runTavily(query, deep, tavilyKey, 5).catch(() => [])
+    : Promise.resolve([]);
+  const firecrawlPromise: Promise<SearchItem[]> = firecrawlKey
+    ? (async () => {
+        const snippets = await runFirecrawlSearch(query, firecrawlKey);
+        if (!deep || snippets.length === 0) return snippets;
+        // Scrape only the top two pages and do not let either page block the other.
+        return scrapeFirecrawlTopUrls(snippets, firecrawlKey);
+      })().catch(() => [])
+    : Promise.resolve([]);
 
+  // Tavily (8s max) and Firecrawl (3s search + 4s parallel scrapes) run concurrently.
+  // This keeps provider collection well below the old 50s+ sequential path.
+  const [tavilyItems, firecrawlItems] = await Promise.all([tavilyPromise, firecrawlPromise]);
+  const merged: SearchItem[] = [...tavilyItems, ...firecrawlItems];
   if (!merged.length) throw new Error("web_search_failed");
+
   const seen = new Set<string>();
   const unique = merged.filter(item => {
     if (!item.url) return true;
     try {
       const parsed = new URL(item.url);
       parsed.hash = "";
-      const normalized = parsed.toString().replace(/\/$/, "").toLowerCase();
+      const normalized = parsed.toString().replace(/\\/$/, "").toLowerCase();
       if (seen.has(normalized)) return false;
       seen.add(normalized);
       return true;
     } catch { return false; }
-  }).slice(0, 10);
+  }).slice(0, 8);
 
   const content = [
     `## ${deep ? "نتائج البحث الموسع" : "نتائج البحث"}`,
     "",
     ...unique.map((item, index) => item.url
-      ? `### ${index + 1}. [${item.title.replace(/[\[\]]/g, "")}](${item.url})\n\n${item.content || "لا يتوفر ملخص لهذه الصفحة."}`
-      : `### ملخص البحث\n\n${item.content}`),
+      ? `### ${index + 1}. [${item.title.replace(/[\\[\\]]/g, "")}](${item.url})\\n\\n${item.content || "لا يتوفر ملخص لهذه الصفحة."}`
+      : `### ملخص البحث\\n\\n${item.content}`),
     "",
     `عدد المصادر: ${unique.filter(item => item.url).length}`,
-  ].join("\n\n").slice(0, 14000);
+  ].join("\\n\\n").slice(0, 11000);
   return { content, sources: unique.filter(item => item.url).length };
 }
-
 
 async function summarizeSearchResults(query: string, sourceContent: string): Promise<string | null> {
   const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\/+$/, "");
@@ -220,7 +235,7 @@ async function summarizeSearchResults(query: string, sourceContent: string): Pro
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${provider.key}` },
         body: JSON.stringify({ model: provider.model, messages, temperature: 0.2, max_tokens: comparison ? 1800 : 1400, stream: false }),
-        signal: AbortSignal.timeout(provider.name === "primary" ? 9000 : 7000),
+        signal: AbortSignal.timeout(provider.name === "primary" ? 4000 : 3000),
       });
       if (!response.ok) continue;
       const payload = await response.json() as any;
