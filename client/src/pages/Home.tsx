@@ -932,10 +932,10 @@ export default function Home() {
             const { done, value } = await reader.read();
             if (done) break;
             pending += decoder.decode(value, { stream: true });
-            const frames = pending.split(/\\r?\\n\\r?\\n/);
+            const frames = pending.split(/\r?\n\r?\n/);
             pending = frames.pop() || "";
             for (const frame of frames) {
-              const dataLine = frame.split(/\\r?\\n/).find(line => line.startsWith("data:"));
+              const dataLine = frame.split(/\r?\n/).find(line => line.startsWith("data:"));
               if (!dataLine) continue;
               try {
                 const event = JSON.parse(dataLine.slice(5).trim());
