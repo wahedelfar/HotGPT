@@ -10,6 +10,7 @@ import AuthPage from "./pages/Auth";
 import BillingPage from "./pages/Billing";
 import AdminBillingPage from "./pages/AdminBilling";
 import LuckyPage from "./pages/Lucky";
+import ProfilePage from "./pages/Profile";
 import AdminLuckyPage from "./pages/AdminLucky";
 import LuckyTermsPage from "./pages/LuckyTerms";
 
@@ -19,7 +20,9 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/billing" component={BillingPage} />
+      <Route path="/hotlucky" component={LuckyPage} />
       <Route path="/lucky.php" component={LuckyPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route path="/lucky-terms" component={LuckyTermsPage} />
       <Route path="/admin/lucky.php" component={AdminLuckyPage} />
       <Route path="/admin" component={AdminBillingPage} />
