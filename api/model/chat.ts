@@ -159,8 +159,8 @@ async function searchInternet(query: string): Promise<string> {
   if (!tavilyKey && !firecrawlKey) throw new Error("web_search_not_configured");
 
   type SearchItem = { title: string; url: string; content: string };
-  const comparisonQuery = /\\b(compare|comparison|rank|ranking|top\\s+\\d+|versus|vs\\.)\\b|مقارنة|قارن|ترتيب|رتب|أفضل\\s+\\d+|افضل\\s+\\d+|الأفضل|الافضل/i.test(cleanQuery);
-  const deepResearch = comparisonQuery || /\\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|احدث|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(cleanQuery);
+  const comparisonQuery = /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل/i.test(cleanQuery);
+  const deepResearch = comparisonQuery || /\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|احدث|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(cleanQuery);
   const tavilyMaxResults = comparisonQuery ? 6 : 10;
 
   const runTavily = async (): Promise<SearchItem[]> => {
