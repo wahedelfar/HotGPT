@@ -991,6 +991,7 @@ export default function Home() {
             provider_rate_limited: "النموذج مشغول حاليًا. لم يُخصم الرصيد، حاول بعد قليل.",
             provider_request_failed: "تعذر الاتصال بالنموذج. لم يُخصم الرصيد، حاول مرة أخرى.",
             provider_empty_response: "لم يُرجع النموذج إجابة مكتملة. لم يُخصم الرصيد.",
+            insufficient_credits: "الإجابة تحتاج رصيدًا إضافيًا حسب طولها وعمقها. لم يُخصم أي رصيد عن هذه المحاولة؛ اشترِ باقة مناسبة أو جرّب طلبًا أقصر.",
           };
           throw new Error(streamErrors[streamError] || "تعذر إكمال الإجابة. لم يُخصم الرصيد.");
         }
