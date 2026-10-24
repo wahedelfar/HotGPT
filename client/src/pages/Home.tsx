@@ -449,22 +449,22 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
   const dismissHotLuckyBanner = () => { try { localStorage.setItem("hotlucky-banner-dismissed-until", String(Date.now() + 24 * 60 * 60 * 1000)); } catch {} setHotLuckyBannerVisible(false); };
   return (
     <div className="welcome-state hotgpt-welcome">
+      {hotLuckyBannerVisible && (
+        <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
+          <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
+          <span className="hotlucky-slim-copy">
+            <span className="hotlucky-slim-desktop">{tr(language, "🎁 مع HotGPT دايمًا كسبان - باقة 100 جنيه = 100 توكن + هدية لحد Ultra", "🎁 HotGPT HotLucky — 100 EGP = 100 tokens + a bonus up to Ultra")}</span>
+            <span className="hotlucky-slim-mobile">{tr(language, "🎁 دايمًا كسبان - 100 جنيه = فرصة تكسب Ultra", "🎁 Always a bonus — 100 EGP for a chance at Ultra")}</span>
+          </span>
+          <a className="hotlucky-slim-cta" href="/hotlucky">{tr(language, "ادخل لصفحة الجوائز ›", "Prizes ›")}</a>
+        </div>
+      )}
       <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit" aria-hidden="true">
         <BrandMark compact />
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
       <p className="welcome-copy">{tr(language, "ماذا يمكنني مساعدتك فيه اليوم؟", "What can I help you with today?")}<br />{tr(language, "مساعدك الذكي للبرمجة والتحليل والأمن الرقمي.", "Your AI assistant for coding, analysis, and digital security.")}</p>
-      {hotLuckyBannerVisible && (
-        <section dir={language === "ar" ? "rtl" : "ltr"} aria-label="HotLucky" style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,width:"min(100%,900px)",margin:"26px auto 10px",padding:"18px 42px 18px 18px",border:"1px solid rgba(247,207,101,.6)",borderRadius:18,background:"linear-gradient(115deg,#19150a,#080808 72%)",boxShadow:"0 10px 35px rgba(0,0,0,.22)",textAlign:"start",flexWrap:"wrap"}}>
-          <button type="button" onClick={dismissHotLuckyBanner} aria-label={tr(language,"إخفاء العرض لمدة 24 ساعة","Dismiss for 24 hours")} style={{position:"absolute",top:6,insetInlineEnd:10,border:0,background:"transparent",color:"#f7cf65",fontSize:22,cursor:"pointer"}}>×</button>
-          <div style={{display:"flex",flexDirection:"column",gap:6,flex:"1 1 320px"}}>
-            <strong style={{color:"#f7cf65",fontWeight:900}}>{tr(language,"🎁 مع HotGPT دايمًا كسبان","🎁 HotGPT HotLucky")}</strong>
-            <span style={{color:"#f4f0e6",fontSize:13,lineHeight:1.8}}>{tr(language,"باقة بـ 100 جنيه، 100 توكن مضمون + هدية رقمية عشوائية لحد 1000 توكن + Ultra","100 EGP package, 100 guaranteed tokens + a digital bonus up to 1000 tokens + Ultra")}</span>
-          </div>
-          <a href="/hotlucky" style={{flexShrink:0,borderRadius:10,background:"linear-gradient(135deg,#ffe69a,#e5a927)",padding:"11px 15px",color:"#171006",fontSize:13,fontWeight:900,textDecoration:"none"}}>{tr(language,"ادخل لصفحة الجوائز","Explore HotLucky")}</a>
-        </section>
-      )}
       <div className="starter-grid hotgpt-starter-grid">
         {starters.map(starter => {
           const Icon = starter.icon;
@@ -1233,7 +1233,6 @@ export default function Home() {
             </button>
           </div>
           <div className="topbar-actions hotgpt-topbar-actions">
-            <a href="/hotlucky" style={{border:"1px solid rgba(247,207,101,.6)",borderRadius:999,background:"linear-gradient(135deg,#ffe69a,#e5a927)",padding:"8px 12px",color:"#171006",fontSize:12,fontWeight:900,textDecoration:"none",whiteSpace:"nowrap"}}>{tr(language,"🎁 HotLucky - دايمًا كسبان","🎁 HotLucky - Always a bonus")}</a>
             {auth.isAuthenticated && (
               <>
                 <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
