@@ -574,7 +574,7 @@ export default async function handler(req: any, res: any) {
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders?.();
       streamHeartbeat = setInterval(() => {
-        if (!res.writableEnded) res.write(": keep-alive\\n\\n");
+        if (!res.writableEnded) res.write(": keep-alive\n\n");
       }, 10000);
     }
     for (const provider of providers) {
@@ -793,9 +793,9 @@ export default async function handler(req: any, res: any) {
     }
 
     const finalContent = partialResponse
-      ? `${content}\\n\\n> توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه.`
+      ? `${content}\n\n> توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه.`
       : searchSynthesisFallback
-        ? `${content}\\n\\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
+        ? `${content}\n\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
         : content;
     await saveMessage(user.id, conversationId, "assistant", finalContent);
     if (partialResponse || searchSynthesisFallback) {
