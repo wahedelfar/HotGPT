@@ -544,19 +544,24 @@ export default async function handler(req: any, res: any) {
   }
 
   let creditCost = attachment ? 3 : (darkWebEnabled || selectedModel === "dadgpt-beast") ? 3 : webSearchEnabled ? 3 : 1;
+  const usageBasedPremium = !attachment && (darkWebEnabled || selectedModel === "dadgpt-beast");
   let credit: "free" | "paid" | null = null;
   let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
 
-  try {
-    credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
-  } catch (error) {
-    console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
-    return res.status(503).json({ error: "billing_unavailable" });
-  }
-  if (!credit) {
-    let wallet = null;
-    try { wallet = await getWallet(user.id); } catch {}
-    return res.status(402).json({ error: "insufficient_credits", wallet });
+  // Dark Web and Beast Pro are billed only after a complete answer has been generated.
+  // Other modes retain the existing credit reservation/refund flow.
+  if (!usageBasedPremium) {
+    try {
+      credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
+    } catch (error) {
+      console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "billing_unavailable" });
+    }
+    if (!credit) {
+      let wallet = null;
+      try { wallet = await getWallet(user.id); } catch {}
+      return res.status(402).json({ error: "insufficient_credits", wallet });
+    }
   }
 
   try {
@@ -844,7 +849,7 @@ export default async function handler(req: any, res: any) {
     }
     if (!content) {
       console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: Boolean(openRouterApiKey), lastFailure }));
-      try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
+      if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); } }
       if (streamToClient) {
         if (streamHeartbeat) clearInterval(streamHeartbeat);
         writeStreamEvent({ type: "error", error: lastFailure });
@@ -859,26 +864,25 @@ export default async function handler(req: any, res: any) {
         ? `${content}\n\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
         : content;
     let billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;
-    if (!partialResponse && !searchSynthesisFallback && !attachment && (darkWebEnabled || selectedModel === "dadgpt-beast")) {
+    if (!partialResponse && !searchSynthesisFallback && usageBasedPremium) {
       const classification = classifyPremiumAnswer(content);
-      const additionalCost = classification.cost - creditCost;
-      if (additionalCost > 0) {
-        let extraCredit: "free" | "paid" | null = null;
-        try { extraCredit = await consumeCredit(user.id, additionalCost, false); }
-        catch (error) { console.error("[Billing] Premium usage adjustment failed", error instanceof Error ? error.message : "unknown"); }
-        if (!extraCredit) {
-          try { await refundCredit(user.id, credit, creditCost); }
-          catch (error) { console.error("[Billing] Base credit refund after usage adjustment failed", error instanceof Error ? error.message : "unknown"); }
-          console.warn("[Billing] Premium response not delivered because the balance cannot cover its classified tier", JSON.stringify({ requestId, requiredCost: classification.cost }));
-          if (streamToClient) {
-            if (streamHeartbeat) clearInterval(streamHeartbeat);
-            writeStreamEvent({ type: "error", error: "insufficient_credits" });
-            return res.end();
-          }
-          return res.status(402).json({ error: "insufficient_credits", wallet: await getWallet(user.id).catch(() => null) });
-        }
-        creditCost = classification.cost;
+      let premiumCredit: "free" | "paid" | null = null;
+      try {
+        premiumCredit = await consumeCredit(user.id, classification.cost, false);
+      } catch (error) {
+        console.error("[Billing] Post-generation premium charge failed", error instanceof Error ? error.message : "unknown");
       }
+      if (!premiumCredit) {
+        console.warn("[Billing] Premium response not delivered because balance cannot cover classified tier", JSON.stringify({ requestId, requiredCost: classification.cost }));
+        if (streamToClient) {
+          if (streamHeartbeat) clearInterval(streamHeartbeat);
+          writeStreamEvent({ type: "error", error: "insufficient_credits" });
+          return res.end();
+        }
+        return res.status(402).json({ error: "insufficient_credits", wallet: await getWallet(user.id).catch(() => null) });
+      }
+      credit = premiumCredit;
+      creditCost = classification.cost;
       billing = { cost: classification.cost, tier: classification.tier, labelAr: classification.labelAr, labelEn: classification.labelEn };
     }
     await saveMessage(user.id, conversationId, "assistant", finalContent);
@@ -904,7 +908,7 @@ export default async function handler(req: any, res: any) {
     }
     return res.status(200).json({ content: finalContent, wallet, conversationId, partial: partialResponse, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
   } catch (error: any) {
-    try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
+    if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
       console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
     }
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
