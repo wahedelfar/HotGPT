@@ -1020,7 +1020,7 @@ export default function Home() {
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : (webSearchEnabled || darkWebEnabled) ? "البحث والدارك ويب يحتاج كل منهما إلى 3 توكينات للرسالة. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "نموذج Beast يحتاج إلى توكينين مدفوعين على الأقل. اشترِ باقة أو اختر Default." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : (webSearchEnabled || darkWebEnabled) ? "البحث والدارك ويب يحتاج كل منهما إلى 3 توكينات للرسالة. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "نموذج Beast Pro يحتاج إلى 3 توكينات للطلب العادي و5 للطلب العميق. اشترِ باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
@@ -1348,7 +1348,7 @@ export default function Home() {
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
                     if (!requireProFeature("beast")) return;
-                    if (walletBalance < 2) { setRequestError(tr(language, "تحتاج إلى توكينين على الأقل لتشغيل Beast Pro.", "At least 2 tokens are required to use Beast Pro.")); return; }
+                    if (walletBalance < 3) { setRequestError(tr(language, "تحتاج إلى 3 توكينات على الأقل لتشغيل Beast Pro، و5 للطلبات العميقة.", "At least 3 tokens are required for Beast Pro, and 5 for deep requests.")); return; }
                     setRequestError(null); setSelectedModel("dadgpt-beast");
                   }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "Beast Pro", "Beast Pro")}>
                     <span>Beast</span><span>PRO</span>
