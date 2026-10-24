@@ -179,7 +179,8 @@ async function searchInternet(query: string): Promise<string> {
     if (!tavilyKey) return [];
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
-      headers: { "content-type": "application/json" },      body: JSON.stringify({
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
         api_key: tavilyKey,
         query: cleanQuery,
         search_depth: deepResearch ? "advanced" : "basic",
@@ -358,7 +359,8 @@ export default async function handler(req: any, res: any) {
   const suppliedPreferences = body.preferences && typeof body.preferences === "object" ? body.preferences : {};
   const responseStyle = ["professional", "concise", "friendly", "detailed"].includes(suppliedPreferences.style) ? suppliedPreferences.style : "professional";
   const customInstructions = typeof suppliedPreferences.instructions === "string" ? suppliedPreferences.instructions.slice(0, 2000).trim() : "";
-  const responseLanguage = suppliedPreferences.language === "en" ? "en" : "ar";  const styleInstructions: Record<string, { ar: string; en: string }> = {
+  const responseLanguage = suppliedPreferences.language === "en" ? "en" : "ar";
+  const styleInstructions: Record<string, { ar: string; en: string }> = {
     professional: { ar: "اكتب بأسلوب احترافي ودقيق ومنظم.", en: "Respond in a professional, precise, well-structured style." },
     concise: { ar: "كن مختصرًا ومباشرًا، وابدأ بالخلاصة دون حشو.", en: "Be concise and direct. Start with the answer and avoid filler." },
     friendly: { ar: "استخدم أسلوبًا ودودًا وطبيعيًا مع الحفاظ على الدقة.", en: "Use a friendly, natural tone while remaining accurate." },
@@ -833,7 +835,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    if (!content && streamToClient && bestPartialContent.trim()) {
+    if (!content && streamToClient && bestPartialContent.trim() && !darkWebEnabled) {
       content = bestPartialContent.trim();
       partialResponse = true;
       console.warn("[Chat] Saving partial response after provider failure", JSON.stringify({ requestId, chars: content.length, lastFailure }));
