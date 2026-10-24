@@ -523,16 +523,15 @@ export default async function handler(req: any, res: any) {
           body: JSON.stringify({
             model: provider.model,
             messages: outgoingMessages,
-            max_tokens: extended || selectedModel === "dadgpt-beast" ? 4096 : 3072,
+            max_tokens: extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
             temperature: 0.7,
-            stream: false,
           }),
           // Keep the primary's proven response window, but use shorter bounded
           // timeouts for fallback attempts so a failed provider cannot stall chat.
           signal: AbortSignal.timeout(
             // Keep enough total time for a substantial answer plus one fallback within
             // Vercel's 60-second function limit, including auth, billing, and persistence.
-            provider.name === "primary" ? 20000 : provider.model === "openrouter/free" ? 7000 : 16000
+            provider.name === "primary" ? 32000 : provider.model === "openrouter/free" ? 6000 : 12000
           ),
         });
         // Read the body once as text. Some compatible providers return SSE or
