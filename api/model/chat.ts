@@ -461,6 +461,7 @@ export default async function handler(req: any, res: any) {
 
   const creditCost = attachment || webSearchEnabled || darkWebEnabled ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
   let credit: "free" | "paid" | null = null;
+  let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
   try {
     credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
   } catch (error) {
@@ -540,6 +541,9 @@ export default async function handler(req: any, res: any) {
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders?.();
+      streamHeartbeat = setInterval(() => {
+        if (!res.writableEnded) res.write(": keep-alive\\n\\n");
+      }, 10000);
     }
     for (const provider of providers) {
       if (streamToClient) writeStreamEvent({ type: "attempt", provider: provider.name });
@@ -714,6 +718,7 @@ export default async function handler(req: any, res: any) {
       console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: Boolean(openRouterApiKey), lastFailure }));
       try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
       if (streamToClient) {
+        if (streamHeartbeat) clearInterval(streamHeartbeat);
         writeStreamEvent({ type: "error", error: lastFailure });
         return res.end();
       }
@@ -724,6 +729,7 @@ export default async function handler(req: any, res: any) {
     let wallet = null;
     try { wallet = await getWallet(user.id); } catch { /* Do not charge twice if the answer was persisted. */ }
     if (streamToClient) {
+      if (streamHeartbeat) clearInterval(streamHeartbeat);
       writeStreamEvent({ type: "done", content, wallet, conversationId });
       return res.end();
     }
@@ -735,6 +741,7 @@ export default async function handler(req: any, res: any) {
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
     console.error("[Chat] Request failed", error instanceof Error ? error.message : "unknown");
     if (res.headersSent) {
+      if (streamHeartbeat) clearInterval(streamHeartbeat);
       res.write(`data: ${JSON.stringify({ type: "error", error: timeout ? "provider_timeout" : "chat_request_failed" })}\n\n`);
       return res.end();
     }
