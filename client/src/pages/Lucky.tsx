@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/auth";
-import { Check, Copy, Gift, ShieldCheck, Clock3, Users, Upload, Coins, Crown, Sparkles, Star, BadgeCheck } from "lucide-react";
+import { Check, Copy, Gift, ShieldCheck, Clock3, Users, Upload, Coins, Sparkles } from "lucide-react";
 
 type Prize = { label: string; chance: string; icon: string; detail: string };
 const prizes: Prize[] = [
