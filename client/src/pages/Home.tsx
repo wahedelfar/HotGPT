@@ -292,7 +292,7 @@ function SearchResultCards({ content, language }: { content: string; language: L
   </div>;
 }
 
-function CodeBlock({ code, language }: { code: string; language: Language }) {
+function CodeBlock({ code, label, language }: { code: string; label: string; language: Language }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -314,7 +314,7 @@ function CodeBlock({ code, language }: { code: string; language: Language }) {
   return (
     <section className="code-block-shell" dir="ltr" style={{ direction: "ltr", textAlign: "left", unicodeBidi: "isolate", overflowX: "auto", background: "#111", padding: 0, borderRadius: 12 }}>
       <div className="code-block-header" dir="ltr" style={{ direction: "ltr", unicodeBidi: "isolate" }}>
-        <span className="code-block-language" dir="ltr">{language || "code"}</span>
+        <span className="code-block-language" dir="ltr">{label || "code"}</span>
         <button type="button" className="code-block-copy" onClick={copy} dir="ltr" aria-label={language === "ar" ? "نسخ الكود" : "Copy code"}>
           {copied ? (language === "ar" ? "تم النسخ" : "Copied") : (language === "ar" ? "نسخ الكود" : "Copy code")}
         </button>
@@ -343,7 +343,7 @@ function RenderedMessageContent({ content, language }: { content: string; langua
 
   return <>
     {segments.map((segment, index) => segment.type === "code"
-      ? <CodeBlock key={`code-${index}`} code={segment.value} language={language} />
+      ? <CodeBlock key={`code-${index}`} code={segment.value} label={segment.label} language={language} />
       : segment.value.trim()
         ? <Streamdown key={`text-${index}`}>{segment.value}</Streamdown>
         : null)}
