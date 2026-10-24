@@ -23,7 +23,8 @@ export default async function handler(req: any, res: any) {
           const signed = await fetch(supabaseUrl() + "/storage/v1/object/sign/hotgpt-payment-proofs/" + o.proof_path, { method: "POST", headers: { apikey: serviceKey(), authorization: "Bearer " + serviceKey(), "content-type": "application/json" }, body: JSON.stringify({ expiresIn: 300 }) });
           if (signed.ok) { const body = await signed.json(); proof_url = supabaseUrl() + "/storage/v1" + body.signedURL; }
         }
-        const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : null;\n        return { ...o, prize_code: gift?.prize_code || o.prize_code, prize_label: gift?.prize_label || o.prize_label, reward_issued: Boolean(o.reward_issued || gift?.issued_at), proof_url, amount_label: o.currency === "USD" ? "$" + (o.amount_minor / 100) : (o.amount_minor / 100) + " جنيه" };
+        const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : null;
+        return { ...o, prize_code: gift?.prize_code || o.prize_code, prize_label: gift?.prize_label || o.prize_label, reward_issued: Boolean(o.reward_issued || gift?.issued_at), proof_url, amount_label: o.currency === "USD" ? "$" + (o.amount_minor / 100) : (o.amount_minor / 100) + " جنيه" };
       }));
       return res.status(200).json({ orders: result });
     }
@@ -37,7 +38,11 @@ export default async function handler(req: any, res: any) {
       if (!rows?.length) return res.status(409).json({ error: "already_processed" });
       return res.status(200).json({ success: true });
     }
-    if (action === "consolation" && req.method === "POST") {\n      const result = await request("rpc/hotlucky_award_consolation", { method: "POST", body: JSON.stringify({ p_order_id: id, p_admin: admin.email || "admin" }) });\n      return res.status(200).json({ success: true, result });\n    }\n    if (action === "award" && req.method === "POST") {
+    if (action === "consolation" && req.method === "POST") {
+      const result = await request("rpc/hotlucky_award_consolation", { method: "POST", body: JSON.stringify({ p_order_id: id, p_admin: admin.email || "admin" }) });
+      return res.status(200).json({ success: true, result });
+    }
+    if (action === "award" && req.method === "POST") {
       const result = await request("rpc/hotlucky_award_tokens", { method: "POST", body: JSON.stringify({ p_order_id: id, p_admin: admin.email || "admin" }) });
       return res.status(200).json({ success: true, result });
     }
@@ -45,7 +50,8 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("already_processed")) return res.status(409).json({ error: "already_processed" });
-    if (message.includes("not_ready")) return res.status(409).json({ error: "reward_not_ready" });\n    if (message.includes("not_approved")) return res.status(409).json({ error: "order_not_approved" });
+    if (message.includes("not_ready")) return res.status(409).json({ error: "reward_not_ready" });
+    if (message.includes("not_approved")) return res.status(409).json({ error: "order_not_approved" });
     if (message.includes("subscription_reward_requires_subscription_integration")) return res.status(409).json({ error: "subscription_reward_requires_subscription_integration" });
     console.error("[Admin HotLucky]", message || "unknown");
     return res.status(503).json({ error: "hotlucky_unavailable" });
