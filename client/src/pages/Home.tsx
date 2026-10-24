@@ -901,6 +901,7 @@ export default function Home() {
           model: selectedModel,
           requestId: crypto.randomUUID(),
           conversationId,
+          stream: true,
           attachment: filePayload,
           modes: { writingAssist, webSearch: webSearchEnabled, darkWeb: darkWebEnabled },
           preferences: {
@@ -911,11 +912,55 @@ export default function Home() {
         }),
         signal: AbortSignal.timeout(65000),
       });
-      const payload = await response.json().catch(() => ({})) as {
+      let payload = {} as {
         content?: string;
         error?: string;
         wallet?: { tokenBalance?: number } | null;
+        conversationId?: string;
       };
+      let streamedAssistantId: string | null = null;
+      if (response.ok && response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
+        streamedAssistantId = crypto.randomUUID();
+        let streamedText = "";
+        setMessages(current => [...current, { id: streamedAssistantId!, role: "assistant", content: "", timestamp: formatTime() }]);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let pending = "";
+        let streamError: string | null = null;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            pending += decoder.decode(value, { stream: true });
+            const frames = pending.split(/\\r?\\n\\r?\\n/);
+            pending = frames.pop() || "";
+            for (const frame of frames) {
+              const dataLine = frame.split(/\\r?\\n/).find(line => line.startsWith("data:"));
+              if (!dataLine) continue;
+              try {
+                const event = JSON.parse(dataLine.slice(5).trim());
+                if (event.type === "attempt") {
+                  streamedText = "";
+                  setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: "" } : message));
+                } else if (event.type === "delta" && typeof event.content === "string") {
+                  streamedText += event.content;
+                  setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: streamedText } : message));
+                } else if (event.type === "done") {
+                  payload = event;
+                } else if (event.type === "error") {
+                  streamError = String(event.error || "provider_request_failed");
+                }
+              } catch { /* Ignore malformed server frames. */ }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+        if (streamError) throw new Error(streamError);
+        if (typeof payload.content !== "string" || !payload.content.trim()) throw new Error("provider_request_failed");
+      } else {
+        payload = await response.json().catch(() => ({})) as typeof payload;
+      }
       if (!response.ok || typeof payload.content !== "string" || !payload.content.trim()) {
         const errors: Record<string, string> = {
           provider_not_configured: "لم يتم إعداد مزود الذكاء الاصطناعي على الخادم بعد. أضف إعدادات النموذج في Vercel.",
@@ -941,12 +986,16 @@ export default function Home() {
         throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
       }
       if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
-      setMessages(current => [...current, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: payload.content!,
-        timestamp: formatTime(),
-      }]);
+      setMessages(current => streamedAssistantId
+        ? current.map(message => message.id === streamedAssistantId
+          ? { ...message, content: payload.content!, timestamp: formatTime() }
+          : message)
+        : [...current, {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: payload.content!,
+            timestamp: formatTime(),
+          }]);
       setAttachment(null);
       setConversations(current => current.map(item => item.id === conversationId
         ? { ...item, preview: payload.content!.slice(0, 32), date: "الآن" }
