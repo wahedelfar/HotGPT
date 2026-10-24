@@ -805,14 +805,11 @@ export default async function handler(req: any, res: any) {
       partialResponse = true;
       console.warn("[Chat] Saving partial response after provider failure", JSON.stringify({ requestId, chars: content.length, lastFailure }));
     }
-    if (!content && (webSearchEnabled || darkWebEnabled) && directSearchContent) {
-      // Preserve source results when synthesis fails, but refund the failed model generation.
-      content = directSearchContent;
-      searchSynthesisFallback = true;
-      console.warn("[Chat] Search synthesis failed; returning source results and refunding credits", JSON.stringify({ requestId, lastFailure }));
+    if (!content && (webSearchEnabled || darkWebEnabled)) {
+      console.warn("[Chat] Search synthesis failed; refusing to expose raw search results", JSON.stringify({ requestId, lastFailure }));
     }
     if (!content) {
-      console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: Boolean(openRouterApiKey), lastFailure }));
+      console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: false, lastFailure }));
       if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); } }
       if (streamToClient) {
         if (streamHeartbeat) clearInterval(streamHeartbeat);
