@@ -68,7 +68,7 @@ export default async function handler(req: any, res: any) {
   if (!url || !key) return res.status(503).json({ error: "service_unavailable" });
   try {
     if (action === "status" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,prize_key,prize_label,prize_code,spun_at,hotlucky_daily_gifts(prize_code,prize_label,created_at)&order=created_at.desc&limit=20");
+      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,prize_key,prize_label,prize_code,spun_at,hotlucky_daily_gifts(prize_code,prize_label,created_at)&order=created_at.desc&limit=500");
       const ready = (orders || []).find((o: any) => o.status === "approved" && !o.spun_at);
       const prizes = (orders || []).filter((o: any) => !!o.prize_label).map((o: any) => {
         const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : o.hotlucky_daily_gifts;
