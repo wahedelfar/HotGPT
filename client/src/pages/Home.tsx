@@ -795,9 +795,16 @@ export default function Home() {
     let cancelled = false;
     const loadPrize = async () => {
       try {
-        const response = await authFetch("/api/lucky?action=status", { cache: "no-store" });
-        if (!response.ok) return;
-        const payload = await response.json();
+        const [prizeResponse, walletResponse] = await Promise.all([
+          authFetch("/api/lucky?action=status", { cache: "no-store" }),
+          authFetch("/api/billing?action=me", { cache: "no-store" }),
+        ]);
+        if (walletResponse.ok) {
+          const wallet = await walletResponse.json();
+          if (!cancelled) setWalletBalance(Number(wallet.tokenBalance) || 0);
+        }
+        if (!prizeResponse.ok) return;
+        const payload = await prizeResponse.json();
         const prize = payload.prize;
         if (!cancelled && prize?.label) {
           const timestamp = prize.date ? new Date(prize.date).getTime() : 0;
@@ -1426,6 +1433,10 @@ export default function Home() {
             <h2 id="auth-required-title">{tr(language, "يلزم تسجيل الدخول", "Sign in required")}</h2>
             <p className="welcome-modal-lead">{tr(language, "يرجى تسجيل الدخول أو إنشاء حساب للاستفادة من هذه الخاصية ومتابعة محادثاتك.", "Please log in or create an account to use this feature and keep your conversations.")}</p>
             <a href="/auth?mode=login" className="welcome-modal-cta">{tr(language, "تسجيل الدخول", "Log in")}</a>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.1)",fontSize:12,lineHeight:1.8,color:"#d6d0c3"}}>
+              <span>{tr(language,"مش عايز تشترك؟ جرّب HotLucky - 100 جنيه ممكن تكسب Pro 30 يوم","Not ready to subscribe? Try HotLucky — a 100 EGP package includes a digital bonus.")}</span>
+              <a href="/hotlucky" target="_blank" rel="noopener noreferrer" style={{color:"#f7cf65",fontWeight:900,textDecoration:"underline",textUnderlineOffset:3}}>{tr(language,"جرّب HotLucky ↗","Try HotLucky ↗")}</a>
+            </div>
             <p className="welcome-modal-login">{tr(language, "ليس لديك حساب؟", "Don't have an account?")} <a href="/auth?mode=signup">{tr(language, "إنشاء حساب مجاني", "Create a free account")}</a></p>
           </section>
         </div>
