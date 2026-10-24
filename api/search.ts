@@ -96,6 +96,18 @@ async function refundCredit(userId: string, kind: "free" | "paid") {
   });
 }
 
+function isHttpUrl(value: string): boolean {
+  return value.startsWith("https://") || value.startsWith("http://");
+}
+
+function normalizeSearchItems(items: any[], maxContent: number): SearchItem[] {
+  return items.map((item: any): SearchItem => ({
+    title: String(item.title || item.name || "نتيجة بحث").slice(0, 200),
+    url: String(item.url || item.link || "").slice(0, 1000),
+    content: String(item.content || item.description || item.snippet || item.markdown || "").slice(0, maxContent),
+  })).filter((item) => isHttpUrl(item.url) && item.title.trim() && item.content.trim());
+}
+
 async function runTavily(query: string, deep: boolean, key: string, maxResults = 5): Promise<SearchItem[]> {
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
@@ -104,56 +116,55 @@ async function runTavily(query: string, deep: boolean, key: string, maxResults =
       api_key: key,
       query,
       search_depth: deep ? "advanced" : "basic",
-      max_results: Math.min(5, maxResults),
+      max_results: Math.min(8, maxResults),
       include_answer: true,
     }),
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(9000),
   });
-  if (!response.ok) throw new Error(`tavily_http_${response.status}`);
-  const data = await response.json() as any;
-  const items: SearchItem[] = Array.isArray(data.results) ? data.results.slice(0, 5).map((item: any) => ({
-    title: String(item.title || "نتيجة بحث").slice(0, 200),
-    url: String(item.url || "").slice(0, 1000),
-    content: String(item.content || "").slice(0, deep ? 1800 : 1200),
-  })).filter((item: SearchItem) => /^https?:\\/\\//i.test(item.url)) : [];
-  if (typeof data.answer === "string" && data.answer.trim()) {
-    items.unshift({ title: "ملخص البحث", url: "", content: data.answer.slice(0, 1200) });
+  if (!response.ok) {
+    console.warn("[Search] Tavily failed", JSON.stringify({ status: response.status }));
+    throw new Error("tavily_http_" + response.status);
   }
+  const data = await response.json() as any;
+  const items = normalizeSearchItems(Array.isArray(data.results) ? data.results : [], deep ? 2200 : 1500);
+  if (typeof data.answer === "string" && data.answer.trim()) {
+    items.unshift({ title: "ملخص Tavily", url: "", content: data.answer.slice(0, 1500) });
+  }
+  console.info("[Search] Tavily completed", JSON.stringify({ resultCount: items.length, sourceCount: items.filter((item) => item.url).length }));
   return items;
 }
 
-async function runFirecrawlSearch(query: string, key: string): Promise<SearchItem[]> {
-  // Search only returns URLs/snippets. Scraping is deliberately separate and limited to two URLs.
+async function runFirecrawlSearch(query: string, key: string, deep: boolean): Promise<SearchItem[]> {
   const response = await fetch("https://api.firecrawl.dev/v2/search", {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({ query, limit: 5, sources: ["web"] }),
-    signal: AbortSignal.timeout(3000),
+    headers: { "content-type": "application/json", authorization: "Bearer " + key },
+    body: JSON.stringify({ query, limit: deep ? 8 : 5, sources: ["web"] }),
+    signal: AbortSignal.timeout(7000),
   });
-  if (!response.ok) throw new Error(`firecrawl_search_http_${response.status}`);
+  if (!response.ok) {
+    console.warn("[Search] Firecrawl search failed", JSON.stringify({ status: response.status }));
+    throw new Error("firecrawl_search_http_" + response.status);
+  }
   const payload = await response.json() as any;
-  const data = Array.isArray(payload.data) ? payload.data : [];
-  return data.slice(0, 5).map((item: any): SearchItem => ({
-    title: String(item.title || "نتيجة بحث").slice(0, 200),
-    url: String(item.url || "").slice(0, 1000),
-    content: String(item.description || item.snippet || item.content || "").slice(0, 1200),
-  })).filter((item: SearchItem) => /^https?:\\/\\//i.test(item.url));
+  const items = normalizeSearchItems(Array.isArray(payload.data) ? payload.data : [], deep ? 2200 : 1500);
+  console.info("[Search] Firecrawl completed", JSON.stringify({ resultCount: items.length }));
+  return items;
 }
 
 async function scrapeFirecrawlTopUrls(items: SearchItem[], key: string): Promise<SearchItem[]> {
-  const top = items.filter(item => /^https?:\\/\\//i.test(item.url)).slice(0, 2);
-  const scraped = await Promise.allSettled(top.map(async item => {
+  const top = items.filter((item) => isHttpUrl(item.url)).slice(0, 2);
+  const scraped = await Promise.allSettled(top.map(async (item) => {
     const response = await fetch("https://api.firecrawl.dev/v2/scrape", {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+      headers: { "content-type": "application/json", authorization: "Bearer " + key },
       body: JSON.stringify({ url: item.url, formats: ["markdown"], onlyMainContent: true }),
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(5000),
     });
-    if (!response.ok) throw new Error(`firecrawl_scrape_http_${response.status}`);
+    if (!response.ok) throw new Error("firecrawl_scrape_http_" + response.status);
     const payload = await response.json() as any;
     const data = payload?.data ?? payload;
-    const content = String(data?.markdown || data?.content || "").trim();
-    return content ? { ...item, content: content.slice(0, 3500) } : item;
+    const markdown = String(data?.markdown || data?.content || "").trim();
+    return markdown ? { ...item, content: markdown.slice(0, 3500) } : item;
   }));
   return scraped.flatMap((result, index) =>
     result.status === "fulfilled" ? [result.value] : [top[index]]
@@ -161,55 +172,91 @@ async function scrapeFirecrawlTopUrls(items: SearchItem[], key: string): Promise
 }
 
 async function searchWeb(query: string): Promise<{ content: string; sources: number }> {
+  const cleanQuery = query.trim().slice(0, 500);
+  if (!cleanQuery) throw new Error("web_search_failed");
+
   const tavilyKey = (process.env.TAVILY_API_KEY || "").trim();
   const firecrawlKey = (process.env.FIRECRAWL_API_KEY || "").trim();
+  console.info("[Search] Configuration", JSON.stringify({
+    tavilyConfigured: Boolean(tavilyKey),
+    firecrawlConfigured: Boolean(firecrawlKey),
+  }));
   if (!tavilyKey && !firecrawlKey) throw new Error("web_search_not_configured");
 
-  const comparisonQuery = /\\b(compare|comparison|rank|ranking|top\\s+\\d+|versus|vs\\.)\\b|مقارنة|قارن|ترتيب|رتب|أفضل\\s+\\d+|افضل\\s+\\d+|الأفضل|الافضل/i.test(query);
-  const deep = comparisonQuery || /\\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|أحدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(query);
+  const comparisonQuery = /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل/i.test(cleanQuery);
+  const deep = comparisonQuery || /\b(research|comprehensive|deep dive|latest news|sources|official sources|analy[sz]e|in depth)\b|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|أحدث|احدث|تحليل مفصل|دراسة مفصلة|بالتفصيل/i.test(cleanQuery);
 
-  // Keep a usable Tavily result independently of the optional Firecrawl enrichment.
-  const tavilyPromise: Promise<SearchItem[]> = tavilyKey
-    ? runTavily(query, deep, tavilyKey, 5).catch(() => [])
-    : Promise.resolve([]);
-  const firecrawlPromise: Promise<SearchItem[]> = firecrawlKey
-    ? (async () => {
-        const snippets = await runFirecrawlSearch(query, firecrawlKey);
-        if (!deep || snippets.length === 0) return snippets;
-        // Scrape only the top two pages and do not let either page block the other.
-        return scrapeFirecrawlTopUrls(snippets, firecrawlKey);
-      })().catch(() => [])
-    : Promise.resolve([]);
+  const [tavilyResult, firecrawlResult] = await Promise.allSettled([
+    tavilyKey ? runTavily(cleanQuery, deep, tavilyKey, 8) : Promise.resolve([] as SearchItem[]),
+    firecrawlKey ? (async () => {
+      const items = await runFirecrawlSearch(cleanQuery, firecrawlKey, deep);
+      return deep && items.length ? scrapeFirecrawlTopUrls(items, firecrawlKey) : items;
+    })() : Promise.resolve([] as SearchItem[]),
+  ]);
 
-  // Tavily (8s max) and Firecrawl (3s search + 4s parallel scrapes) run concurrently.
-  // This keeps provider collection well below the old 50s+ sequential path.
-  const [tavilyItems, firecrawlItems] = await Promise.all([tavilyPromise, firecrawlPromise]);
-  const merged: SearchItem[] = [...tavilyItems, ...firecrawlItems];
-  if (!merged.length) throw new Error("web_search_failed");
+  const tavilyItems = tavilyResult.status === "fulfilled" ? tavilyResult.value : [];
+  const firecrawlItems = firecrawlResult.status === "fulfilled" ? firecrawlResult.value : [];
+  if (tavilyResult.status === "rejected") {
+    console.warn("[Search] Tavily unavailable", JSON.stringify({
+      reason: tavilyResult.reason instanceof Error ? tavilyResult.reason.message : "unknown",
+    }));
+  }
+  if (firecrawlResult.status === "rejected") {
+    console.warn("[Search] Firecrawl unavailable", JSON.stringify({
+      reason: firecrawlResult.reason instanceof Error ? firecrawlResult.reason.message : "unknown",
+    }));
+  }
 
+  const merged = [...tavilyItems, ...firecrawlItems];
   const seen = new Set<string>();
-  const unique = merged.filter(item => {
-    if (!item.url) return true;
+  const unique = merged.filter((item) => {
+    if (!item.url) return Boolean(item.content.trim());
     try {
       const parsed = new URL(item.url);
       parsed.hash = "";
-      const normalized = parsed.toString().replace(/\\/$/, "").toLowerCase();
+      const normalized = parsed.toString().replace(/\/$/, "").toLowerCase();
       if (seen.has(normalized)) return false;
       seen.add(normalized);
       return true;
-    } catch { return false; }
-  }).slice(0, 8);
+    } catch {
+      return false;
+    }
+  }).filter((item) =>
+    item.title.trim() && item.content.trim() &&
+    !/profile image|jordan host|all right reserved/i.test(item.title + " " + item.content)
+  ).slice(0, 8);
+
+  const sourceCount = unique.filter((item) => item.url).length;
+  if (!unique.length || sourceCount === 0) {
+    console.error("[Search] All search sources failed or returned no usable URLs", JSON.stringify({
+      tavilyConfigured: Boolean(tavilyKey),
+      firecrawlConfigured: Boolean(firecrawlKey),
+      tavilyStatus: tavilyResult.status,
+      firecrawlStatus: firecrawlResult.status,
+      tavilyResults: tavilyItems.length,
+      firecrawlResults: firecrawlItems.length,
+    }));
+    throw new Error("web_search_failed");
+  }
+
+  console.info("[Search] Search succeeded", JSON.stringify({
+    sourceCount,
+    tavilyCount: tavilyItems.filter((item) => item.url).length,
+    firecrawlCount: firecrawlItems.filter((item) => item.url).length,
+    deep,
+  }));
 
   const content = [
-    `## ${deep ? "نتائج البحث الموسع" : "نتائج البحث"}`,
+    "## " + (deep ? "نتائج البحث الموسع" : "نتائج البحث"),
     "",
     ...unique.map((item, index) => item.url
-      ? `### ${index + 1}. [${item.title.replace(/[\\[\\]]/g, "")}](${item.url})\\n\\n${item.content || "لا يتوفر ملخص لهذه الصفحة."}`
-      : `### ملخص البحث\\n\\n${item.content}`),
+      ? "### " + (index + 1) + ". [" + item.title.replace(/[\[\]]/g, "") + "](" + item.url + ")\n\n" + item.content
+      : "### ملخص البحث\n\n" + item.content),
     "",
-    `عدد المصادر: ${unique.filter(item => item.url).length}`,
-  ].join("\\n\\n").slice(0, 11000);
-  return { content, sources: unique.filter(item => item.url).length };
+    "عدد المصادر: " + sourceCount,
+  ].join("\n\n").slice(0, deep ? 14000 : 11000);
+
+  return { content, sources: sourceCount };
 }
 
 async function summarizeSearchResults(query: string, sourceContent: string): Promise<string | null> {
@@ -217,7 +264,13 @@ async function summarizeSearchResults(query: string, sourceContent: string): Pro
   const primaryKey = (process.env.NEXA_PROVIDER_API_KEY || "").trim();
   const primaryModel = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
-  const openRouterModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-chat").trim();
+  const configuredSearchModel = (process.env.OPENROUTER_SEARCH_MODEL || "").trim();
+  const requestedOpenRouterModel = (process.env.OPENROUTER_MODEL || "").trim();
+  const openRouterModel = configuredSearchModel && !configuredSearchModel.toLowerCase().includes(":free") && !configuredSearchModel.toLowerCase().endsWith("/free")
+    ? configuredSearchModel
+    : requestedOpenRouterModel && !requestedOpenRouterModel.toLowerCase().includes(":free") && !requestedOpenRouterModel.toLowerCase().endsWith("/free")
+      ? requestedOpenRouterModel
+      : "openai/gpt-4o-mini";
   const comparison = /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل/i.test(query);
   const system = comparison
     ? "You are a rigorous web-research summarizer. Answer in Arabic because the user's query is Arabic. ALWAYS produce the requested comparison/ranking as a Markdown table with exactly the requested number of distinct items when sources support them. Required columns: الأداة | السعر | السهولة | المميزات. If a source does not state pricing, put «غير متوفر في المصادر»; only say «مجاني / مفتوح المصدر» when the source supports it. Never omit the table because pricing is missing. Use only the supplied source material, cite source URLs inline, mark uncertainty, and ignore navigation, sidebars, and unrelated articles."
@@ -235,7 +288,7 @@ async function summarizeSearchResults(query: string, sourceContent: string): Pro
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${provider.key}` },
         body: JSON.stringify({ model: provider.model, messages, temperature: 0.2, max_tokens: comparison ? 1800 : 1400, stream: false }),
-        signal: AbortSignal.timeout(provider.name === "primary" ? 4000 : 3000),
+        signal: AbortSignal.timeout(provider.name === "primary" ? 10000 : 10000),
       });
       if (!response.ok) continue;
       const payload = await response.json() as any;
@@ -305,6 +358,14 @@ export default async function handler(req: any, res: any) {
     const finalContent = summarized || result.content;
     await saveMessage(user.id, conversationId, "user", query);
     await saveMessage(user.id, conversationId, "assistant", finalContent);
+    if (!summarized && credit) {
+      try {
+        await refundCredit(user.id, credit);
+        console.warn("[Search] Summarization failed; returned raw results and refunded credits");
+      } catch (refundError) {
+        console.error("[Search] Credit refund failed after summarization failure", refundError instanceof Error ? refundError.message : "unknown");
+      }
+    }
     const wallet = await getWallet(user.id);
     return res.status(200).json({ content: finalContent, sources: result.sources, summarized: Boolean(summarized), wallet: { tokenBalance: wallet.tokenBalance } });
   } catch (error) {
