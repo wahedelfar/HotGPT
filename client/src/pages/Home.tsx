@@ -789,6 +789,7 @@ export default function Home() {
   const [showWinModal, setShowWinModal] = useState(false);
   const promptedPrizeCode = useRef<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -898,6 +899,7 @@ export default function Home() {
     setDraft("");
     setRequestError(null);
     setIsSending(true);
+    setIsSearchingWeb(webSearchEnabled);
     let conversationId = activeConversation;
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -1021,6 +1023,7 @@ export default function Home() {
                   streamedText = "";
                   setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: "" } : message));
                 } else if (event.type === "delta" && typeof event.content === "string") {
+                  setIsSearchingWeb(false);
                   streamedText += event.content;
                   setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: streamedText } : message));
                 } else if (event.type === "done") {
@@ -1107,6 +1110,7 @@ export default function Home() {
           : "حدث خطأ غير متوقع أثناء إرسال الرسالة.";
       setRequestError(message);
     } finally {
+      setIsSearchingWeb(false);
       setIsSending(false);
     }
   };
@@ -1318,9 +1322,10 @@ export default function Home() {
                   {messages.map(message => (
                     <MessageBubble message={message} key={message.id} />
                   ))}
-                  {isSending && webSearchEnabled && (
-                    <div className="search-skeleton-grid" aria-label={tr(language, "جارٍ تحميل نتائج البحث", "Loading search results")} aria-live="polite">
-                      {Array.from({ length: 3 }, (_, index) => <div className="search-skeleton-card" key={index}><i /><i /><i /></div>)}
+                  {isSearchingWeb && (
+                    <div className="search-progress-notice" role="status" aria-live="polite">
+                      <Search size={15} />
+                      <span>{tr(language, "جاري البحث في Tavily + Firecrawl...", "Searching Tavily + Firecrawl...")}</span>
                     </div>
                   )}
                   {isSending && (
@@ -1355,19 +1360,6 @@ export default function Home() {
                   <X size={13} />
                 </button>
               </div>
-              {(writingAssist || webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast") && (
-                <div className="active-mode-notice" role="status" aria-live="polite">
-                  <span className="active-mode-indicator" />
-                  <span>
-                    {[
-                      writingAssist ? tr(language, "تم تفعيل محسن الطلب", "Prompt enhancer enabled") : "",
-                      webSearchEnabled ? tr(language, "تم تفعيل البحث المتقدم", "Advanced search enabled") : "",
-                      darkWebEnabled ? tr(language, "تم تفعيل وضع الدارك ويب", "Dark Web mode enabled") : "",
-                      selectedModel === "dadgpt-beast" ? tr(language, "تم تفعيل نموذج Beast Pro", "Beast Pro model enabled") : "",
-                    ].filter(Boolean).join(" · ")}
-                  </span>
-                </div>
-              )}
               <div className="composer">
                 <div className="composer-tools">
                   <label className="composer-icon" aria-label={tr(language, "إرفاق ملف", "Attach file")} title={tr(language, "إرفاق ملف", "Attach file")}>
@@ -1400,7 +1392,7 @@ export default function Home() {
                   <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "محسن الطلب", "Prompt enhancer")}>
                     <Wand size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
                   </button>
-                  <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم — PRO", "Advanced search — PRO")}>
+                  <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
                   <button type="button" className={darkWebEnabled ? "composer-mode active" : "composer-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title={tr(language, "وضع الدارك ويب", "Dark Web mode")}>
