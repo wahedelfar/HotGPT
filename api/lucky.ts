@@ -14,6 +14,23 @@ export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = String(req.query?.action || "");
   if (action === "config" && req.method === "GET") return res.status(200).json({ paypalPaymentUrl: process.env.HOTLUCKY_PAYPAL_URL || null, vodafoneCashNumber: "01063537686" });
+  if (action === "transparency" && req.method === "GET") {
+    try {
+      const url = supabaseUrl(), key = serviceKey();
+      if (!url || !key) return res.status(503).json({ error: "service_unavailable" });
+      const r = await fetch(url + "/rest/v1/hotlucky_daily_gifts?select=id,prize_label,created_at,hotlucky_orders(email)&order=created_at.desc&limit=5", { headers: { apikey: key, authorization: "Bearer " + key }, cache: "no-store" });
+      if (!r.ok) return res.status(503).json({ error: "transparency_unavailable" });
+      const rows = await r.json();
+      const winners = (rows || []).map((row: any) => {
+        const order = Array.isArray(row.hotlucky_orders) ? row.hotlucky_orders[0] : row.hotlucky_orders;
+        const email = String(order?.email || "عضو HotGPT");
+        const parts = email.split("@");
+        const masked = parts.length === 2 ? parts[0].slice(0, 2) + "***@" + parts[1] : "عضو HotGPT";
+        return { prize: row.prize_label, date: row.created_at, member: masked };
+      });
+      return res.status(200).json({ winners });
+    } catch { return res.status(503).json({ error: "transparency_unavailable" }); }
+  }
   const member = await requireMember(req, res); if (!member) return;
   const url = supabaseUrl(), key = serviceKey();
   if (!url || !key) return res.status(503).json({ error: "service_unavailable" });
