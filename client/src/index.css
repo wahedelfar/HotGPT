@@ -909,7 +909,7 @@ body,
   width: min(900px, calc(100vw - 32px));
   height: 38px;
   min-height: 38px;
-  margin: -42px auto 12px;
+  margin: -56px auto 26px;
   padding: 0 8px 0 28px;
   border: 0;
   border-bottom: 1px solid rgba(247, 207, 101, .72);
@@ -965,8 +965,8 @@ body,
   .hotlucky-slim-banner {
     top: 0;
     width: calc(100vw - 18px);
-    margin-top: -35px;
-    margin-bottom: 12px;
+    margin-top: -49px;
+    margin-bottom: 26px;
     gap: 6px;
     padding-inline: 5px 24px;
   }
