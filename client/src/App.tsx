@@ -9,6 +9,8 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import AuthPage from "./pages/Auth";
 import BillingPage from "./pages/Billing";
 import AdminBillingPage from "./pages/AdminBilling";
+import LuckyPage from "./pages/Lucky";
+import AdminLuckyPage from "./pages/AdminLucky";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/billing" component={BillingPage} />
+      <Route path="/lucky.php" component={LuckyPage} />
+      <Route path="/admin/lucky.php" component={AdminLuckyPage} />
       <Route path="/admin" component={AdminBillingPage} />
       <Route path="/admin/login" component={AdminBillingPage} />
       <Route path="/admin/billing" component={AdminBillingPage} />
@@ -29,13 +33,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <LanguageProvider>
-      <ThemeProvider defaultTheme="dark" switchable>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
-    </LanguageProvider>
+        <ThemeProvider defaultTheme="dark" switchable>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   );
 }
