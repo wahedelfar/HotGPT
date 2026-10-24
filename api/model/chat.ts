@@ -165,8 +165,8 @@ async function searchInternet(query: string): Promise<string> {
   type SearchItem = { title: string; url: string; content: string };
   const deepResearch =
     cleanQuery.length > 35 ||
-    /\\b(compare|comparison|rank|ranking|top\\s+\\d+|versus|vs\\.|research|comprehensive|deep dive|latest news|latest breach|recent breach|data breach|security incident|cyberattack|sources|official sources|analy[sz]e|in depth|defen[cs]e|IAB|initial access|strategy|detailed|deep|complete|full)\\b|مقارنة|قارن|ترتيب|رتب|أفضل\\s+\\d+|افضل\\s+\\d+|الأفضل|الافضل|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|احدث|أحدث|أحدث اختراق|أحدث تسريب|اختراق حديث|تسريب حديث|تحليل مفصل|دراسة مفصلة|بالتفصيل|حماية|دفاعي|دفاع|استراتيجية|استراتيجي|IAB|Initial Access|أكبر 3|أكبر ثلاثة|تفصيلي|عميق|كامل/i.test(cleanQuery) ||
-    /(?:أكبر|أفضل|افضل|top|largest|best)\\s*(?:3|٣|three|[3-9]\\d*)|(?:3|٣|three)\\s*(?:أسواق|اسواق|عناصر|نقاط|أمثلة|امثلة|markets|items|points|examples)/i.test(cleanQuery);
+    /\b(compare|comparison|rank|ranking|top\s+\d+|versus|vs\.|research|comprehensive|deep dive|latest news|latest breach|recent breach|data breach|security incident|cyberattack|sources|official sources|analy[sz]e|in depth|defen[cs]e|IAB|initial access|strategy|detailed|deep|complete|full)\b|مقارنة|قارن|ترتيب|رتب|أفضل\s+\d+|افضل\s+\d+|الأفضل|الافضل|بحث شامل|بحث معمق|مصادر|المصادر الرسمية|آخر الأخبار|احدث|أحدث|أحدث اختراق|أحدث تسريب|اختراق حديث|تسريب حديث|تحليل مفصل|دراسة مفصلة|بالتفصيل|حماية|دفاعي|دفاع|استراتيجية|استراتيجي|IAB|Initial Access|أكبر 3|أكبر ثلاثة|تفصيلي|عميق|كامل/i.test(cleanQuery) ||
+    /(?:أكبر|أفضل|افضل|top|largest|best)\s*(?:3|٣|three|[3-9]\d*)|(?:3|٣|three)\s*(?:أسواق|اسواق|عناصر|نقاط|أمثلة|امثلة|markets|items|points|examples)/i.test(cleanQuery);
 
   const normalizeItems = (items: any[], maxContent: number): SearchItem[] =>
     items.map((item: any): SearchItem => ({
@@ -431,8 +431,8 @@ export default async function handler(req: any, res: any) {
   // Use search for recent breach information and the public k-anonymity API for password prevalence.
   const lastUserText = String(messages[messages.length - 1]?.content || "");
   const darkWebDeepQuery = lastUserText.length > 35 ||
-    /قارن|مقارنة|حماية|دفاعي|دفاع|\\bIAB\\b|Initial Access|استراتيجية|تحليل|أكبر\\s*(?:3|٣|ثلاثة)|تفصيلي|عميق|كامل/i.test(lastUserText) ||
-    /(?:أكبر|أفضل|افضل|top|largest|best)\\s*(?:3|٣|three|[3-9]\\d*)|(?:3|٣|three)\\s*(?:أسواق|اسواق|عناصر|نقاط|أمثلة|امثلة|markets|items|points|examples)/i.test(lastUserText);
+    /قارن|مقارنة|حماية|دفاعي|دفاع|\bIAB\b|Initial Access|استراتيجية|تحليل|أكبر\s*(?:3|٣|ثلاثة)|تفصيلي|عميق|كامل/i.test(lastUserText) ||
+    /(?:أكبر|أفضل|افضل|top|largest|best)\s*(?:3|٣|three|[3-9]\d*)|(?:3|٣|three)\s*(?:أسواق|اسواق|عناصر|نقاط|أمثلة|امثلة|markets|items|points|examples)/i.test(lastUserText);
   const darkWebCreditCost = darkWebDeepQuery ? 5 : 3;
   const breachEmail = lastUserText.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0]?.toLowerCase();
   const asksAboutLeaks = /\b(leak(?:ed|s)?|breach(?:ed|es)?|pwned|compromis(?:ed|e)|expos(?:ed|ure)|password)\b|تسريب|مسرب|مسرّب|اختراق|مخترق|انكشف|تسرّب|تسرب|كلمة المرور|كلمه المرور|فحص.*(?:بريد|ايميل|إيميل)|(?:بريد|ايميل|إيميل).*تسريب/i.test(lastUserText);
@@ -543,7 +543,9 @@ export default async function handler(req: any, res: any) {
 
   const creditCost = attachment ? 3 : darkWebEnabled ? darkWebCreditCost : webSearchEnabled ? 3 : selectedModel === "dadgpt-beast" ? 2 : 1;
   let credit: "free" | "paid" | null = null;
-  let streamHeartbeat: ReturnType<typeof setInterval> | null = null;  try {
+  let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
+
+  try {
     credit = await consumeCredit(user.id, creditCost, !attachment && selectedModel === "dadgpt-default");
   } catch (error) {
     console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
@@ -722,7 +724,8 @@ export default async function handler(req: any, res: any) {
           } finally {
             reader.releaseLock();
           }
-        } else {          responseText = await upstream.text();
+        } else {
+          responseText = await upstream.text();
           try {
             payload = responseText.trim() ? JSON.parse(responseText) : null;
           } catch {
