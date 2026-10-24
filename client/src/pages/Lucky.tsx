@@ -22,6 +22,7 @@ export default function LuckyPage() {
   const [gift, setGift] = useState("");
   const [giftCode, setGiftCode] = useState("");
   const [paypalUrl, setPaypalUrl] = useState("");
+  const [winners, setWinners] = useState<Array<{member:string;prize:string;date:string}>>([]);
 
   async function refreshStatus() {
     try {
@@ -35,6 +36,7 @@ export default function LuckyPage() {
   useEffect(() => {
     void refreshStatus();
     fetch("/api/lucky?action=config", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => setPaypalUrl(typeof data?.paypalPaymentUrl === "string" ? data.paypalPaymentUrl : "")).catch(() => {});
+    fetch("/api/lucky?action=transparency", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(data => setWinners(Array.isArray(data?.winners) ? data.winners : [])).catch(() => {});
   }, []);
 
   function readProof(file?: File) {
@@ -107,7 +109,7 @@ export default function LuckyPage() {
           <div className="mt-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/5 p-4 text-sm leading-6 text-emerald-100">شفافية: تأكيد التحويل ومراجعة الإثبات يتمان بواسطة الإدارة. لا يتم اعتبار صورة التحويل وحدها دليلًا نهائيًا على الدفع.</div>
           {eligible&&<button disabled={busy} onClick={()=>void spin()} className="mt-5 w-full rounded-xl bg-emerald-300 p-3 font-black text-slate-950">لفّ عجلة الهدية المجانية</button>}
           {gift&&<div className="mt-5 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 p-5 text-center"><p className="text-sm text-cyan-200">مبروك! هديتك</p><p className="mt-2 text-2xl font-black">{gift}</p>{giftCode&&<p dir="ltr" className="mt-2 font-mono text-sm text-cyan-200">{giftCode}</p>}<p className="mt-2 text-xs text-slate-400">تُضاف الجوائز إلى الحساب بعد مراجعتها من الإدارة.</p></div>}
-          <div className="mt-5 border-t border-white/10 pt-4 text-xs leading-6 text-slate-500">جولة الشفافية اليومية المستهدفة: 7 مساءً بتوقيت مصر. سيتم عرض آخر الفائزين بعد تسجيل نتائج حقيقية ومراجعتها، دون كشف البريد أو بيانات الحساب.</div>
+          <div className="mt-5 border-t border-white/10 pt-4"><p className="text-sm font-bold text-slate-200">آخر الهدايا المسجلة</p>{winners.length?<div className="mt-3 space-y-2">{winners.map((winner,i)=><div key={i} className="flex items-center justify-between gap-3 rounded-lg bg-black/20 p-3 text-xs"><span>{winner.member}</span><span className="text-cyan-200">{winner.prize}</span></div>)}</div>:<p className="mt-2 text-xs text-slate-500">ستظهر النتائج الحقيقية هنا بعد أول هدية مسجلة.</p>}<p className="mt-3 text-xs leading-6 text-slate-500">موعد الجولة اليومية المقترح: 7 مساءً بتوقيت مصر. تُعرض النتائج المسجلة فقط مع إخفاء البريد الإلكتروني.</p></div>
         </div>
       </section>
     </div>
