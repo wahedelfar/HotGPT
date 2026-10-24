@@ -560,7 +560,7 @@ export default async function handler(req: any, res: any) {
       ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : providerMessages),
     ];
     const providers: Array<{ name: string; endpoint: URL; key: string; model: string }> = [];
-    const requestOpenRouterModels = webSearchEnabled
+    const requestOpenRouterModels = webSearchEnabled || darkWebEnabled
       ? openRouterModels.filter((candidate) => candidate !== "openrouter/free")
       : openRouterModels;
     if (endpoint && apiKey) {
@@ -587,7 +587,7 @@ export default async function handler(req: any, res: any) {
     }
     if (openRouterApiKey) {
       const beastFallbackModel = (process.env.OPENROUTER_BEAST_MODEL || "").trim();
-      const availableFallbackModels = requestOpenRouterModels.length ? requestOpenRouterModels : (webSearchEnabled ? ["deepseek/deepseek-chat"] : openRouterModels);
+      const availableFallbackModels = requestOpenRouterModels.length ? requestOpenRouterModels : ((webSearchEnabled || darkWebEnabled) ? ["deepseek/deepseek-chat"] : openRouterModels);
       const fallbackModels = (selectedModel === "dadgpt-beast" && beastFallbackModel
         ? [beastFallbackModel, ...availableFallbackModels.filter((candidate) => candidate !== beastFallbackModel)]
         : availableFallbackModels).slice(0, webSearchEnabled || darkWebEnabled ? 1 : 2);
