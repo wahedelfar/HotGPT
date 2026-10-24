@@ -529,7 +529,20 @@ export default async function handler(req: any, res: any) {
     let content = "";
     let lastFailure = "provider_request_failed";
     let primaryFailed = false;
+    const streamToClient = body.stream === true;
+    const writeStreamEvent = (event: Record<string, unknown>) => {
+      if (streamToClient && !res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+    if (streamToClient) {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+    }
     for (const provider of providers) {
+      if (streamToClient) writeStreamEvent({ type: "attempt", provider: provider.name });
       if (provider.name === "openrouter" && primaryFailed) {
         console.info("[Chat] Switching to fallback provider", JSON.stringify({ requestId, from: "primary", to: "openrouter", reason: lastFailure }));
       }
@@ -547,49 +560,79 @@ export default async function handler(req: any, res: any) {
             messages: outgoingMessages,
             max_tokens: extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
             temperature: 0.7,
+            stream: streamToClient,
           }),
           // Keep the primary's proven response window, but use shorter bounded
           // timeouts for fallback attempts so a failed provider cannot stall chat.
           signal: AbortSignal.timeout(
-            // Keep enough total time for a substantial answer plus one fallback within
-            // Vercel's 60-second function limit, including auth, billing, and persistence.
-            provider.name === "primary" ? 22000
-              : provider.name === "primary-beast-fallback" ? 16000
-                : provider.model === "openrouter/free" ? 6000 : 8000
+            provider.name === "primary" ? 35000
+              : provider.name === "primary-beast-fallback" ? 8000
+                : provider.model === "openrouter/free" ? 5000 : 6500
           ),
         });
         // Read the body once as text. Some compatible providers return SSE or
         // non-JSON error pages even when the status is 200; response.json()
         // silently replaced those useful diagnostics with an empty object.
-        const responseText = await upstream.text();
         const contentType = upstream.headers.get("content-type") || "";
+        let responseText = "";
         let payload: any = null;
         let jsonParseFailed = false;
         let streamedContent = "";
-
-        try {
-          payload = responseText.trim() ? JSON.parse(responseText) : null;
-        } catch {
-          jsonParseFailed = true;
-          payload = null;
-          // Accept OpenAI-compatible Server-Sent Events if a provider sends
-          // them despite streaming not being explicitly requested.
-          for (const line of responseText.split(/\r?\n/)) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine.startsWith("data:")) continue;
-            const data = trimmedLine.slice(5).trim();
-            if (!data || data === "[DONE]") continue;
-            try {
-              const event = JSON.parse(data);
-              const choice = event?.choices?.[0];
-              const piece = choice?.delta?.content ?? choice?.message?.content ?? choice?.text;
-              if (typeof piece === "string") streamedContent += piece;
-              else if (Array.isArray(piece)) {
-                streamedContent += piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("");
+        if (streamToClient && upstream.ok && upstream.body && /text\\/event-stream/i.test(contentType)) {
+          const reader = upstream.body.getReader();
+          const decoder = new TextDecoder();
+          let pending = "";
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunk = decoder.decode(value, { stream: true });
+              responseText += chunk;
+              pending += chunk;
+              const lines = pending.split(/\\r?\\n/);
+              pending = lines.pop() || "";
+              for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine.startsWith("data:")) continue;
+                const data = trimmedLine.slice(5).trim();
+                if (!data || data === "[DONE]") continue;
+                try {
+                  const event = JSON.parse(data);
+                  if (event?.error) { payload = event; continue; }
+                  const choice = event?.choices?.[0];
+                  const piece = choice?.delta?.content ?? choice?.message?.content ?? choice?.text;
+                  const textPiece = typeof piece === "string" ? piece
+                    : Array.isArray(piece) ? piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("") : "";
+                  if (textPiece) {
+                    streamedContent += textPiece;
+                    writeStreamEvent({ type: "delta", content: textPiece });
+                  }
+                  if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
+                } catch { /* Ignore malformed provider keepalive frames. */ }
               }
-              if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
-            } catch {
-              // Ignore SSE metadata/keepalive lines; validate the final content below.
+            }
+          } finally {
+            reader.releaseLock();
+          }
+        } else {
+          responseText = await upstream.text();
+          try {
+            payload = responseText.trim() ? JSON.parse(responseText) : null;
+          } catch {
+            jsonParseFailed = true;
+            for (const line of responseText.split(/\\r?\\n/)) {
+              const trimmedLine = line.trim();
+              if (!trimmedLine.startsWith("data:")) continue;
+              const data = trimmedLine.slice(5).trim();
+              if (!data || data === "[DONE]") continue;
+              try {
+                const event = JSON.parse(data);
+                const choice = event?.choices?.[0];
+                const piece = choice?.delta?.content ?? choice?.message?.content ?? choice?.text;
+                if (typeof piece === "string") streamedContent += piece;
+                else if (Array.isArray(piece)) streamedContent += piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("");
+                if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
+              } catch { /* Ignore malformed provider frames. */ }
             }
           }
         }
@@ -670,12 +713,20 @@ export default async function handler(req: any, res: any) {
     if (!content) {
       console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: Boolean(openRouterApiKey), lastFailure }));
       try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); }
+      if (streamToClient) {
+        writeStreamEvent({ type: "error", error: lastFailure });
+        return res.end();
+      }
       return res.status(lastFailure === "provider_timeout" ? 504 : 502).json({ error: lastFailure });
     }
 
     await saveMessage(user.id, conversationId, "assistant", content);
     let wallet = null;
     try { wallet = await getWallet(user.id); } catch { /* Do not charge twice if the answer was persisted. */ }
+    if (streamToClient) {
+      writeStreamEvent({ type: "done", content, wallet, conversationId });
+      return res.end();
+    }
     return res.status(200).json({ content, wallet, conversationId });
   } catch (error: any) {
     try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
@@ -683,6 +734,10 @@ export default async function handler(req: any, res: any) {
     }
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
     console.error("[Chat] Request failed", error instanceof Error ? error.message : "unknown");
+    if (res.headersSent) {
+      res.write(`data: ${JSON.stringify({ type: "error", error: timeout ? "provider_timeout" : "chat_request_failed" })}\n\n`);
+      return res.end();
+    }
     return res.status(timeout ? 504 : 502).json({
       error: timeout ? "provider_timeout" : "chat_request_failed",
     });
