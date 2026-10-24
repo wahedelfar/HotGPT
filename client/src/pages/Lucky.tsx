@@ -112,7 +112,7 @@ export default function LuckyPage() {
       if (!response.ok) {
         const errors: Record<string,string> = {
           login_required: "سجّل الدخول إلى حساب HotGPT أولًا.",
-          paypal_not_configured: "الدفع عبر PayPal قريبًا. اختر فودافون كاش حاليًا.",
+          paypal_not_configured: "الدفع عبر PayPal غير مفعّل حاليًا. اختر فودافون كاش.",
           invalid_screenshot: "صيغة الصورة أو حجمها غير صالح.",
           order_create_failed: "تعذر تسجيل الطلب. لم يتم تأكيد الدفع؛ حاول مجددًا لاحقًا.",
         };
