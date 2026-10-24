@@ -52,7 +52,7 @@ export default function LuckyPage() {
   const [giftCode, setGiftCode] = useState("");
   const [paypalUrl, setPaypalUrl] = useState("");
   const [winners, setWinners] = useState<Winner[]>([]);
-  const [participants, setParticipants] = useState<number | null>(null);
+  const [participants, setParticipants] = useState<number>(0);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState(false);
   const target = useMemo(() => getNextRound(), []);
@@ -162,7 +162,7 @@ export default function LuckyPage() {
           <div className="hl-card p-4"><p className="text-sm text-slate-400">الإجمالي</p><p className="mt-1 text-2xl font-black hl-gold">100 جنيه</p></div>
         </div>
         <p className="mx-auto mt-4 max-w-4xl text-xs leading-6 text-slate-400">لا يُخصم أي مبلغ آليًا من المحفظة. يراجع المسؤول إثبات التحويل يدويًا؛ وبعد التأكيد تُضاف 100 توكن إلى حسابك وتتاح الهدية المجانية.</p>
-        <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Users size={16} className="hl-gold"/>{participants === null ? "جارٍ تحميل عدد المشاركين..." : `${participants} مشتركين حتى الآن في هذه الجولة`}</div>
+        <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Users size={16} className="hl-gold"/>{participants} مشاركين حتى الآن في هذه الجولة</div>
       </header>
 
       <section className="mt-4">
@@ -186,7 +186,7 @@ export default function LuckyPage() {
         <div className="hl-card p-5 sm:p-7">
           <div className="flex items-center gap-3"><div className="rounded-xl bg-amber-200/10 p-3 text-amber-200"><Upload size={22}/></div><div><h2 className="text-xl font-black">الدفع وإرسال الإثبات</h2><p className="mt-1 text-sm text-slate-400">المنتج الأساسي: 100 توكن بعد اعتماد الدفع</p></div></div>
           <div className="mt-5 rounded-2xl border border-amber-200/20 bg-black/25 p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm text-slate-400">Vodafone Cash</span><button type="button" onClick={()=>void copyNumber()} className="inline-flex items-center gap-2 rounded-lg border border-amber-200/30 px-3 py-2 text-xs text-amber-200">{copied?<Check size={14}/>:<Copy size={14}/>} {copied?"تم النسخ":"نسخ الرقم"}</button></div><p dir="ltr" className="mt-2 text-3xl font-black tracking-wider hl-gold">01063537686</p><p className="mt-2 text-xs leading-5 text-slate-500">حوّل 100 جنيه، ثم ارفع صورة إثبات التحويل في النموذج.</p></div>
-          {paypalUrl ? <a href={paypalUrl} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-between rounded-xl border border-amber-200/25 p-4 text-sm hover:bg-amber-200/5"><span>الدفع عبر PayPal · 2 USD</span><span className="hl-gold">فتح رابط الدفع ↗</span></a> : <a href="#" onClick={e=>e.preventDefault()} aria-disabled="true" className="mt-3 flex items-center justify-between rounded-xl border border-white/10 p-4 text-sm text-slate-400"><span>PayPal · 2 USD</span><span>الدفع عبر PayPal قريبًا</span></a>}
+          {paypalUrl ? <a href={paypalUrl} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-between rounded-xl border border-amber-200/25 p-4 text-sm hover:bg-amber-200/5"><span>الدفع عبر PayPal · 2 USD</span><span className="hl-gold">فتح رابط الدفع ↗</span></a> : <a href="#" onClick={e=>e.preventDefault()} aria-disabled="true" className="mt-3 flex items-center justify-between rounded-xl border border-white/10 p-4 text-sm text-slate-400"><span>PayPal · 2 USD</span><span>الدفع عبر PayPal</span></a>}
           <label className="mt-5 block text-sm font-semibold">البريد الإلكتروني لحسابك<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="hl-field mt-2" autoComplete="email"/></label>
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2"><button type="button" onClick={()=>setMethod("vodafone_cash")} className={`rounded-xl border p-3 text-sm font-bold ${method==="vodafone_cash"?"border-amber-200 bg-amber-200/10 text-amber-100":"border-white/10 text-slate-300"}`}>فودافون كاش · 100 جنيه</button><button type="button" disabled={!paypalUrl} onClick={()=>setMethod("paypal")} className={`rounded-xl border p-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40 ${method==="paypal"?"border-amber-200 bg-amber-200/10 text-amber-100":"border-white/10 text-slate-300"}`}>PayPal · 2 دولار</button></div>
           <label className="mt-4 block text-sm font-semibold">صورة إثبات التحويل<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>readProof(e.target.files?.[0])} className="mt-2 block w-full text-sm text-slate-400 file:ml-3 file:rounded-lg file:border-0 file:bg-amber-200 file:px-4 file:py-2 file:font-bold file:text-black"/></label>
