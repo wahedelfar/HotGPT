@@ -197,8 +197,7 @@ async function searchInternet(query: string): Promise<string> {
     const items = normalizeItems(Array.isArray(data.results) ? data.results : [], deepResearch ? 2200 : 1500);
     console.info("[Search] Tavily completed", JSON.stringify({ resultCount: items.length, answerAvailable: Boolean(data.answer) }));
     return items;
-  };  const runFirecrawlSearch = async (): Promise<SearchItem[]> => {
-    if (!firecrawlKey) return [];
+  };  const runFirecrawlSearch = async (): Promise<SearchItem[]> => {    if (!firecrawlKey) return [];
     const response = await fetch("https://api.firecrawl.dev/v2/search", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: "Bearer " + firecrawlKey },
@@ -397,8 +396,7 @@ export default async function handler(req: any, res: any) {
     messages.reduce((sum: number, m: ChatMessage) => sum + m.content.length, 0) > 80000
   ) {    return res.status(400).json({ error: "invalid_messages" });
   }
-  let attachmentText = "";
-  if (attachment !== undefined && attachment !== null) {
+  let attachmentText = "";  if (attachment !== undefined && attachment !== null) {
     if (!attachment || typeof attachment.name !== "string" || typeof attachment.path !== "string" || attachment.encoding !== "storage") return res.status(400).json({ error: "invalid_attachment" });
     if (!/\.(pdf|txt|md|csv|json)$/.test(attachment.name.toLowerCase()) || !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(pdf|txt|md|csv|json)$/i.test(attachment.path)) return res.status(400).json({ error: "unsupported_attachment" });
   }
@@ -577,7 +575,8 @@ export default async function handler(req: any, res: any) {
         process.env.NEXA_PROVIDER_MODEL_PRO ||
         "dadgpt-beast"
       ).trim();
-      const primaryModel = (selectedModel === "dadgpt-beast" || darkWebEnabled) ? beastModel : model;
+      // Dark Web mode is a specialist mode: route it through the configured Beast/Pro model even when the UI model selector remains on default.
+    const primaryModel = (selectedModel === "dadgpt-beast" || darkWebEnabled) ? beastModel : model;
       providers.push({
         name: "primary",
         endpoint,
@@ -597,8 +596,7 @@ export default async function handler(req: any, res: any) {
         ? [beastFallbackModel, ...availableFallbackModels.filter((candidate) => candidate !== beastFallbackModel)]
         : availableFallbackModels).slice(0, webSearchEnabled || darkWebEnabled ? 1 : 2);      for (const fallbackModel of fallbackModels) {
         providers.push({
-          name: "openrouter",
-          endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
+          name: "openrouter",          endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
           key: openRouterApiKey,
           model: fallbackModel,
         });
@@ -797,8 +795,7 @@ export default async function handler(req: any, res: any) {
         }        const normalizedCandidate = candidate.trim();
         const darkWebMinimumChars = darkWebDeepQuery ? 1500 : 600;
         const finishReason = choice?.finish_reason ?? payload?.choices?.[0]?.finish_reason ?? null;
-        if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || finishReason === "length")) {
-          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
+        if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || finishReason === "length")) {          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
           console.warn("[DarkWeb] Provider response incomplete; trying next provider", JSON.stringify({
             requestId, provider: provider.name, chars: normalizedCandidate.length,
             minimumChars: darkWebMinimumChars, finishReason,
