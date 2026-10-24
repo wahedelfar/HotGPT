@@ -790,6 +790,7 @@ export default function Home() {
   const promptedPrizeCode = useRef<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+  const [hasStartedStreaming, setHasStartedStreaming] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -900,6 +901,7 @@ export default function Home() {
     setRequestError(null);
     setIsSending(true);
     setIsSearchingWeb(webSearchEnabled);
+    setHasStartedStreaming(false);
     let conversationId = activeConversation;
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -1024,6 +1026,7 @@ export default function Home() {
                   setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: "" } : message));
                 } else if (event.type === "delta" && typeof event.content === "string") {
                   setIsSearchingWeb(false);
+                  setHasStartedStreaming(true);
                   streamedText += event.content;
                   setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: streamedText } : message));
                 } else if (event.type === "done") {
@@ -1319,16 +1322,16 @@ export default function Home() {
                 />
               ) : (
                 <div className="messages-list">
-                  {messages.map(message => (
-                    <MessageBubble message={message} key={message.id} />
-                  ))}
                   {isSearchingWeb && (
                     <div className="search-progress-notice" role="status" aria-live="polite">
                       <Search size={15} />
                       <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {isSending && !messages.some(message => message.role === "assistant" && message.content.trim()) && (
+                  {messages.map(message => (
+                    <MessageBubble message={message} key={message.id} />
+                  ))}
+                  {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
                         <Sparkles size={15} />
