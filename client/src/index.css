@@ -712,6 +712,13 @@ html[data-theme="light"] .conversation-delete-action { color: #b42318; }
   text-align: left !important;
 }
 .message-content pre code { display: block; overflow-x: auto; white-space: pre; }
+.message-content pre code .hljs-comment,
+.message-content pre code .token.comment,
+.message-content pre code .hljs-quote {
+  direction: rtl !important;
+  unicode-bidi: plaintext !important;
+  display: inline !important;
+}
 .message-content :not(pre) > code { direction: ltr; unicode-bidi: isolate; }
 
 /* Search result cards isolate Arabic and Latin text to prevent bidi overlap. */

@@ -268,8 +268,11 @@ function SearchResultCards({ content, language }: { content: string; language: L
 
   if (!items.length) return <div className="message-content"><Streamdown>{content}</Streamdown></div>;
   const domain = (value: string) => {
-    try { return decodeURIComponent(new URL(value).hostname).replace(/^www\./i, ""); }
-    catch { return value; }
+    try {
+      const hostname = new URL(value).hostname;
+      try { return decodeURIComponent(hostname).replace(/^www\./i, ""); }
+      catch { return hostname.replace(/^www\./i, ""); }
+    } catch { return ""; }
   };
   const snippetDirection = (value: string) => /[\u0600-\u06FF]/.test(value) ? "rtl" as const : "ltr" as const;
   const card = (item: typeof items[number]) => (
@@ -306,7 +309,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       const shell = document.createElement("section");
       shell.className = "code-block-shell";
       shell.setAttribute("dir", "ltr");
-      shell.style.cssText = "direction:ltr;text-align:left;unicode-bidi:isolate";
+      shell.style.cssText = "direction:ltr;text-align:left;unicode-bidi:isolate;overflow-x:auto;background:#0f0f0f;color:#fff;border-radius:12px;padding:0";
       const header = document.createElement("div");
       header.className = "code-block-header";
       header.setAttribute("dir", "ltr");
@@ -337,12 +340,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       };
       copyButton.addEventListener("click", onCopy);
       cleanups.push(() => copyButton.removeEventListener("click", onCopy));
-      header.append(languageLabel, copyButton);
+      header.append(copyButton, languageLabel);
       pre.parentNode?.insertBefore(shell, pre);
       shell.append(header, pre);
       pre.setAttribute("dir", "ltr");
-      pre.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;unicode-bidi:isolate";
-      if (code) code.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;unicode-bidi:isolate";
+      pre.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;unicode-bidi:isolate;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0f0f0f;color:#fff;border-radius:0;padding:16px;margin:0";
+      if (code) {
+        code.setAttribute("dir", "ltr");
+        code.style.cssText += ";direction:ltr;text-align:left;overflow-x:auto;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;unicode-bidi:isolate";
+        code.querySelectorAll(".hljs-comment,.token.comment,.hljs-quote").forEach(comment => {
+          (comment as HTMLElement).style.cssText += ";direction:rtl;unicode-bidi:plaintext;display:inline";
+        });
+      }
     });
     return () => cleanups.forEach(cleanup => cleanup());
   }, [message.content, language]);
@@ -910,13 +919,14 @@ export default function Home() {
             language: localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar",
           },
         }),
-        signal: AbortSignal.timeout(65000),
+        signal: AbortSignal.timeout(120000),
       });
       let payload = {} as {
         content?: string;
         error?: string;
         wallet?: { tokenBalance?: number } | null;
         conversationId?: string;
+        partial?: boolean;
       };
       let streamedAssistantId: string | null = null;
       if (response.ok && response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
@@ -949,8 +959,9 @@ export default function Home() {
                   payload = event;
                 } else if (event.type === "error") {
                   streamError = String(event.error || "provider_request_failed");
-                  streamedText = "";
-                  setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: "" } : message));
+                  if (!streamedText.trim()) {
+                    setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: "" } : message));
+                  }
                 }
               } catch { /* Ignore malformed server frames. */ }
             }
@@ -958,7 +969,7 @@ export default function Home() {
         } finally {
           reader.releaseLock();
         }
-        if (streamError) {
+        if (streamError && !streamedText.trim()) {
           setMessages(current => current.filter(message => message.id !== streamedAssistantId));
           const streamErrors: Record<string, string> = {
             provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. لم يُخصم الرصيد، حاول مرة أخرى.",
@@ -968,7 +979,14 @@ export default function Home() {
           };
           throw new Error(streamErrors[streamError] || "تعذر إكمال الإجابة. لم يُخصم الرصيد.");
         }
-        if (typeof payload.content !== "string" || !payload.content.trim()) throw new Error("provider_request_failed");
+        if (typeof payload.content !== "string" || !payload.content.trim()) {
+          if (streamedText.trim()) {
+            payload.content = `${streamedText}\n\n> توقف الاتصال قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه.`;
+            payload.partial = true;
+          } else {
+            throw new Error("provider_request_failed");
+          }
+        }
       } else {
         payload = await response.json().catch(() => ({})) as typeof payload;
       }
