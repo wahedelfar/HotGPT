@@ -305,6 +305,15 @@ async function saveMessage(userId: string, conversationId: string, role: "user" 
   });
 }
 
+function classifyPremiumAnswer(content: string): { cost: 3 | 5 | 9; tier: "simple" | "deep" | "report"; labelAr: string; labelEn: string } {
+  const wordCount = content.trim().split(/\\s+/u).filter(Boolean).length;
+  const codeBlocks = (content.match(/\\x60\\x60\\x60[\\s\\S]*?\\x60\\x60\\x60/g) || []).length;
+  const hasTable = /^\\s*\\|.*\\|\\s*$/m.test(content) || /\\b(compare|comparison|versus)\\b|مقارنة|قارن/i.test(content);
+  if (wordCount > 2000 || codeBlocks >= 2) return { cost: 9, tier: "report", labelAr: "تقرير طويل شامل", labelEn: "Comprehensive full report" };
+  if (wordCount > 800 || hasTable) return { cost: 5, tier: "deep", labelAr: "تحليل عميق", labelEn: "Deep analysis" };
+  return { cost: 3, tier: "simple", labelAr: "إجابة بسيطة", labelEn: "Simple answer" };
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
 
@@ -539,7 +548,7 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const creditCost = attachment ? 3 : (darkWebEnabled || selectedModel === "dadgpt-beast") ? darkWebCreditCost : webSearchEnabled ? 3 : 1;
+  let creditCost = attachment ? 3 : (darkWebEnabled || selectedModel === "dadgpt-beast") ? 3 : webSearchEnabled ? 3 : 1;
   let credit: "free" | "paid" | null = null;
   let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
 
@@ -854,6 +863,29 @@ export default async function handler(req: any, res: any) {
       : searchSynthesisFallback
         ? `${content}\n\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
         : content;
+    let billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;
+    if (!partialResponse && !searchSynthesisFallback && !attachment && (darkWebEnabled || selectedModel === "dadgpt-beast")) {
+      const classification = classifyPremiumAnswer(content);
+      const additionalCost = classification.cost - creditCost;
+      if (additionalCost > 0) {
+        let extraCredit: "free" | "paid" | null = null;
+        try { extraCredit = await consumeCredit(user.id, additionalCost, false); }
+        catch (error) { console.error("[Billing] Premium usage adjustment failed", error instanceof Error ? error.message : "unknown"); }
+        if (!extraCredit) {
+          try { await refundCredit(user.id, credit, creditCost); }
+          catch (error) { console.error("[Billing] Base credit refund after usage adjustment failed", error instanceof Error ? error.message : "unknown"); }
+          console.warn("[Billing] Premium response not delivered because the balance cannot cover its classified tier", JSON.stringify({ requestId, requiredCost: classification.cost }));
+          if (streamToClient) {
+            if (streamHeartbeat) clearInterval(streamHeartbeat);
+            writeStreamEvent({ type: "error", error: "insufficient_credits" });
+            return res.end();
+          }
+          return res.status(402).json({ error: "insufficient_credits", wallet: await getWallet(user.id).catch(() => null) });
+        }
+        creditCost = classification.cost;
+      }
+      billing = { cost: classification.cost, tier: classification.tier, labelAr: classification.labelAr, labelEn: classification.labelEn };
+    }
     await saveMessage(user.id, conversationId, "assistant", finalContent);
     if (partialResponse || searchSynthesisFallback) {
       try { await refundCredit(user.id, credit, creditCost); } catch (error) {
@@ -872,10 +904,10 @@ export default async function handler(req: any, res: any) {
       if (partialResponse) {
         try { finalWallet = await getWallet(user.id); } catch { /* Refresh balance on next load. */ }
       }
-      writeStreamEvent({ type: "done", content: finalContent, wallet: finalWallet, conversationId, partial: partialResponse });
+      writeStreamEvent({ type: "done", content: finalContent, wallet: finalWallet, conversationId, partial: partialResponse, billing });
       return res.end();
     }
-    return res.status(200).json({ content: finalContent, wallet, conversationId, partial: partialResponse, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
+    return res.status(200).json({ content: finalContent, wallet, conversationId, partial: partialResponse, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
   } catch (error: any) {
     try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
       console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
