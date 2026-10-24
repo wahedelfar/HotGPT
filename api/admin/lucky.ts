@@ -16,7 +16,7 @@ export default async function handler(req: any, res: any) {
   const action = String(req.query?.action || ""), id = String(req.query?.id || "");
   try {
     if (action === "list" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,status,proof_path,prize_label,prize_code,reward_issued,created_at,hotlucky_daily_gifts(prize_code,prize_label,issued_at)&order=created_at.desc&limit=500");
+      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,status,proof_path,prize_label,prize_code,reward_issued,consolation_awarded,created_at,hotlucky_daily_gifts(prize_code,prize_label,issued_at)&order=created_at.desc&limit=500");
       const result = await Promise.all((orders || []).map(async (o: any) => {
         let proof_url: string | null = null;
         if (o.proof_path) {
@@ -37,7 +37,7 @@ export default async function handler(req: any, res: any) {
       if (!rows?.length) return res.status(409).json({ error: "already_processed" });
       return res.status(200).json({ success: true });
     }
-    if (action === "award" && req.method === "POST") {
+    if (action === "consolation" && req.method === "POST") {\n      const result = await request("rpc/hotlucky_award_consolation", { method: "POST", body: JSON.stringify({ p_order_id: id, p_admin: admin.email || "admin" }) });\n      return res.status(200).json({ success: true, result });\n    }\n    if (action === "award" && req.method === "POST") {
       const result = await request("rpc/hotlucky_award_tokens", { method: "POST", body: JSON.stringify({ p_order_id: id, p_admin: admin.email || "admin" }) });
       return res.status(200).json({ success: true, result });
     }
@@ -45,7 +45,7 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("already_processed")) return res.status(409).json({ error: "already_processed" });
-    if (message.includes("not_ready")) return res.status(409).json({ error: "reward_not_ready" });
+    if (message.includes("not_ready")) return res.status(409).json({ error: "reward_not_ready" });\n    if (message.includes("not_approved")) return res.status(409).json({ error: "order_not_approved" });
     if (message.includes("subscription_reward_requires_subscription_integration")) return res.status(409).json({ error: "subscription_reward_requires_subscription_integration" });
     console.error("[Admin HotLucky]", message || "unknown");
     return res.status(503).json({ error: "hotlucky_unavailable" });
