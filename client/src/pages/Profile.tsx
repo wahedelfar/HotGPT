@@ -9,7 +9,7 @@ type Wallet = { tokenBalance?: number };
 export default function ProfilePage() {
   const auth = useAuth();
   const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [prize, setPrize] = useState<Prize | null>(null);
+  const [prizes, setPrizes] = useState<Prize[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,9 +28,8 @@ export default function ProfilePage() {
         }
         if (prizeResponse.ok) {
           const data = await prizeResponse.json();
-          const item = data.prize as Prize | null;
-          const timestamp = item?.date ? new Date(item.date).getTime() : 0;
-          if (!cancelled) setPrize(item?.label && (!timestamp || Date.now() - timestamp <= 7 * 24 * 60 * 60 * 1000) ? item : null);
+          const items = Array.isArray(data.prizes) ? data.prizes as Prize[] : (data.prize?.label ? [data.prize as Prize] : []);
+          if (!cancelled) setPrizes(items.filter(item => Boolean(item?.label)));
         }
       } finally { if (!cancelled) setLoading(false); }
     }
@@ -45,7 +44,7 @@ export default function ProfilePage() {
         <header className="my-8 rounded-3xl border border-amber-200/30 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
           <p className="text-xs font-bold tracking-widest text-amber-200">HOTGPT · PROFILE</p>
           <h1 className="mt-3 text-3xl font-black">حسابي وجوائزي</h1>
-          <p className="mt-3 text-sm leading-7 text-slate-300">تظهر هنا الهدايا المسجلة في حسابك خلال آخر 7 أيام.</p>
+          <p className="mt-3 text-sm leading-7 text-slate-300">تظهر هنا جميع جوائز HotLucky المسجلة في حسابك مع تاريخ كل جائزة.</p>
         </header>
         {!auth.loading && !auth.isAuthenticated ? (
           <section className="rounded-2xl border border-white/10 bg-white/[.03] p-6">
@@ -64,13 +63,17 @@ export default function ProfilePage() {
             </section>
             <section className="mt-5 rounded-2xl border border-amber-200/35 bg-amber-200/[.06] p-5">
               <div className="flex items-center gap-3"><Gift className="text-amber-200" size={24}/><h2 className="text-xl font-black">جوائزي من HotLucky</h2></div>
-              {loading ? <p className="mt-4 text-sm text-slate-400">جارٍ تحميل الجوائز…</p> : prize ? (
-                <div className="mt-4 rounded-xl border border-amber-200/25 bg-black/25 p-4">
-                  <p className="text-sm text-amber-200">🎉 مبروك، كسبت {prize.label}!</p>
-                  {prize.code && <p dir="ltr" className="mt-3 inline-block rounded-lg border border-white/10 px-3 py-2 font-mono text-sm">{prize.code}</p>}
-                  {prize.date && <p className="mt-3 text-xs text-slate-400">تاريخ الهدية: {new Date(prize.date).toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })}</p>}
+              {loading ? <p className="mt-4 text-sm text-slate-400">جارٍ تحميل الجوائز…</p> : prizes.length ? (
+                <div className="mt-4 space-y-3">
+                  {prizes.map((item, index) => (
+                    <article key={item.code || item.date || index} className="rounded-xl border border-amber-200/25 bg-black/25 p-4">
+                      <p className="text-sm font-bold text-amber-200">🎉 مبروك، كسبت {item.label}!</p>
+                      {item.code && <p dir="ltr" className="mt-3 inline-block rounded-lg border border-white/10 px-3 py-2 font-mono text-sm">{item.code}</p>}
+                      {item.date && <p className="mt-3 text-xs text-slate-400">تاريخ الهدية: {new Date(item.date).toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })}</p>}
+                    </article>
+                  ))}
                 </div>
-              ) : <p className="mt-4 text-sm leading-7 text-slate-400">لا توجد هدايا مسجلة خلال آخر 7 أيام.</p>}
+              ) : <p className="mt-4 text-sm leading-7 text-slate-400">لا توجد جوائز مسجلة في حسابك حتى الآن.</p>}
               <a href="/hotlucky" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-200 to-amber-500 px-4 py-3 font-bold text-black"><Crown size={17}/> زيارة HotLucky</a>
             </section>
           </>
