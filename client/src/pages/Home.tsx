@@ -786,6 +786,8 @@ export default function Home() {
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
   const [walletBalance, setWalletBalance] = useState(0);
   const [hotLuckyPrize, setHotLuckyPrize] = useState<{ label: string; code?: string; date?: string } | null>(null);
+  const [showWinModal, setShowWinModal] = useState(false);
+  const promptedPrizeCode = useRef<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -816,6 +818,16 @@ export default function Home() {
     const interval = window.setInterval(() => void loadPrize(), 60_000);
     return () => { cancelled = true; window.clearInterval(interval); };
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
+
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated || !hotLuckyPrize?.code) return;
+    if (promptedPrizeCode.current === hotLuckyPrize.code) return;
+    promptedPrizeCode.current = hotLuckyPrize.code;
+    try {
+      if (localStorage.getItem("hotlucky-win-acknowledged:" + hotLuckyPrize.code) === "1") return;
+    } catch {}
+    setShowWinModal(true);
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id, hotLuckyPrize?.code]);
 
   useEffect(() => {
     if (auth.loading || !auth.isAuthenticated) { setWalletBalance(0); return; }
@@ -1238,7 +1250,7 @@ export default function Home() {
                 <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
                   <Coins size={20} /><span>{walletBalance}</span>
                 </a>
-                {hotLuckyPrize && <a href="/profile" title={hotLuckyPrize.code || hotLuckyPrize.label} style={{display:"inline-flex",alignItems:"center",gap:4,border:"1px solid rgba(247,207,101,.5)",borderRadius:999,background:"rgba(247,207,101,.1)",padding:"6px 9px",color:"#f7cf65",fontSize:11,fontWeight:800,textDecoration:"none"}}>🎉 {tr(language,"كسبت:","Won:")} {hotLuckyPrize.label}</a>}
+
               </>
             )}
             <button className="language-button" type="button" onClick={toggleLanguage} aria-label={tr(language, "التبديل إلى الإنجليزية", "Switch to Arabic")} title={tr(language, "English", "العربية")}>
@@ -1263,7 +1275,7 @@ export default function Home() {
                         <strong>{auth.user?.name || tr(language, "المستخدم", "User")}</strong>
                         <span>{auth.user?.email}</span>
                         <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
-                        {hotLuckyPrize && <a href="/profile" style={{display:"block",marginTop:8,color:"#f7cf65",fontSize:12,fontWeight:800}}>🎉 {tr(language,"كسبت:","Won:")} {hotLuckyPrize.label}</a>}
+
                       </div>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
@@ -1423,6 +1435,23 @@ export default function Home() {
           </section>
         )}
       </main>
+      {showWinModal && hotLuckyPrize && auth.isAuthenticated && (
+        <div className="welcome-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowWinModal(false); }} style={{zIndex:1200,background:"rgba(0,0,0,.82)",backdropFilter:"blur(7px)"}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="hotlucky-win-title" dir={language === "ar" ? "rtl" : "ltr"} style={{position:"relative",width:"min(92vw,460px)",border:"1px solid rgba(247,207,101,.85)",borderRadius:24,padding:"30px 24px",textAlign:"center",color:"#fff",background:"radial-gradient(ellipse at top,rgba(247,207,101,.18),transparent 55%),#0a0a0a",boxShadow:"0 20px 80px rgba(247,207,101,.18)"}}>
+            <button type="button" aria-label={tr(language,"إغلاق","Close")} onClick={() => setShowWinModal(false)} style={{position:"absolute",top:12,left:12,width:32,height:32,borderRadius:999,background:"#222",color:"#ddd",border:"1px solid #444",fontSize:20}}>×</button>
+            <div aria-hidden="true" style={{fontSize:34,letterSpacing:5,marginBottom:10}}>🎉 ✨ 🎊</div>
+            <p style={{color:"#f7cf65",fontSize:11,fontWeight:900,letterSpacing:2}}>HOTLUCKY · WINNER</p>
+            <h2 id="hotlucky-win-title" style={{fontSize:25,fontWeight:950,lineHeight:1.5,margin:"12px 0"}}>🎉 مبروك يا بطل!</h2>
+            <p style={{fontSize:17,lineHeight:1.9,color:"#f5f5f5"}}>كسبت <strong style={{color:"#f7cf65"}}>{hotLuckyPrize.label}</strong> من HotLucky</p>
+            {(/Pro|Ultra/i.test(hotLuckyPrize.label) && hotLuckyPrize.date) && <p style={{fontSize:13,color:"#d5d5d5",marginTop:4}}>ينتهي في {new Date(new Date(hotLuckyPrize.date).getTime() + (/7 أيام|7 ايام/.test(hotLuckyPrize.label) ? 7 : 30) * 86400000).toLocaleDateString("ar-EG",{timeZone:"Africa/Cairo"})}</p>}
+            <p style={{marginTop:14,padding:"12px",borderRadius:14,border:"1px solid rgba(247,207,101,.25)",background:"rgba(247,207,101,.06)",color:"#f7cf65",fontSize:15,fontWeight:800}}>رصيدك الآن: {walletBalance.toLocaleString("en-US")} توكن</p>
+            <div style={{display:"flex",gap:10,marginTop:20}}>
+              <button type="button" onClick={() => { setShowWinModal(false); window.setTimeout(() => { document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(); document.querySelector(".composer")?.scrollIntoView({behavior:"smooth",block:"center"}); },100); }} style={{flex:1,borderRadius:12,padding:"12px 10px",background:"linear-gradient(90deg,#f7cf65,#e8ad28)",color:"#111",fontWeight:900}}>استخدم توكنزك الآن</button>
+              <button type="button" onClick={() => { try { localStorage.setItem("hotlucky-win-acknowledged:" + (hotLuckyPrize.code || ""), "1"); } catch {} setShowWinModal(false); }} style={{borderRadius:12,padding:"12px 20px",background:"#292929",border:"1px solid #444",color:"#eee",fontWeight:800}}>شكراً</button>
+            </div>
+          </section>
+        </div>
+      )}
       {showAuthGateModal && !auth.loading && !auth.isAuthenticated && (
         <div className="welcome-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowAuthGateModal(false); }}>
           <section className="welcome-modal auth-required-modal" role="dialog" aria-modal="true" aria-labelledby="auth-required-title" dir={language === "ar" ? "rtl" : "ltr"}>
