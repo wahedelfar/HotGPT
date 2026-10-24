@@ -972,7 +972,7 @@ export default function Home() {
         if (!putResponse.ok) throw new Error("تعذر رفع الملف إلى التخزين. حاول مرة أخرى.");
         filePayload = { name: attachment.name, type: upload.contentType || attachment.type || "application/octet-stream", path: upload.path, encoding: "storage" };
       }
-      const response = await authFetch(darkWebEnabled ? "/api/darkweb" : "/api/model/chat", {
+      const response = await authFetch("/api/model/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
