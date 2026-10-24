@@ -727,3 +727,17 @@ html[data-theme="light"] .conversation-delete-action { color: #b42318; }
 .search-result-open { align-self: flex-start; margin-top: auto; color: #8ddce7; font-size: 11px; }
 .more-results-heading { margin-top: 8px; }
 @media (max-width: 640px) { .search-results-grid { grid-template-columns: 1fr; } }
+
+
+.code-block-shell { direction: ltr !important; text-align: left !important; unicode-bidi: isolate !important; overflow: hidden; max-width: 100%; margin: 12px 0; border: 1px solid #303c43; border-radius: 10px; background: #0b0e11; }
+.code-block-header { display: flex; direction: ltr; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 10px; border-bottom: 1px solid #263139; background: #151b20; }
+.code-block-language { direction: ltr; unicode-bidi: isolate; color: #91a4ad; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.code-block-copy { direction: ltr; unicode-bidi: isolate; color: #a6cdd3; background: #202a30; border: 1px solid #35464e; border-radius: 6px; padding: 4px 8px; font-size: 10px; }
+.code-block-copy:hover { color: #effbfc; background: #293941; }
+.code-block-shell pre { margin: 0 !important; border: 0 !important; border-radius: 0 !important; direction: ltr !important; text-align: left !important; overflow-x: auto !important; white-space: pre !important; unicode-bidi: isolate !important; }
+.search-skeleton-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0; }
+.search-skeleton-card { display: grid; gap: 12px; padding: 14px; min-height: 115px; border: 1px solid #2a3a41; border-radius: 12px; background: #151c22; }
+.search-skeleton-card i { display: block; height: 9px; width: 70%; border-radius: 5px; background: linear-gradient(90deg, #202a30, #35454c, #202a30); background-size: 200% 100%; animation: search-skeleton-shimmer 1.25s linear infinite; }
+.search-skeleton-card i:nth-child(2) { width: 100%; }.search-skeleton-card i:nth-child(3) { width: 48%; }
+@keyframes search-skeleton-shimmer { to { background-position: -200% 0; } }
+@media (max-width: 640px) { .search-skeleton-grid { grid-template-columns: 1fr; } }
