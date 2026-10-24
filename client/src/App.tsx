@@ -11,6 +11,7 @@ import BillingPage from "./pages/Billing";
 import AdminBillingPage from "./pages/AdminBilling";
 import LuckyPage from "./pages/Lucky";
 import AdminLuckyPage from "./pages/AdminLucky";
+import LuckyTermsPage from "./pages/LuckyTerms";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/lucky.php" component={LuckyPage} />
+      <Route path="/lucky-terms" component={LuckyTermsPage} />
       <Route path="/admin/lucky.php" component={AdminLuckyPage} />
       <Route path="/admin" component={AdminBillingPage} />
       <Route path="/admin/login" component={AdminBillingPage} />
