@@ -1325,10 +1325,10 @@ export default function Home() {
                   {isSearchingWeb && (
                     <div className="search-progress-notice" role="status" aria-live="polite">
                       <Search size={15} />
-                      <span>{tr(language, "جاري البحث في Tavily + Firecrawl...", "Searching Tavily + Firecrawl...")}</span>
+                      <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {isSending && (
+                  {isSending && !messages.some(message => message.role === "assistant" && message.content.trim()) && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
                         <Sparkles size={15} />
