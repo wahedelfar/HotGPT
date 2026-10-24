@@ -895,3 +895,84 @@ body,
   font-size: 11px;
   line-height: 1.5;
 }
+
+
+/* HotLucky slim promotional banner: compact, restrained, and mobile-safe. */
+.hotlucky-slim-banner {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(900px, calc(100vw - 32px));
+  height: 38px;
+  min-height: 38px;
+  margin: -42px auto 12px;
+  padding: 0 8px 0 28px;
+  border: 0;
+  border-bottom: 1px solid rgba(247, 207, 101, .72);
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(90deg, rgba(16, 14, 9, .98), rgba(8, 8, 8, .98) 72%);
+  color: #f4f0e6;
+  text-align: start;
+  white-space: nowrap;
+}
+.hotlucky-slim-copy {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hotlucky-slim-cta {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ffe69a, #e5a927);
+  color: #171006;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+}
+.hotlucky-slim-cta:hover { filter: brightness(1.06); }
+.hotlucky-slim-close {
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #d4bd7b;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.hotlucky-slim-mobile { display: none; }
+@media (max-width: 600px) {
+  .hotlucky-slim-banner {
+    top: 0;
+    width: calc(100vw - 18px);
+    margin-top: -35px;
+    margin-bottom: 12px;
+    gap: 6px;
+    padding-inline: 5px 24px;
+  }
+  .hotlucky-slim-copy { font-size: 12px; }
+  .hotlucky-slim-desktop { display: none; }
+  .hotlucky-slim-mobile { display: inline; }
+  .hotlucky-slim-cta { height: 25px; padding-inline: 7px; font-size: 10px; }
+  .hotlucky-slim-close { left: 3px; width: 17px; }
+}
