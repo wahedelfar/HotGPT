@@ -306,9 +306,10 @@ async function saveMessage(userId: string, conversationId: string, role: "user" 
 }
 
 function classifyPremiumAnswer(content: string): { cost: 3 | 5 | 9; tier: "simple" | "deep" | "report"; labelAr: string; labelEn: string } {
-  const wordCount = content.trim().split(/\\s+/u).filter(Boolean).length;
-  const codeBlocks = (content.match(/\\x60\\x60\\x60[\\s\\S]*?\\x60\\x60\\x60/g) || []).length;
-  const hasTable = /^\\s*\\|.*\\|\\s*$/m.test(content) || /\\b(compare|comparison|versus)\\b|مقارنة|قارن/i.test(content);
+  const wordCount = content.trim().split(/\s+/u).filter(Boolean).length;
+  const fence = String.fromCharCode(96).repeat(3);
+  const codeBlocks = (content.match(new RegExp(fence + "[\\s\\S]*?" + fence, "g")) || []).length;
+  const hasTable = /^\s*\|.*\|\s*$/m.test(content) || /\b(compare|comparison|versus)\b|مقارنة|قارن/i.test(content);
   if (wordCount > 2000 || codeBlocks >= 2) return { cost: 9, tier: "report", labelAr: "تقرير طويل شامل", labelEn: "Comprehensive full report" };
   if (wordCount > 800 || hasTable) return { cost: 5, tier: "deep", labelAr: "تحليل عميق", labelEn: "Deep analysis" };
   return { cost: 3, tier: "simple", labelAr: "إجابة بسيطة", labelEn: "Simple answer" };
