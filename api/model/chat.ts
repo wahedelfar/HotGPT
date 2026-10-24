@@ -487,7 +487,10 @@ export default async function handler(req: any, res: any) {
   let directSearchContent = "";
   if (webSearchEnabled || darkWebEnabled) {
     try {
-      const query = String(messages[messages.length - 1].content || "");
+      // Do not send a specific email address to third-party search providers.
+      const query = darkWebEnabled && breachEmail && asksAboutLeaks
+        ? "recent public data breaches leaked account datasets exposed data categories 2026"
+        : String(messages[messages.length - 1].content || "");
       const searchResults = await searchInternet(query);
       directSearchContent = [
         "## نتائج البحث المباشر",
