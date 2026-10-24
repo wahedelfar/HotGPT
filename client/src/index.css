@@ -976,3 +976,5 @@ body,
   .hotlucky-slim-cta { height: 25px; padding-inline: 7px; font-size: 10px; }
   .hotlucky-slim-close { left: 3px; width: 17px; }
 }
+/* The slim banner now occupies the former welcome top spacing; keep the logo intact and exactly 12px below it. */
+.welcome-state.hotgpt-welcome { margin-top: 0; }
