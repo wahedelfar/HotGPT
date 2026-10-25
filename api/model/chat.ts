@@ -336,6 +336,121 @@ function classifyPremiumAnswer(content: string): { cost: 3 | 5 | 9; tier: "simpl
   return { cost: 3, tier: "simple", labelAr: "إجابة بسيطة", labelEn: "Simple answer" };
 }
 
+
+async function handleContinueChatPart(req: any, res: any, body: any) {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const messageId = String(body.continueMessageId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(messageId)) return res.status(400).json({ error: "invalid_message_id" });
+  let row: any;
+  let partIndex = 0;
+  try {
+    const rows = await supabaseRest(`messages?id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(user.id)}&role=eq.assistant&select=id,conversation_id,content,part_count,is_complete&limit=1`);
+    row = rows?.[0];
+    if (!row) return res.status(404).json({ error: "message_not_found" });
+    if (row.is_complete !== false) return res.status(409).json({ error: "message_already_complete" });
+    partIndex = Number(row.part_count || 1) + 1;
+    const charged = await chargeChatPart(user.id, messageId, partIndex);
+    if (charged?.duplicate === true) {
+      return res.status(409).json({ error: "duplicate_chat_part", messageId, partIndex });
+    }
+    if (charged?.insufficient === true || charged?.charged !== true) {
+      return res.status(402).json({ error: "insufficient_credits", user_credits: charged?.user_credits ?? null });
+    }
+  } catch (error) {
+    console.error("[Chat] Continuation charge/setup failed", error instanceof Error ? error.message : "unknown");
+    return res.status(503).json({ error: "continuation_unavailable" });
+  }
+
+  const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\/+$/, "");
+  const apiKey = (process.env.NEXA_PROVIDER_API_KEY || "").trim();
+  const mode = resolveChatMode(body.mode);
+  const model = (
+    process.env.NEXA_PROVIDER_BEAST_MODEL ||
+    process.env.NEXA_PROVIDER_PRO_MODEL ||
+    process.env.NEXA_PROVIDER_MODEL_PRO ||
+    process.env.NEXA_PROVIDER_MODEL ||
+    "dadgpt-beast"
+  ).trim();
+  let generated = "";
+  let finishReason: string | null = null;
+  try {
+    if (!baseUrl || !apiKey || !model) throw new Error("provider_not_configured");
+    const endpoint = new URL(baseUrl + "/chat/completions");
+    if (endpoint.protocol !== "https:") throw new Error("provider_https_required");
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: [BASE_PROMPT, MODE_PROMPTS[mode]].filter(Boolean).join("\\n\\n") },
+          { role: "assistant", content: String(row.content || "") },
+          { role: "system", content: "Continue exactly from where the previous part stopped. Do not repeat anything. Complete ALL remaining sections and finish the task fully within this part, being as concise as needed to fit." },
+        ],
+        max_tokens: 3000,
+        temperature: 0.4,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(28000),
+    });
+    const payload = await response.json().catch(() => null) as any;
+    if (!response.ok) throw new Error(response.status === 429 ? "provider_rate_limited" : "provider_request_failed");
+    const choice = payload?.choices?.[0];
+    finishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
+    const raw = choice?.message?.content;
+    generated = typeof raw === "string" ? raw.trim()
+      : Array.isArray(raw) ? raw.map((p: any) => typeof p?.text === "string" ? p.text : "").join("").trim()
+      : "";
+    if (!generated) throw new Error("provider_empty_response");
+
+    // Remove a repeated boundary if a provider ignores the no-repeat instruction.
+    const previous = String(row.content || "");
+    const overlapLimit = Math.min(500, previous.length, generated.length);
+    let overlap = 0;
+    for (let size = overlapLimit; size >= 40; size--) {
+      if (previous.slice(-size).trim() === generated.slice(0, size).trim()) { overlap = size; break; }
+    }
+    const append = generated.slice(overlap).trim();
+    const merged = append ? (previous ? previous + (previous.endsWith("\\n") ? "" : "\\n\\n") + append : append) : previous;
+    const complete = finishReason !== "length" && Boolean(finishReason);
+    await updateAssistantMessage(user.id, messageId, {
+      content: merged,
+      part_count: partIndex,
+      is_complete: complete,
+      last_finish_reason: finishReason || "provider_interrupted",
+    });
+    const wallet = await getWallet(user.id).catch(() => null);
+    return res.status(200).json({
+      content: merged, appended: append, messageId, conversationId: row.conversation_id,
+      part_count: partIndex, is_complete: complete, last_finish_reason: finishReason,
+      continuationAvailable: !complete, wallet: wallet ? { tokenBalance: wallet.tokenBalance } : null,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "provider_request_failed";
+    if (generated.trim()) {
+      try {
+        const previous = String(row.content || "");
+        await updateAssistantMessage(user.id, messageId, {
+          content: previous + (previous ? "\\n\\n" : "") + generated,
+          part_count: partIndex,
+          is_complete: false,
+          last_finish_reason: "provider_interrupted",
+        });
+      } catch (saveError) {
+        console.error("[Chat] Could not persist partial continuation", saveError instanceof Error ? saveError.message : "unknown");
+      }
+    } else {
+      try { await refundChatPart(user.id, messageId, partIndex); }
+      catch (refundError) { console.error("[Billing] Continuation refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
+    }
+    console.error("[Chat] Continuation failed", reason);
+    return res.status(reason === "provider_timeout" ? 504 : 502).json({ error: reason, messageId, partIndex });
+  }
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
 
