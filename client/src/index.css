@@ -559,9 +559,13 @@ html[dir="ltr"] .composer textarea { text-align: left; }
 /* Compact composer modes inspired by the requested HotGPT reference. */
 .composer { overflow: visible; }
 .composer-mode-row {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: flex-start;
+  gap: 8px; overflow-x: auto; overflow-y: hidden; max-width: 100%; min-width: 0;
   padding: 12px 12px 10px; border-top: 1px solid rgba(140,150,160,.12); direction: inherit;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
+.composer-mode-row::-webkit-scrollbar { display: none; }
+.composer-mode-row > .composer-mode { flex: 0 0 auto; }
 .composer-mode {
   min-width: 48px; height: 42px; padding: 0 14px; display: inline-flex;
   align-items: center; justify-content: center; gap: 8px;
@@ -981,8 +985,8 @@ body,
 
 
 /* Dark Web mode and rewards shortcut */
-.darkweb-mode { gap: 4px; color: #7C3AED; }
-.darkweb-mode-label { font-size: 11px; line-height: 1; color: inherit; }
+.darkweb-mode { gap: 8px; color: #DC2626; white-space: nowrap; }
+.darkweb-mode-label { font-size: inherit; line-height: 1; color: inherit; font-weight: inherit; }
+.darkweb-mode.active { color: #FF1E1E !important; border-color: #DC2626 !important; background: rgba(220,38,38,.12) !important; box-shadow: 0 0 10px rgba(220,38,38,.28) !important; }
 .rewards-sidebar-link { display: flex; align-items: center; gap: 8px; margin: 10px 12px 12px; padding: 10px 12px; border: 1px solid rgba(124, 58, 237, .24); border-radius: 10px; color: inherit; text-decoration: none; font-size: 13px; }
 .rewards-sidebar-link:hover { background: rgba(124, 58, 237, .10); border-color: rgba(124, 58, 237, .5); }
-@media (max-width: 640px) { .darkweb-mode { flex-direction: column; } }
