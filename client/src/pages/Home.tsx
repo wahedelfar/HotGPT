@@ -30,7 +30,7 @@ import {
   Terminal,
   SlidersHorizontal,
   Shield,
-  ShieldAlert,
+  Skull,
   Wifi,
   Cpu,
   Lock,
@@ -1420,8 +1420,8 @@ export default function Home() {
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
-                  <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" style={{ color: "#7C3AED", ...(darkWebEnabled ? { borderColor: "#7C3AED", background: "rgba(124,58,237,.14)", boxShadow: "0 0 12px rgba(124,58,237,.35)" } : {}) }}>
-                    <ShieldAlert size={18} /><span className="darkweb-mode-label">Dark Web</span>
+                  <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark Web" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
+                    <Skull size={18} /><span className="darkweb-mode-label">Dark Web</span>
                   </button>
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
