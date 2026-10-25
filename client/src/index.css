@@ -1187,3 +1187,57 @@ html[data-theme="blood"] .hotgpt-starter-card:nth-child(2) .starter-copy strong 
 html[data-theme="blood"] .hotgpt-starter-card .starter-copy small {
   color: #D1D5DB !important;
 }
+
+
+/* Input bar icon states — exact HotLucky palette */
+html[data-theme="blood"] .composer-mode-row > .composer-mode {
+  box-sizing: border-box;
+  background: #1A0505 !important;
+  border: 1px solid #4A1A1A !important;
+  color: #8A6D6D !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .composer-mode-row > .composer-mode {
+  box-sizing: border-box;
+  background: #000000 !important;
+  border: 1px solid #4A1A1A !important;
+  color: #8A6D6D !important;
+  box-shadow: none !important;
+}
+html[data-theme="blood"] .composer-mode-row > .composer-mode.active {
+  background: #2B0000 !important;
+  border: 1.5px solid #C9A227 !important;
+  color: #FBBF24 !important;
+  box-shadow: 0 0 10px #C9A22733 !important;
+}
+html[data-theme="dark"] .composer-mode-row > .composer-mode.active {
+  background: #000000 !important;
+  border: 1.5px solid #C9A227 !important;
+  color: #FBBF24 !important;
+  box-shadow: 0 0 10px #C9A22733 !important;
+}
+html[data-theme="blood"] .composer-mode-row > .composer-mode.pro-mode > span:last-child,
+html[data-theme="dark"] .composer-mode-row > .composer-mode.pro-mode > span:last-child {
+  background: transparent;
+  color: #6B7280 !important;
+  box-shadow: none;
+}
+html[data-theme="blood"] .composer-mode-row > .composer-mode.pro-mode.active > span:last-child,
+html[data-theme="dark"] .composer-mode-row > .composer-mode.pro-mode.active > span:last-child {
+  background: #C9A227 !important;
+  color: #000000 !important;
+  box-shadow: 0 0 10px #C9A22733 !important;
+}
+html[data-theme="blood"] .composer-mode-row > .composer-mode.darkweb-mode.active,
+html[data-theme="dark"] .composer-mode-row > .composer-mode.darkweb-mode.active {
+  color: #FBBF24 !important;
+  border-color: #C9A227 !important;
+}
+html[data-theme="blood"] .composer-mode-row > .composer-mode.darkweb-mode.active > svg,
+html[data-theme="dark"] .composer-mode-row > .composer-mode.darkweb-mode.active > svg {
+  color: #EF4444 !important;
+}
+html[data-theme="blood"] .composer-mode-row > .composer-mode.darkweb-mode.active .darkweb-mode-label,
+html[data-theme="dark"] .composer-mode-row > .composer-mode.darkweb-mode.active .darkweb-mode-label {
+  color: #FBBF24 !important;
+}
