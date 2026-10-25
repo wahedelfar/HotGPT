@@ -362,12 +362,17 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
   const messageId = String(body.continueMessageId || "");
   if (!/^[0-9a-f-]{36}$/i.test(messageId)) return res.status(400).json({ error: "invalid_message_id" });
   let row: any;
+  let history: Array<{ role: "user" | "assistant"; content: string }> = [];
   let partIndex = 0;
   try {
     const rows = await supabaseRest(`messages?id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(user.id)}&role=eq.assistant&select=id,conversation_id,content,part_count,is_complete&limit=1`);
     row = rows?.[0];
     if (!row) return res.status(404).json({ error: "message_not_found" });
     if (row.is_complete !== false) return res.status(409).json({ error: "message_already_complete" });
+    const priorRows = await supabaseRest(`messages?conversation_id=eq.${encodeURIComponent(row.conversation_id)}&user_id=eq.${encodeURIComponent(user.id)}&id=neq.${encodeURIComponent(messageId)}&select=role,content,created_at&order=created_at.asc&limit=38`);
+    history = (Array.isArray(priorRows) ? priorRows : [])
+      .filter((item: any) => (item.role === "user" || item.role === "assistant") && typeof item.content === "string" && item.content.trim())
+      .map((item: any) => ({ role: item.role, content: item.content }));
     partIndex = Number(row.part_count || 1) + 1;
     const charged = await chargeChatPart(user.id, messageId, partIndex);
     if (charged?.duplicate === true) {
@@ -405,6 +410,7 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
         messages: [
           { role: "system", content: [BASE_PROMPT, MODE_PROMPTS[mode]].filter(Boolean).join("\\n\\n") },
           { role: "system", content: "Continue exactly from where the previous part stopped. Do not repeat anything. Complete ALL remaining sections and finish the task fully within this part, being as concise as needed to fit." },
+          ...history,
           { role: "assistant", content: String(row.content || "") },
         ],
         max_tokens: 3000,
