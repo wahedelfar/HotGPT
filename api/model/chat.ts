@@ -334,9 +334,13 @@ export default async function handler(req: any, res: any) {
   // the verified configuration uses "Dadgpt-default", so do not rewrite its casing.
   const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
+  const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  const openRouterDefaultModel = (process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4-flash").trim();
+  const openRouterBeastModel = (process.env.OPENROUTER_BEAST_MODEL || "deepseek/deepseek-v4-pro").trim();
 
-  // DadGPT is the sole chat provider. Never send prompts or user data to a fallback provider.
-  if (!hasPrimaryProvider) {
+  // DadGPT remains the primary provider. OpenRouter is used only as a controlled
+  // fallback when the primary provider fails, with separate models for default and Pro.
+  if (!hasPrimaryProvider && !openRouterKey) {
     return res.status(503).json({ error: "provider_not_configured" });
   }
 
@@ -565,26 +569,27 @@ export default async function handler(req: any, res: any) {
       ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : providerMessages),
     ];
     const providers: Array<{ name: string; endpoint: URL; key: string; model: string }> = [];
+    // UI mode labels are not provider IDs; preserve DadGPT's configured model IDs.
+    const beastModel = (
+      process.env.NEXA_PROVIDER_BEAST_MODEL ||
+      process.env.NEXA_PROVIDER_PRO_MODEL ||
+      process.env.NEXA_PROVIDER_MODEL_PRO ||
+      "dadgpt-beast"
+    ).trim();
+    const isProRequest = selectedModel === "dadgpt-beast" || darkWebEnabled || webSearchEnabled;
+    const primaryModel = isProRequest ? beastModel : model;
     if (endpoint && apiKey) {
-      // UI mode labels are not valid provider model IDs.
-      const beastModel = (
-        process.env.NEXA_PROVIDER_BEAST_MODEL ||
-        process.env.NEXA_PROVIDER_PRO_MODEL ||
-        process.env.NEXA_PROVIDER_MODEL_PRO ||
-        "dadgpt-beast"
-      ).trim();
-      // Dark Web mode is a specialist mode: route it through the configured Beast/Pro model even when the UI model selector remains on default.
-    const primaryModel = (selectedModel === "dadgpt-beast" || darkWebEnabled) ? beastModel : model;
+      providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
+    }
+    // OpenRouter is strictly secondary: use the low-cost Flash model for default
+    // chats and the Pro model for Beast, web research, and Dark Web synthesis.
+    if (openRouterKey) {
       providers.push({
-        name: "primary",
-        endpoint,
-        key: apiKey,
-        model: primaryModel,
+        name: "openrouter",
+        endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
+        key: openRouterKey,
+        model: isProRequest ? openRouterBeastModel : openRouterDefaultModel,
       });
-      // If the default model is missing, slow, or returns metadata instead of an
-      // answer, retry through the same DadGPT endpoint with the known-working Beast
-      // model before using a third-party fallback. Beast's own selected path is unchanged.
-
     }
 
     let content = "";
@@ -809,7 +814,7 @@ export default async function handler(req: any, res: any) {
       console.warn("[Chat] Search synthesis failed; refusing to expose raw search results", JSON.stringify({ requestId, lastFailure }));
     }
     if (!content) {
-      console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), fallbackConfigured: false, lastFailure }));
+      console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), openRouterConfigured: Boolean(openRouterKey), lastFailure }));
       if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); } }
       if (streamToClient) {
         if (streamHeartbeat) clearInterval(streamHeartbeat);
