@@ -52,6 +52,7 @@ type ChatMessage = {
   content: string;
   timestamp: string;
   notice?: boolean;
+  continuationAvailable?: boolean;
 };
 
 type Conversation = {
@@ -353,7 +354,7 @@ function RenderedMessageContent({ content, language }: { content: string; langua
   </>;
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, onContinue }: { message: ChatMessage; onContinue?: () => void }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const codeContainerRef = useRef<HTMLDivElement>(null);
@@ -437,6 +438,12 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             {copied ? <Check size={13} strokeWidth={1.8} /> : <Copy size={13} strokeWidth={1.8} />}
             <span>{copied ? tr(language, "تم النسخ", "Copied") : tr(language, "نسخ", "Copy")}</span>
           </button>
+          {message.role === "assistant" && message.continuationAvailable && onContinue && (
+            <button type="button" className="message-continue-button" onClick={onContinue}>
+              <ChevronDown size={14} />
+              <span>{tr(language, "أكمل الشرح", "Continue explanation")}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1099,6 +1106,7 @@ export default function Home() {
         wallet?: { tokenBalance?: number } | null;
         conversationId?: string;
         partial?: boolean;
+        continuationAvailable?: boolean;
         billing?: { cost: number; tier: string; labelAr: string; labelEn: string } | null;
       };
       let streamedAssistantId: string | null = null;
@@ -1194,13 +1202,14 @@ export default function Home() {
       if (typeof payload.wallet?.freeAnswersRemaining === "number") setFreeAnswersRemaining(Math.max(0, payload.wallet.freeAnswersRemaining));
       setMessages(current => streamedAssistantId
         ? current.map(message => message.id === streamedAssistantId
-          ? { ...message, content: payload.content!, timestamp: formatTime() }
+          ? { ...message, content: payload.content!, timestamp: formatTime(), continuationAvailable: payload.continuationAvailable === true }
           : message)
         : [...current, {
             id: crypto.randomUUID(),
             role: "assistant",
             content: payload.content!,
             timestamp: formatTime(),
+            continuationAvailable: payload.continuationAvailable === true,
           }]);
       setAttachment(null);
       setConversations(current => current.map(item => item.id === conversationId
@@ -1464,7 +1473,13 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     </div>
                   )}
                   {messages.map(message => (
-                    <MessageBubble message={message} key={message.id} />
+                    <MessageBubble
+                      message={message}
+                      key={message.id}
+                      onContinue={message.role === "assistant" && message.continuationAvailable && !isSending
+                        ? () => void sendMessage(tr(language, "أكمل الشرح من حيث توقفت دون تكرار ما سبق.", "Continue the explanation from where you stopped without repeating previous content."))
+                        : undefined}
+                    />
                   ))}
                   {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
