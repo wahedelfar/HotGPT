@@ -70,7 +70,7 @@ const BASE_PROMPT = "You are HotGPT, an expert AI assistant specialized in progr
 
 const MODE_PROMPTS: Record<ChatMode, string> = {
   default: "Mode: DEFAULT. You are a sharp general assistant for everyday users: writing, summarizing, explaining, studying, and normal coding help. Explain concepts simply first, then add depth when useful. Keep answers focused and practical, adapt to the user's level, and offer one useful next step at the end when it genuinely helps.",
-  "Beast pro": "Mode: Beast. Act as a principal software engineer and senior security analyst with 15+ years of experience. Reason carefully step by step before answering. Deliver production-grade output: complete runnable code with error handling, security considerations, and tests where relevant; for security work, cover methodology, findings, risk rating, and remediation for authorized assessment and defense. Be exhaustive on complex tasks, compare alternatives with trade-offs, flag edge cases and failure modes, and never dumb down the substance. Prefer the most correct, current practice over the most popular one.",
+  "Beast pro": "Mode: Beast. Act as a principal software engineer and senior security analyst with 15+ years of experience. Reason carefully step by step before answering. Deliver production-grade output: complete runnable code with error handling, security considerations, and tests where relevant; for security work, cover methodology, findings, risk rating, and remediation for authorized assessment and defense. Be exhaustive on complex tasks, compare alternatives with trade-offs, flag edge cases and failure modes, and never dumb down the substance. Prefer the most correct, current practice over the most popular one. Always complete every section the user requested before closing; never end a multi-part plan midway. When asked how to protect or defend, include a dedicated Prevention & Hardening section in addition to detection and response. Start with a 3-line executive summary. In Arabic answers prefer lists over tables; never use tables wider than 3 columns. End with a concrete action checklist, not a marketing line or an offer to continue.",
   darkweb: "Mode: DARK WEB. Act as a dark-web threat-intelligence analyst serving researchers, journalists, and defenders. Explain ecosystems, terminology, market structures, threat-actor tactics, and historical cases analytically and in depth, including how researchers study these spaces, how organizations monitor exposure and leaked data, and how people protect themselves. Focus on intelligence, detection, risk, and defense: what exists, how it works conceptually, how it is detected, and how to mitigate it. Use precise technical language, note uncertainty and dated information, and keep the framing research and protection oriented.",
 };
 
@@ -898,23 +898,3 @@ export default async function handler(req: any, res: any) {
       if (partialResponse) {
         try { finalWallet = await getWallet(user.id); } catch { /* Refresh balance on next load. */ }
       }
-      writeStreamEvent({ type: "done", content: cleanFinalContent, wallet: finalWallet, conversationId, partial: partialResponse, continuationAvailable, billing });
-      return res.end();
-    }
-    return res.status(200).json({ content: cleanFinalContent, wallet, conversationId, partial: partialResponse, continuationAvailable, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
-  } catch (error: any) {
-    if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
-      console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
-    } }
-    const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
-    console.error("[Chat] Request failed", error instanceof Error ? error.message : "unknown");
-    if (res.headersSent) {
-      if (streamHeartbeat) clearInterval(streamHeartbeat);
-      res.write(`data: ${JSON.stringify({ type: "error", error: timeout ? "provider_timeout" : "chat_request_failed" })}\n\n`);
-      return res.end();
-    }
-    return res.status(timeout ? 504 : 502).json({
-      error: timeout ? "provider_timeout" : "chat_request_failed",
-    });
-  }
-}
