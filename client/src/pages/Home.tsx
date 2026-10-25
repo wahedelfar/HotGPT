@@ -88,7 +88,7 @@ function normalizeAssistantContent(content: string) {
   if (!withoutOldNotice) return "";
   return withoutOldNotice.includes(ANSWER_SIGNOFF)
     ? withoutOldNotice
-    : `${withoutOldNotice}\\n\\n---\\n${ANSWER_SIGNOFF}`;
+    : `${withoutOldNotice}\n\n---\n${ANSWER_SIGNOFF}`;
 }
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
@@ -1181,7 +1181,7 @@ export default function Home() {
         }
         if (typeof payload.content !== "string" || !payload.content.trim()) {
           if (streamedText.trim()) {
-            payload.content = `${streamedText}\n\n> توقف الاتصال قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه.`;
+            payload.content = streamedText;
             payload.partial = true;
           } else {
             throw new Error("provider_request_failed");
