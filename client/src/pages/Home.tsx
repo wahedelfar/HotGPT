@@ -487,9 +487,11 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
 function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { language, toggleLanguage } = useLanguage();
   const auth = useAuth();
-  const [theme, setTheme] = useState<"dark" | "light">(() =>
-    typeof window !== "undefined" && localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark"
-  );
+  const [theme, setTheme] = useState<"dark" | "blood">(() => {
+    if (typeof window === "undefined") return "dark";
+    const saved = localStorage.getItem("hotgpt-theme") || localStorage.getItem("theme");
+    return saved === "blood" ? "blood" : "dark";
+  });
   const [style, setStyle] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("hotgpt-response-style") || "professional" : "professional"
   );
@@ -502,7 +504,9 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = "dark";
     localStorage.setItem("hotgpt-theme", theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   useEffect(() => {
@@ -574,14 +578,20 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="settings-grid">
-        <section className="settings-card">
-          <div className="settings-card-icon purple">{theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}</div>
-          <div>
+        <section className="settings-card appearance-settings-card">
+          <div className="settings-card-icon purple"><Moon size={18} /></div>
+          <div className="appearance-settings-copy">
             <h3>{tr(language, "المظهر", "Appearance")}</h3>
-            <p>{tr(language, "اختر الوضع الداكن الافتراضي أو Blood Mode.", "Choose Dark or Blood Mode.")}</p>
-            <span className="setting-status">{theme === "dark" ? tr(language, "Dark", "Dark") : tr(language, "Blood Mode", "Blood Mode")}</span>
+            <p>{tr(language, "اختر أحد الوضعين الداكنين.", "Choose one of the two dark themes.")}</p>
+            <div className="appearance-theme-options" role="group" aria-label={tr(language, "اختيار المظهر", "Choose appearance")}>
+              <button type="button" className={theme === "dark" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "dark"} onClick={() => setTheme("dark")} title="Dark">
+                <strong>Dark</strong><span>{tr(language, "أسود #000000", "Black #000000")}</span>
+              </button>
+              <button type="button" className={theme === "blood" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "blood"} onClick={() => setTheme("blood")} title="Blood Mode">
+                <strong>Blood Mode</strong><span>{tr(language, "أحمر داكن #2B0000", "Deep red #2B0000")}</span>
+              </button>
+            </div>
           </div>
-          <Button variant="outline" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? tr(language, "تفعيل Blood Mode", "Use Blood Mode") : tr(language, "تفعيل Dark", "Use Dark")}</Button>
         </section>
 
         <section className="settings-card">
@@ -1198,7 +1208,22 @@ export default function Home() {
 
   return (
     <LanguageContext.Provider value={{ language, toggleLanguage }}>
-    <div className="app-shell" dir={language === "ar" ? "rtl" : "ltr"} lang={language}>
+    <style>{`html[data-theme="dark"]{--bg:#000000;--card:#111111;--text:#FFFFFF;--accent:#FFFFFF;color-scheme:dark}
+html[data-theme="blood"]{--bg:#2B0000;--card:#400000;--text:#FFFFFF;--accent:#FF1E2E;color-scheme:dark}
+html[data-theme="dark"] body,html[data-theme="blood"] body,html[data-theme="dark"] #root,html[data-theme="blood"] #root,html[data-theme="dark"] .app-shell,html[data-theme="blood"] .app-shell,html[data-theme="dark"] .main-shell,html[data-theme="blood"] .main-shell,html[data-theme="dark"] .chat-workspace,html[data-theme="blood"] .chat-workspace,html[data-theme="dark"] .sidebar,html[data-theme="blood"] .sidebar,html[data-theme="dark"] .sidebar-drawer,html[data-theme="blood"] .sidebar-drawer,html[data-theme="dark"] main,html[data-theme="blood"] main,html[data-theme="dark"] .settings-view,html[data-theme="blood"] .settings-view{background:var(--bg)!important;color:var(--text)!important}
+html[data-theme="dark"] header,html[data-theme="blood"] header,html[data-theme="dark"] .settings-card,html[data-theme="blood"] .settings-card,html[data-theme="dark"] .composer,html[data-theme="blood"] .composer,html[data-theme="dark"] .conversation-item,html[data-theme="blood"] .conversation-item,html[data-theme="dark"] .chat-input-wrap,html[data-theme="blood"] .chat-input-wrap{background:var(--card)!important;color:var(--text)!important}
+html[data-theme="blood"] .settings-card,html[data-theme="blood"] .settings-card h3,html[data-theme="blood"] .settings-card p,html[data-theme="blood"] .settings-card span,html[data-theme="blood"] .composer textarea,html[data-theme="blood"] .sidebar *,html[data-theme="blood"] .conversation-item *{color:#FFFFFF}
+.appearance-settings-card{align-items:flex-start}.appearance-settings-copy{flex:1 1 auto;min-width:0}
+.appearance-theme-options{display:flex;flex-flow:row nowrap;gap:10px;width:100%;margin-top:12px}
+.appearance-theme-option{display:flex;flex:1 1 0;min-width:0;flex-direction:column;align-items:flex-start;gap:5px;padding:12px;border:1px solid #555;border-radius:10px;background:#111;color:#fff;text-align:start}
+.appearance-theme-option strong{color:#fff;font-size:13px;line-height:1.4}.appearance-theme-option span{color:#bbb;font-size:11px;line-height:1.5}
+.appearance-theme-option.selected{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+html[data-theme="blood"] .appearance-theme-option{background:#400000;color:#fff}html[data-theme="blood"] .appearance-theme-option.selected{border-color:#FF1E2E;box-shadow:inset 0 0 0 1px #FF1E2E}
+.composer-mode-row{display:flex!important;flex-wrap:nowrap!important;gap:6px!important;padding:6px 10px!important;overflow:visible!important}
+.composer-mode-row>.composer-mode{flex:1 1 0!important;min-width:0!important;max-width:none!important;padding-inline:4px!important;font-size:12px!important;white-space:nowrap!important;justify-content:center}
+.composer-mode.beast-mode{padding-inline:4px!important}.composer-mode.beast-mode>span:first-child{font-size:12px!important}
+@media(max-width:520px){.composer-mode-row{flex-wrap:nowrap!important;gap:6px!important;padding:6px 10px!important;overflow:visible!important}.composer-mode-row>.composer-mode{flex:1 1 0!important;min-width:0!important;padding-inline:3px!important;font-size:12px!important}.composer-mode.beast-mode{padding-inline:3px!important}.composer-mode.beast-mode>span:first-child{font-size:12px!important}}`}</style>
+      <div className="app-shell" dir={language === "ar" ? "rtl" : "ltr"} lang={language}>
       <style>{`html[data-theme="light"],html[data-theme="light"] body,html[data-theme="light"] #root{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .app-shell,html[data-theme="light"] .main-shell,html[data-theme="light"] .chat-workspace,html[data-theme="light"] main{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .sidebar-drawer,html[data-theme="light"] .sidebar,html[data-theme="light"] .settings-card,html[data-theme="light"] .content-panel,html[data-theme="light"] .composer,html[data-theme="light"] .message-content{background-color:#3D0005!important;color:#fff!important;border-color:#6B1018!important}html[data-theme="light"] h1,html[data-theme="light"] h2,html[data-theme="light"] h3,html[data-theme="light"] p,html[data-theme="light"] label,html[data-theme="light"] small,html[data-theme="light"] strong,html[data-theme="light"] span,html[data-theme="light"] .nav-item,html[data-theme="light"] .conversation-item,html[data-theme="light"] .profile-row,html[data-theme="light"] .setting-status{color:#fff}html[data-theme="light"] input,html[data-theme="light"] textarea,html[data-theme="light"] select{background:#400000!important;color:#fff!important;border-color:#76202A!important}html[data-theme="light"] input::placeholder,html[data-theme="light"] textarea::placeholder{color:#E7BFC3!important}html[data-theme="light"] .new-chat-button,html[data-theme="light"] .send-button.ready,html[data-theme="light"] .hotlucky-slim-cta{background:#FF1E2E!important;color:#fff!important;border-color:#FF1E2E!important}.extended-toggle.active,.extended-toggle.active>svg{color:#22C55E!important}.extended-toggle.active .toggle-track{background:#166534!important}.extended-toggle.active .toggle-track span{background:#22C55E!important}.extended-cost-label{color:#22C55E!important;font-size:10px;white-space:nowrap}.darkweb-mode{padding:6px 12px!important}.composer-mode-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:visible!important;gap:8px!important;padding-inline:6px!important;justify-content:flex-start!important}.composer-mode-row>.composer-mode{flex:0 0 auto!important}html[data-theme="light"] .composer-mode{padding-inline:12px!important}`}</style>
       <div
         className={sidebarOpen ? "mobile-scrim visible" : "mobile-scrim"}
@@ -1422,7 +1447,7 @@ export default function Home() {
                     <Globe size={18} /><span>PRO</span>
                   </button>
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
-                    <Skull size={18} /><span className="darkweb-mode-label">Dark</span>
+                    <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
