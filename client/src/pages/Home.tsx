@@ -1477,7 +1477,10 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       message={message}
                       key={message.id}
                       onContinue={message.role === "assistant" && message.continuationAvailable && !isSending
-                        ? () => void sendMessage(tr(language, "أكمل الشرح من حيث توقفت دون تكرار ما سبق.", "Continue the explanation from where you stopped without repeating previous content."))
+                        ? () => {
+                            setMessages(current => current.map(item => item.id === message.id ? { ...item, continuationAvailable: false } : item));
+                            void sendMessage(tr(language, "أكمل الشرح من حيث توقفت دون تكرار ما سبق.", "Continue the explanation from where you stopped without repeating previous content."));
+                          }
                         : undefined}
                     />
                   ))}
