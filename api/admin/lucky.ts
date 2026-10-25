@@ -50,6 +50,7 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("already_processed")) return res.status(409).json({ error: "already_processed" });
+    if (message.includes("token_code_requires_activation")) return res.status(409).json({ error: "token_code_requires_activation" });
     if (message.includes("not_ready")) return res.status(409).json({ error: "reward_not_ready" });
     if (message.includes("not_approved")) return res.status(409).json({ error: "order_not_approved" });
     if (message.includes("subscription_reward_requires_subscription_integration")) return res.status(409).json({ error: "subscription_reward_requires_subscription_integration" });
