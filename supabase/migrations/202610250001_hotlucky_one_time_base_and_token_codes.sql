@@ -21,6 +21,10 @@ begin
   if not found then raise exception 'order_not_found'; end if;
   if o.status <> 'pending' then raise exception 'already_processed'; end if;
 
+  -- Serialize approvals per wallet so concurrent orders cannot both receive the one-time base grant.
+  perform 1 from public.wallets where user_id = o.user_id for update;
+  if not found then raise exception 'wallet_not_found'; end if;
+
   select count(*) into prior_approved
     from public.hotlucky_orders
    where user_id = o.user_id and status = 'approved' and id <> o.id;
