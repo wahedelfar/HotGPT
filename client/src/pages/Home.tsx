@@ -878,9 +878,9 @@ export default function Home() {
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
-    const match = location.match(/^\\/chat\\/([0-9a-f-]{36})\\/?$/i);
-    if (!match || auth.loading || !auth.isAuthenticated) return;
-    const id = match[1];
+    let id = location.startsWith("/chat/") ? location.slice(6) : "";
+    if (id.endsWith("/")) id = id.slice(0, -1);
+    if (id.length !== 36 || auth.loading || !auth.isAuthenticated) return;
     let cancelled = false;
     setActiveConversation(id);
     setActiveView("chat");
