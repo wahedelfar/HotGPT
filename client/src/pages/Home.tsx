@@ -786,7 +786,10 @@ export default function Home() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [darkWebEnabled, setDarkWebEnabled] = useState(false);
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(() => {
+    try { return typeof window !== "undefined" ? Math.max(0, Number(localStorage.getItem("hotgpt-token-balance")) || 0) : 0; }
+    catch { return 0; }
+  });
   const [hotLuckyPrize, setHotLuckyPrize] = useState<{ label: string; code?: string; date?: string } | null>(null);
   const [showWinModal, setShowWinModal] = useState(false);
   const promptedPrizeCode = useRef<string | null>(null);
@@ -834,15 +837,20 @@ export default function Home() {
   }, [auth.loading, auth.isAuthenticated, auth.user?.id, hotLuckyPrize?.code]);
 
   useEffect(() => {
-    if (auth.loading || !auth.isAuthenticated) { setWalletBalance(0); return; }
+    if (auth.loading) return;
+    if (!auth.isAuthenticated) { setWalletBalance(0); return; }
     let cancelled = false;
     void authFetch("/api/billing?action=me", { cache: "no-store" }).then(async response => {
       if (!response.ok) return;
       const wallet = await response.json();
-      if (!cancelled) setWalletBalance(Number(wallet.tokenBalance) || 0);
+      if (!cancelled) setWalletBalance(Math.max(0, Number(wallet.tokenBalance) || 0));
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
+
+  useEffect(() => {
+    try { localStorage.setItem("hotgpt-token-balance", String(Math.max(0, walletBalance))); } catch {}
+  }, [walletBalance]);
 
   useEffect(() => {
     if (auth.loading) return;
