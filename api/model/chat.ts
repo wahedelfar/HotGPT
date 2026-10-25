@@ -343,6 +343,35 @@ function sanitizeSearchAnswer(content: string): string {
   return content.split(/\n+/).filter((line) => !blocked.test(line)).join("\n").replace(/\b(?:Tavily|Firecrawl|OpenRouter|MiMo|CTF|verbatim)\b/gi, "مصادر البحث").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// Smart-backup quality gate: cheap formal checks that catch a "nonsense"
+// answer (wrong language, repetition collapse, absurdly short, canned
+// refusal) so the paired backup model can take over. This does NOT detect
+// plausible-sounding factual hallucination; it catches formal breakdowns.
+function qualityGateFailure(candidate: string, userText: string, opts: { staged: boolean; finishReason: string | null }): string | null {
+  const text = candidate.trim();
+  if (!text) return "quality_empty";
+  const arabicRatio = (s: string) => {
+    const letters = s.replace(/\s/g, "").length || 1;
+    return (s.match(/[\u0600-\u06FF]/g) || []).length / letters;
+  };
+  if (text.length >= 200) {
+    const userAr = arabicRatio(userText);
+    const answerAr = arabicRatio(text);
+    if (userAr > 0.3 && answerAr < 0.05) return "quality_language_mismatch";
+    if (userAr < 0.05 && answerAr > 0.85) return "quality_language_mismatch";
+  }
+  const lines = text.split(/\n+/).map((line) => line.trim()).filter((line) => line.length >= 25);
+  if (lines.length >= 6) {
+    const counts = new Map<string, number>();
+    for (const line of lines) counts.set(line, (counts.get(line) || 0) + 1);
+    const maxRepeat = Math.max(...counts.values());
+    if (maxRepeat >= 4 || counts.size / lines.length < 0.35) return "quality_repetition";
+  }
+  if (!opts.staged && opts.finishReason !== "length" && userText.trim().length >= 300 && text.length < 120) return "quality_too_short";
+  if (text.length < 400 && /^\s*(عذرًا|آسف|أعتذر|لا أستطيع|لا يمكنني|I can'?t|I cannot|I'?m sorry|As an AI)/i.test(text)) return "quality_refusal";
+  return null;
+}
+
 function classifyPremiumAnswer(content: string): { cost: 3 | 5 | 9; tier: "simple" | "deep" | "report"; labelAr: string; labelEn: string } {
   const wordCount = content.trim().split(/\s+/u).filter(Boolean).length;
   const fence = String.fromCharCode(96).repeat(3);
@@ -663,6 +692,7 @@ export default async function handler(req: any, res: any) {
     // Search results are supplied to the selected model for synthesis. If every model
     // fails, the verified raw results are returned below rather than losing the search.
     // Preserve the exact existing DadGPT system prompt and message construction for every provider.
+    const lastUserText = String(messages[messages.length - 1]?.content || "");
     const outgoingMessages = [
       { role: "system", content: serverSystemPrompt },
       ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : providerMessages),
@@ -679,8 +709,17 @@ export default async function handler(req: any, res: any) {
     const primaryModel = isProRequest ? beastModel : model;
     if (endpoint && apiKey) {
       providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
+      // Smart-backup pair (user design, 2026-10-25): the two DadGPT models watch
+      // each other. Default mode runs dadgpt-default with dadgpt-beast as backup;
+      // Beast/search/dark-web run dadgpt-beast with dadgpt-default as backup.
+      // The backup answers only when the primary fails outright (timeout, error,
+      // empty, non-answer) or its answer is rejected by the quality gate.
+      const defaultModel = model || "dadgpt-default";
+      const partnerModel = isProRequest ? defaultModel : beastModel;
+      if (partnerModel && partnerModel !== primaryModel) {
+        providers.push({ name: "backup", endpoint, key: apiKey, model: partnerModel });
+      }
     }
-    // Only the configured primary provider is used; no fallback provider is active.
     let content = "";
     let bestPartialContent = "";
     let partialResponse = false;
@@ -707,6 +746,7 @@ export default async function handler(req: any, res: any) {
     for (const provider of providers) {
       if (streamToClient) writeStreamEvent({ type: "attempt", provider: provider.name });
       console.info("[Chat] Provider attempt started", JSON.stringify({ requestId, provider: provider.name, model: provider.model }));
+      if (provider.name === "backup") console.info("[Chat] Failover to backup model", JSON.stringify({ requestId, model: provider.model, reason: lastFailure }));
       let attemptStreamedContent = "";
       const providerStartedAt = Date.now();
       let firstContentAt: number | null = null;
@@ -740,12 +780,12 @@ export default async function handler(req: any, res: any) {
             stream: streamToClient,
             ...(paidStagedRequest ? { reasoning_effort: "medium" } : {}),
           }),
-          // Streamed staged requests get up to 55s: the Beast provider can spend a
-          // long invisible reasoning phase before its first content delta, and the
-          // old 28s cap killed those requests outright (log 2026-10-25: attempt
-          // started 18:16:52, provider_timeout at exactly 28.02s, zero content).
-          // 55s stays below Vercel's 60-second function ceiling.
-          signal: AbortSignal.timeout(streamToClient && paidStagedRequest ? 55000 : provider.name === "primary" ? 28000 : 24000),
+          // Time budget inside Vercel's 60s ceiling: with a backup paired, the
+          // primary gets 30s and the backup 25s so a primary failure is rescued
+          // inside the same request. A lone primary keeps the long budget
+          // (55s streamed staged / 28s otherwise) because the Beast provider can
+          // spend a long invisible reasoning phase before its first content delta.
+          signal: AbortSignal.timeout(provider.name === "backup" ? 25000 : providers.length > 1 ? 30000 : streamToClient && paidStagedRequest ? 55000 : provider.name === "primary" ? 28000 : 24000),
         });
         // Read the body once as text. Some compatible providers return SSE or
         // non-JSON error pages even when the status is 200; response.json()
@@ -912,6 +952,20 @@ export default async function handler(req: any, res: any) {
           if (provider.name === "primary") primaryFailed = true;
           continue;
         }
+        const gateFailure = qualityGateFailure(withoutSafetyMarker, lastUserText, { staged: paidStagedRequest, finishReason });
+        if (gateFailure) {
+          if (attemptStreamedContent.trim()) {
+            // The user already saw this text live; replacing it mid-answer would
+            // corrupt the bubble. Keep it, flag the stage for continuation repair.
+            console.warn("[Chat] Quality gate failed on already-streamed answer; keeping it", JSON.stringify({ requestId, provider: provider.name, reason: gateFailure, chars: withoutSafetyMarker.length }));
+            if (paidStagedRequest) continuationAvailable = true;
+          } else {
+            lastFailure = gateFailure;
+            console.warn("[Chat] Quality gate rejected answer; trying paired model", JSON.stringify({ requestId, provider: provider.name, reason: gateFailure, chars: withoutSafetyMarker.length }));
+            if (provider.name === "primary") primaryFailed = true;
+            continue;
+          }
+        }
         content = withoutSafetyMarker;
         console.info("[Chat] Provider answered successfully", JSON.stringify({ requestId, provider: provider.name, model: provider.model, fallbackUsed: provider.name !== "primary" }));
         break;
@@ -934,7 +988,7 @@ export default async function handler(req: any, res: any) {
       console.warn("[Chat] Search synthesis failed; refusing to expose raw search results", JSON.stringify({ requestId, lastFailure }));
     }
     if (!content) {
-      console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), secondaryProviderConfigured: false, lastFailure }));
+      console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), secondaryProviderConfigured: providers.length > 1, lastFailure }));
       if (paidStagedRequest && chargeSucceeded && stagedMessageId && chargedPartIndex !== null) {
         try { await refundChatPart(user.id, stagedMessageId, chargedPartIndex); await updateAssistantMessage(user.id, stagedMessageId, { is_complete: true, last_finish_reason: lastFailure }); }
         catch (refundError) { console.error("[Billing] Chat part refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
