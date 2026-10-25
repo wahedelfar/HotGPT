@@ -612,7 +612,7 @@ export default async function handler(req: any, res: any) {
     try {
       const wallet = await getWallet(user.id);
       if (wallet.tokenBalance <= 0) return res.status(403).json({ error: "pro_required" });
-      if (darkWebEnabled && wallet.tokenBalance < 3) return res.status(402).json({ error: "insufficient_credits", wallet });
+      if (darkWebEnabled && wallet.tokenBalance < 5) return res.status(402).json({ error: "insufficient_credits", wallet });
     } catch (error) {
       console.error("[Billing] Pro entitlement check failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -622,7 +622,7 @@ export default async function handler(req: any, res: any) {
     try {
       const wallet = await getWallet(user.id);
       if (wallet.tokenBalance <= 0) return res.status(403).json({ error: "pro_required" });
-      if (wallet.tokenBalance < 9) return res.status(402).json({ error: "insufficient_credits", wallet });
+      if (wallet.tokenBalance < 5) return res.status(402).json({ error: "insufficient_credits", wallet });
     } catch (error) {
       console.error("[Billing] Beast entitlement check failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -689,6 +689,7 @@ export default async function handler(req: any, res: any) {
   let stagedMessageId: string | null = null;
   let chargedPartIndex: number | null = null;
   let chargeSucceeded = false;
+  let stagedOutputPersisted = false;
   let lastFinishReason: string | null = null;
   const STAGE_MAX = 3000;
   if (paidStagedRequest) {
@@ -1036,6 +1037,7 @@ export default async function handler(req: any, res: any) {
     }
     if (paidStagedRequest && stagedMessageId) {
       await updateAssistantMessage(user.id, stagedMessageId, { content: cleanFinalContent, is_complete: isComplete, part_count: 1, last_finish_reason: lastFinishReason || (partialResponse ? "provider_interrupted" : null) });
+      stagedOutputPersisted = true;
     } else {
       await saveMessage(user.id, conversationId, "assistant", cleanFinalContent);
     }
@@ -1061,7 +1063,7 @@ export default async function handler(req: any, res: any) {
     }
     return res.status(200).json({ content: cleanFinalContent, wallet, conversationId, partial: partialResponse, continuationAvailable: paidStagedRequest ? !isComplete : continuationAvailable, messageId: stagedMessageId, is_complete: isComplete, part_count: paidStagedRequest ? 1 : undefined, last_finish_reason: lastFinishReason, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
   } catch (error: any) {
-    if (paidStagedRequest && chargeSucceeded && stagedMessageId && chargedPartIndex !== null) {
+    if (paidStagedRequest && chargeSucceeded && stagedMessageId && chargedPartIndex !== null && !stagedOutputPersisted) {
       try { await refundChatPart(user.id, stagedMessageId, chargedPartIndex); await updateAssistantMessage(user.id, stagedMessageId, { is_complete: true, last_finish_reason: "request_failed" }); }
       catch (refundError) { console.error("[Billing] Chat part refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
     }
