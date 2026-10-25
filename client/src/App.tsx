@@ -18,6 +18,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/chat/:id" component={Home} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/rewards" component={LuckyPage} />

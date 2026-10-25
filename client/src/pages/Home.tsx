@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import {
   ArrowUp,
   Coins,
@@ -669,6 +670,7 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
 
 export default function Home() {
   const auth = useAuth();
+  const [location, setLocation] = useLocation();
   const [language, setLanguage] = useState<Language>(() => typeof window !== "undefined" && localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar");
   const toggleLanguage = () => setLanguage(current => current === "ar" ? "en" : "ar");
 
@@ -873,7 +875,35 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
+  useEffect(() => {
+    const match = location.match(/^\\/chat\\/([0-9a-f-]{36})\\/?$/i);
+    if (!match || auth.loading || !auth.isAuthenticated) return;
+    const id = match[1];
+    let cancelled = false;
+    setActiveConversation(id);
+    setActiveView("chat");
+    void authFetch(`/api/conversations?id=${encodeURIComponent(id)}`).then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (cancelled) return;
+      if (!response.ok || String(payload.conversation?.id) !== id) {
+        setActiveConversation(null);
+        setMessages([]);
+        setRequestError(tr(language, "المحادثة غير موجودة.", "Conversation not found."));
+        return;
+      }
+      setMessages((payload.messages ?? []).map((item: any) => ({
+        id: String(item.id), role: item.role, content: String(item.content),
+        timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
+      })));
+      setRequestError(null);
+    }).catch(() => {
+      if (!cancelled) setRequestError(tr(language, "تعذر فتح المحادثة المحفوظة.", "Could not load this conversation."));
+    });
+    return () => { cancelled = true; };
+  }, [location, auth.loading, auth.isAuthenticated, auth.user?.id]);
+
   const startNew = () => {
+    setLocation("/");
     setActiveConversation(null);
     setMessages([]);
     setDraft("");
@@ -926,6 +956,7 @@ export default function Home() {
         }
         conversationId = String(created.conversation.id);
         setActiveConversation(conversationId);
+        setLocation(`/chat/${conversationId}`);
       }
 
       const requestMessages = [...messages, userMessage].slice(-40).map((message, index, all) => ({
@@ -1167,6 +1198,7 @@ export default function Home() {
           conversations={conversations}
           activeId={activeConversation}
           onSelect={id => {
+            setLocation(`/chat/${id}`);
             setActiveConversation(id);
             setMessages([]);
             setRequestError(null);
