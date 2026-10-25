@@ -439,7 +439,7 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
             <span>{copied ? tr(language, "تم النسخ", "Copied") : tr(language, "نسخ", "Copy")}</span>
           </button>
           {message.role === "assistant" && message.continuationAvailable && onContinue && (
-            <button type="button" className="message-continue-button" onClick={onContinue}>
+            <button type="button" className="message-continue-button" onClick={onContinue} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8, padding: "7px 12px", borderRadius: 10, border: "1px solid #C9A227", background: "rgba(201,162,39,0.10)", color: "#FBBF24", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               <ChevronDown size={14} />
               <span>{tr(language, "أكمل الشرح", "Continue explanation")}</span>
             </button>
