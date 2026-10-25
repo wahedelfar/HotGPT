@@ -20,6 +20,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/billing" component={BillingPage} />
+      <Route path="/rewards" component={LuckyPage} />
       <Route path="/hotlucky" component={LuckyPage} />
       <Route path="/lucky.php" component={LuckyPage} />
       <Route path="/profile" component={ProfilePage} />

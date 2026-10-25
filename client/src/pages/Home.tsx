@@ -50,7 +50,6 @@ type ChatMessage = {
   content: string;
   timestamp: string;
   notice?: boolean;
-  billingLabel?: string;
 };
 
 type Conversation = {
@@ -423,7 +422,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
         <div className="message-content" ref={codeContainerRef}>
           {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
-          {message.billingLabel && <div className="message-billing-note" role="status">{message.billingLabel}</div>}
         </div>
         <div className="message-actions">
           <button
@@ -1092,14 +1090,13 @@ export default function Home() {
       if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
       setMessages(current => streamedAssistantId
         ? current.map(message => message.id === streamedAssistantId
-          ? { ...message, content: payload.content!, timestamp: formatTime(), billingLabel: payload.billing ? tr(language, `تم خصم ${payload.billing.cost} توكن - ${payload.billing.labelAr}`, `Deducted ${payload.billing.cost} tokens - ${payload.billing.labelEn}`) : undefined }
+          ? { ...message, content: payload.content!, timestamp: formatTime() }
           : message)
         : [...current, {
             id: crypto.randomUUID(),
             role: "assistant",
             content: payload.content!,
             timestamp: formatTime(),
-            billingLabel: payload.billing ? tr(language, `تم خصم ${payload.billing.cost} توكن - ${payload.billing.labelAr}`, `Deducted ${payload.billing.cost} tokens - ${payload.billing.labelEn}`) : undefined,
           }]);
       setAttachment(null);
       setConversations(current => current.map(item => item.id === conversationId
@@ -1135,24 +1132,7 @@ export default function Home() {
   const toggleProMode = (feature: "search" | "darkweb") => {
     if (!requireProFeature(feature)) return;
 
-    // Web search uses live clearnet results; Dark Web mode is a specialist
-    // instruction mode and must not imply that those results came from Tor/onion sites.
-    if (feature === "search" && !webSearchEnabled && darkWebEnabled) {
-      setRequestError(tr(
-        language,
-        "لا يمكن تفعيل البحث المتقدم مع وضع الدارك ويب في الوقت نفسه. أوقف وضع الدارك ويب أولًا أو ألغِ البحث المتقدم للحصول على إجابة أدق.",
-        "Advanced web search cannot be enabled together with Dark Web mode. Turn off Dark Web mode first to avoid mixing clearnet results with Dark Web analysis."
-      ));
-      return;
-    }
-    if (feature === "darkweb" && !darkWebEnabled && webSearchEnabled) {
-      setRequestError(tr(
-        language,
-        "لا يمكن تفعيل وضع الدارك ويب مع البحث المتقدم في الوقت نفسه. أوقف البحث المتقدم أولًا لتجنب الخلط بين نتائج الإنترنت العادي وتحليل الدارك ويب.",
-        "Dark Web mode cannot be enabled together with Advanced web search. Turn off Advanced web search first to avoid mixing clearnet results with Dark Web analysis."
-      ));
-      return;
-    }
+    // Both modes may be enabled; the server gives Dark Web analysis priority.
 
     setRequestError(null);
     if (feature === "search") setWebSearchEnabled(value => !value);
