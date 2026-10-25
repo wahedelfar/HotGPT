@@ -846,11 +846,17 @@ export default async function handler(req: any, res: any) {
       return res.status(lastFailure === "provider_timeout" ? 504 : 502).json({ error: lastFailure });
     }
 
-    const finalContent = partialResponse
-      ? `${content}\n\n> توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه.`
-      : searchSynthesisFallback
-        ? `${content}\n\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
-        : content;
+    // Replace the obsolete truncation warning with the requested consistent sign-off.
+    const answerWithoutOldNotice = content
+      .replace(/\\n*\\s*>?\\s*توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\\.?/g, "")
+      .replace(/\\n*\\s*>?\\s*توقف الاتصال قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\\.?/g, "")
+      .trim();
+    const answerWithSignoff = answerWithoutOldNotice
+      ? `${answerWithoutOldNotice}\\n\\n---\\nهل تكتفي بهذه الإجابة؟ أم تريد تحليلًا أعمق؟ HotGPT دائمًا في خدمتك`
+      : answerWithoutOldNotice;
+    const finalContent = searchSynthesisFallback
+      ? `${answerWithSignoff}\\n\\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
+      : answerWithSignoff;
     const cleanFinalContent = (webSearchEnabled || darkWebEnabled) ? sanitizeSearchAnswer(finalContent) : finalContent;
     let billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;
     if (!partialResponse && !searchSynthesisFallback && usageBasedPremium) {
