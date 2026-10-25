@@ -802,6 +802,8 @@ export default function Home() {
     try { return typeof window !== "undefined" ? Math.max(0, Number(localStorage.getItem("hotgpt-token-balance")) || 0) : 0; }
     catch { return 0; }
   });
+  const [freeAnswersRemaining, setFreeAnswersRemaining] = useState(2);
+  const [showFreeUsagePopup, setShowFreeUsagePopup] = useState(false);
   const [hotLuckyPrize, setHotLuckyPrize] = useState<{ label: string; code?: string; date?: string } | null>(null);
   const [showWinModal, setShowWinModal] = useState(false);
   const promptedPrizeCode = useRef<string | null>(null);
@@ -822,7 +824,13 @@ export default function Home() {
         ]);
         if (walletResponse.ok) {
           const wallet = await walletResponse.json();
-          if (!cancelled) setWalletBalance(Number(wallet.tokenBalance) || 0);
+          if (!cancelled) {
+            const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
+            const freeRemaining = Math.max(0, Number(wallet.freeAnswersRemaining) || 0);
+            setWalletBalance(balance);
+            setFreeAnswersRemaining(freeRemaining);
+            try { localStorage.setItem("hotgpt-token-balance", String(balance)); } catch {}
+          }
         }
         if (!prizeResponse.ok) return;
         const payload = await prizeResponse.json();
@@ -855,7 +863,12 @@ export default function Home() {
     void authFetch("/api/billing?action=me", { cache: "no-store" }).then(async response => {
       if (!response.ok) return;
       const wallet = await response.json();
-      if (!cancelled) setWalletBalance(Math.max(0, Number(wallet.tokenBalance) || 0));
+      if (!cancelled) {
+        const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
+        setWalletBalance(balance);
+        setFreeAnswersRemaining(Math.max(0, Number(wallet.freeAnswersRemaining) || 0));
+        try { localStorage.setItem("hotgpt-token-balance", String(balance)); } catch {}
+      }
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
@@ -936,6 +949,11 @@ export default function Home() {
   const sendMessage = async (value = draft) => {
     const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
     if (!trimmed || isSending) return;
+    if (auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0) {
+      setShowFreeUsagePopup(true);
+      setRequestError(null);
+      return;
+    }
     if (webSearchEnabled && attachment) {
       setRequestError(tr(language, "افصل الملف المرفق لإجراء بحث مباشر على الإنترنت.", "Remove the attachment to run a direct web search."));
       return;
@@ -1141,6 +1159,7 @@ export default function Home() {
         throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
       }
       if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
+      if (typeof payload.wallet?.freeAnswersRemaining === "number") setFreeAnswersRemaining(Math.max(0, payload.wallet.freeAnswersRemaining));
       setMessages(current => streamedAssistantId
         ? current.map(message => message.id === streamedAssistantId
           ? { ...message, content: payload.content!, timestamp: formatTime() }
@@ -1516,6 +1535,21 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               <a href="/hotlucky" target="_blank" rel="noopener noreferrer" style={{color:"#f7cf65",fontWeight:900,textDecoration:"underline",textUnderlineOffset:3}}>{tr(language,"جرّب HotLucky ↗","Try HotLucky ↗")}</a>
             </div>
             <p className="welcome-modal-login">{tr(language, "ليس لديك حساب؟", "Don't have an account?")} <a href="/auth?mode=signup">{tr(language, "إنشاء حساب مجاني", "Create a free account")}</a></p>
+          </section>
+        </div>
+      )}
+      {showFreeUsagePopup && auth.isAuthenticated && (
+        <div role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowFreeUsagePopup(false); }} style={{position:"fixed",inset:0,zIndex:10000,display:"grid",placeItems:"center",padding:20,background:"rgba(0,0,0,.7)"}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="free-usage-title" dir={language === "ar" ? "rtl" : "ltr"} style={{position:"relative",width:"min(100%,420px)",padding:"28px 22px 22px",border:"1px solid #C9A227",borderRadius:16,background:"#1A0505",color:"#FFFFFF",boxShadow:"0 24px 80px rgba(0,0,0,.45)",textAlign:"center"}}>
+            <button type="button" onClick={() => setShowFreeUsagePopup(false)} aria-label={tr(language,"إغلاق","Close")} style={{position:"absolute",top:10,left:12,color:"#FFFFFF",background:"transparent",fontSize:26,lineHeight:1,padding:4}}>×</button>
+            <div style={{fontSize:34,marginBottom:8}}>🌐</div>
+            <div style={{fontSize:14,fontWeight:800,color:"#FBBF24",marginBottom:10}}>Free Internet</div>
+            <h2 id="free-usage-title" style={{fontSize:21,fontWeight:900,color:"#FBBF24",margin:"0 0 12px"}}>{tr(language,"انتهى استخدامك المجاني","Free usage ended")}</h2>
+            <p style={{fontSize:15,lineHeight:1.9,color:"#FFFFFF",margin:"0 0 22px"}}>{tr(language,"للأسف، استخدامك المجاني خلص. بس عندنا مكافآت وهدايا وباقات من أول 100 جنيه.","Sorry, your free usage has ended. But we have rewards, gifts and plans starting from just $2.")}</p>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <a href="/rewards" style={{display:"block",borderRadius:11,padding:"13px 16px",background:"#FBBF24",color:"#1A0505",fontWeight:900,textDecoration:"none"}}>{tr(language,"صفحة الجوائز","Rewards")}</a>
+              <a href="/billing" style={{display:"block",borderRadius:11,padding:"13px 16px",background:"#DC2626",color:"#FFFFFF",fontWeight:900,textDecoration:"none"}}>{tr(language,"صفحة الباقات","Plans")}</a>
+            </div>
           </section>
         </div>
       )}
