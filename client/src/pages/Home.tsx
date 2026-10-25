@@ -454,8 +454,8 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
         <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
           <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
           <span className="hotlucky-slim-copy">
-            <span className="hotlucky-slim-desktop">{tr(language, "🎁 مع HotGPT دايمًا كسبان - باقة 100 جنيه = 100 توكن + هدية لحد Ultra", "🎁 HotGPT HotLucky — 100 EGP = 100 tokens + a bonus up to Ultra")}</span>
-            <span className="hotlucky-slim-mobile">{tr(language, "🎁 دايمًا كسبان - 100 جنيه = فرصة تكسب Ultra", "🎁 Always a bonus — 100 EGP for a chance at Ultra")}</span>
+            <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — ادفع بعد موافقة الإدارة واستلم كود توكن عشوائي", "🎁 HotLucky — an approved payment unlocks a random token code")}</span>
+            <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — اكسب توكنات بكود عشوائي", "🎁 HotLucky — random token codes after approval")}</span>
           </span>
           <a className="hotlucky-slim-cta" href="/hotlucky">{tr(language, "ادخل لصفحة الجوائز ›", "Prizes ›")}</a>
         </div>
