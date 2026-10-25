@@ -738,6 +738,7 @@ export default async function handler(req: any, res: any) {
             max_tokens: paidStagedRequest ? STAGE_MAX : darkWebEnabled ? 4000 : extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
             temperature: darkWebEnabled ? 0.2 : 0.7,
             stream: streamToClient,
+            ...(paidStagedRequest ? { reasoning_effort: "medium" } : {}),
           }),
           // Streamed staged requests get up to 55s: the Beast provider can spend a
           // long invisible reasoning phase before its first content delta, and the
