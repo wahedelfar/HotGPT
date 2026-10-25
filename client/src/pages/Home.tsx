@@ -836,6 +836,7 @@ export default function Home() {
   const [isSending, setIsSending] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [hasStartedStreaming, setHasStartedStreaming] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1013,6 +1014,7 @@ export default function Home() {
     setIsSending(true);
     setIsSearchingWeb(webSearchEnabled);
     setHasStartedStreaming(false);
+    setIsThinking(false);
     let conversationId = activeConversation;
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -1137,8 +1139,12 @@ export default function Home() {
                 const event = JSON.parse(dataLine.slice(5).trim());
                 if (event.type === "attempt") {
                   // Never erase text already received when a new attempt starts.
+                  setIsThinking(false);
+                } else if (event.type === "thinking") {
+                  setIsThinking(true);
                 } else if (event.type === "delta" && typeof event.content === "string") {
                   setIsSearchingWeb(false);
+                  setIsThinking(false);
                   setHasStartedStreaming(true);
                   streamedText += event.content;
                   setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: streamedText } : message));
@@ -1222,6 +1228,7 @@ export default function Home() {
       setRequestError(message);
     } finally {
       setIsSearchingWeb(false);
+      setIsThinking(false);
       setIsSending(false);
     }
   };
@@ -1500,7 +1507,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                         <i />
                         <i />
                       </span>
-                      <span>{tr(language, "يجهز الرد...", "Preparing a response...")}</span>
+                      <span>{isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
                     </div>
                   )}
                 </div>
