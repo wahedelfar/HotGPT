@@ -898,3 +898,23 @@ export default async function handler(req: any, res: any) {
       if (partialResponse) {
         try { finalWallet = await getWallet(user.id); } catch { /* Refresh balance on next load. */ }
       }
+      writeStreamEvent({ type: "done", content: cleanFinalContent, wallet: finalWallet, conversationId, partial: partialResponse, continuationAvailable, billing });
+      return res.end();
+    }
+    return res.status(200).json({ content: cleanFinalContent, wallet, conversationId, partial: partialResponse, continuationAvailable, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
+  } catch (error: any) {
+    if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
+      console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
+    } }
+    const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
+    console.error("[Chat] Request failed", error instanceof Error ? error.message : "unknown");
+    if (res.headersSent) {
+      if (streamHeartbeat) clearInterval(streamHeartbeat);
+      res.write(`data: ${JSON.stringify({ type: "error", error: timeout ? "provider_timeout" : "chat_request_failed" })}\n\n`);
+      return res.end();
+    }
+    return res.status(timeout ? 504 : 502).json({
+      error: timeout ? "provider_timeout" : "chat_request_failed",
+    });
+  }
+}
