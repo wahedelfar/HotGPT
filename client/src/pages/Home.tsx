@@ -585,10 +585,10 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
             <p>{tr(language, "اختر أحد الوضعين الداكنين.", "Choose one of the two dark themes.")}</p>
             <div className="appearance-theme-options" role="group" aria-label={tr(language, "اختيار المظهر", "Choose appearance")}>
               <button type="button" className={theme === "blood" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "blood"} onClick={() => { localStorage.setItem("hotgpt-theme", "blood"); localStorage.setItem("theme", "blood"); document.documentElement.dataset.theme = "blood"; setTheme("blood"); }} title="Blood Mode">
-                <strong>Blood Mode</strong><span>{tr(language, "أحمر داكن #2B0000", "Deep red #2B0000")}</span>
+                <strong>Blood Mode</strong><span>{tr(language, "أحمر داكن", "Deep red")}</span>
               </button>
               <button type="button" className={theme === "dark" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "dark"} onClick={() => { localStorage.setItem("hotgpt-theme", "dark"); localStorage.setItem("theme", "dark"); document.documentElement.dataset.theme = "dark"; setTheme("dark"); }} title="Dark">
-                <strong>Dark</strong><span>{tr(language, "أسود #000000", "Black #000000")}</span>
+                <strong>Dark</strong><span>{tr(language, "أسود", "Black")}</span>
               </button>
             </div>
           </div>
@@ -695,15 +695,13 @@ export default function Home() {
         const payload = await response.json().catch(() => ({}));
         const preferences = payload.preferences;
         if (!preferences || cancelled) return;
-        const theme = preferences.theme === "light" ? "light" : "dark";
+        // Keep the locally selected theme authoritative; account sync must not reset it.
         const style = ["professional", "concise", "friendly", "detailed"].includes(preferences.style) ? preferences.style : "professional";
         const instructions = typeof preferences.instructions === "string" ? preferences.instructions.slice(0, 2000) : "";
         const nextLanguage = preferences.language === "en" ? "en" : "ar";
-        localStorage.setItem("hotgpt-theme", theme);
         localStorage.setItem("hotgpt-response-style", style);
         localStorage.setItem("hotgpt-custom-instructions", instructions);
         localStorage.setItem("hotgpt-language", nextLanguage);
-        document.documentElement.dataset.theme = theme;
         if (nextLanguage !== language) setLanguage(nextLanguage);
       })
       .catch(() => {});
@@ -711,8 +709,12 @@ export default function Home() {
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("hotgpt-theme") === "light" ? "light" : "dark";
+    const storedTheme = localStorage.getItem("theme") || localStorage.getItem("hotgpt-theme");
+    const savedTheme = storedTheme === "dark" ? "dark" : "blood";
     document.documentElement.dataset.theme = savedTheme;
+    document.documentElement.style.colorScheme = "dark";
+    localStorage.setItem("theme", savedTheme);
+    localStorage.setItem("hotgpt-theme", savedTheme);
     localStorage.setItem("hotgpt-language", language);
     document.documentElement.lang = language;
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
@@ -1211,7 +1213,7 @@ export default function Home() {
     <style>{`html[data-theme="dark"]{--bg:#000000;--card:#111111;--text:#FFFFFF;--accent:#FFFFFF;color-scheme:dark}
 html[data-theme="blood"]{--bg:#2B0000;--card:#400000;--text:#FFFFFF;--accent:#FF1E2E;color-scheme:dark}
 html[data-theme="dark"] body,html[data-theme="blood"] body,html[data-theme="dark"] #root,html[data-theme="blood"] #root,html[data-theme="dark"] .app-shell,html[data-theme="blood"] .app-shell,html[data-theme="dark"] .main-shell,html[data-theme="blood"] .main-shell,html[data-theme="dark"] .chat-workspace,html[data-theme="blood"] .chat-workspace,html[data-theme="dark"] .sidebar,html[data-theme="blood"] .sidebar,html[data-theme="dark"] .sidebar-drawer,html[data-theme="blood"] .sidebar-drawer,html[data-theme="dark"] main,html[data-theme="blood"] main,html[data-theme="dark"] .settings-view,html[data-theme="blood"] .settings-view{background:var(--bg)!important;color:var(--text)!important}
-html[data-theme="dark"] header,html[data-theme="blood"] header,html[data-theme="dark"] .settings-card,html[data-theme="blood"] .settings-card,html[data-theme="dark"] .composer,html[data-theme="blood"] .composer,html[data-theme="dark"] .conversation-item,html[data-theme="blood"] .conversation-item,html[data-theme="dark"] .chat-input-wrap,html[data-theme="blood"] .chat-input-wrap{background:var(--card)!important;color:var(--text)!important}
+html[data-theme="dark"] header,html[data-theme="dark"] .settings-card,html[data-theme="blood"] .settings-card,html[data-theme="dark"] .composer,html[data-theme="blood"] .composer,html[data-theme="dark"] .conversation-item,html[data-theme="blood"] .conversation-item,html[data-theme="dark"] .chat-input-wrap,html[data-theme="blood"] .chat-input-wrap{background:var(--card)!important;color:var(--text)!important}
 html[data-theme="blood"] .settings-card,html[data-theme="blood"] .settings-card h3,html[data-theme="blood"] .settings-card p,html[data-theme="blood"] .settings-card span,html[data-theme="blood"] .composer textarea,html[data-theme="blood"] .sidebar *,html[data-theme="blood"] .conversation-item *{color:#FFFFFF}
 .appearance-settings-card{align-items:flex-start}.appearance-settings-copy{flex:1 1 auto;min-width:0}
 .appearance-theme-options{display:flex;flex-flow:row nowrap;gap:10px;width:100%;margin-top:12px}
@@ -1224,7 +1226,7 @@ html[data-theme="blood"] .appearance-theme-option{background:#400000;color:#fff}
 .new-chat-shortcut{color:#FFFFFF!important;border-color:rgba(255,255,255,.45)!important}
 html[data-theme="dark"] .new-chat-button{background:#222222!important;color:#FFFFFF!important;border-color:#444!important;box-shadow:none!important}
 html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
-.mobile-menu-button,.mobile-only.icon-button{color:#FFFFFF!important}html[data-theme="blood"] .appearance-theme-option.selected{border-color:#FF1E2E;box-shadow:inset 0 0 0 1px #FF1E2E}
+.mobile-menu-button,.mobile-only.icon-button{color:#FFFFFF!important}html[data-theme="blood"] .appearance-theme-option.selected{border-color:#FF1E2E;box-shadow:inset 0 0 0 1px #FF1E2E}html[data-theme="blood"] header{background:#2B0000!important;color:#FFFFFF!important}html[data-theme="dark"] header{background:#000000!important;color:#FFFFFF!important}
 .composer-mode-row{display:flex!important;flex-wrap:nowrap!important;gap:6px!important;padding:6px 10px!important;overflow:visible!important}
 .composer-mode-row>.composer-mode{flex:1 1 0!important;min-width:0!important;max-width:none!important;padding-inline:4px!important;font-size:12px!important;white-space:nowrap!important;justify-content:center}
 .composer-mode.beast-mode{padding-inline:4px!important}.composer-mode.beast-mode>span:first-child{font-size:12px!important}
@@ -1306,7 +1308,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             </button>
           </div>
           <div className="topbar-actions hotgpt-topbar-actions">
-            {(auth.isAuthenticated || (auth.loading && walletBalance > 0)) && (
+            {walletBalance > 0 && (
               <>
                 <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
                   <Coins size={20} /><span>{walletBalance}</span>
@@ -1347,10 +1349,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 )}
               </div>
             ) : (
-              <div className="auth-entry-actions">
-                <a href="/auth?mode=login" className="auth-entry-login">{tr(language, "تسجيل الدخول", "Log in")}</a>
-                <a href="/auth?mode=signup" className="auth-entry-signup">{tr(language, "سجل الآن", "Sign up")}</a>
-              </div>
+              <button type="button" className="topbar-avatar profile-menu-trigger cached-profile-trigger"
+                aria-label={tr(language, "الحساب", "Account")} title={tr(language, "الحساب", "Account")}
+                onClick={() => { window.location.href = "/auth?mode=login"; }}>W</button>
             )}
           </div>
         </header>

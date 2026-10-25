@@ -6,8 +6,10 @@
     <script>
       (function () {
         try {
-          var saved = localStorage.getItem("hotgpt-theme");
+          var saved = localStorage.getItem("theme") || localStorage.getItem("hotgpt-theme");
           var theme = saved === "dark" ? "dark" : "blood";
+          localStorage.setItem("theme", theme);
+          localStorage.setItem("hotgpt-theme", theme);
           document.documentElement.dataset.theme = theme;
           document.documentElement.style.colorScheme = "dark";
         } catch (_) {
@@ -20,6 +22,7 @@
       html[data-theme="dark"] { --bg: #000000; --card: #111111; --text: #FFFFFF; --accent: #FFFFFF; }
       html[data-theme="blood"] { --bg: #2B0000; --card: #400000; --text: #FFFFFF; --accent: #FF1E2E; }
       html[data-theme="dark"] body, html[data-theme="blood"] body { background: var(--bg); color: var(--text); }
+      html[data-theme="blood"] header { background: #2B0000; color: #FFFFFF; }
     </style>
     <meta name="theme-color" content="#2B0000" />
     <meta name="description" content="HotGPT — بدون قيود، مساعدك الذكي للبرمجة والتحليل والأمن الرقمي." />

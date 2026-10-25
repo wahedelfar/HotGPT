@@ -990,3 +990,37 @@ body,
 .darkweb-mode.active { color: #FF1E1E !important; border-color: #DC2626 !important; background: rgba(220,38,38,.12) !important; box-shadow: 0 0 10px rgba(220,38,38,.28) !important; }
 .rewards-sidebar-link { display: flex; align-items: center; gap: 8px; margin: 10px 12px 12px; padding: 10px 12px; border: 1px solid rgba(124, 58, 237, .24); border-radius: 10px; color: inherit; text-decoration: none; font-size: 13px; }
 .rewards-sidebar-link:hover { background: rgba(124, 58, 237, .10); border-color: rgba(124, 58, 237, .5); }
+
+
+/* Unified HotGPT dark themes: apply across Home, Chat, Sidebar and settings. */
+html[data-theme="dark"] { --bg:#000000; --card:#111111; --text:#FFFFFF; --accent:#FFFFFF; color-scheme:dark; }
+html[data-theme="blood"] { --bg:#2B0000; --card:#400000; --text:#FFFFFF; --accent:#FF1E2E; color-scheme:dark; }
+html[data-theme="dark"],html[data-theme="blood"],
+html[data-theme="dark"] body,html[data-theme="blood"] body,
+html[data-theme="dark"] #root,html[data-theme="blood"] #root,
+html[data-theme="dark"] .app-shell,html[data-theme="blood"] .app-shell,
+html[data-theme="dark"] .main-shell,html[data-theme="blood"] .main-shell,
+html[data-theme="dark"] .chat-workspace,html[data-theme="blood"] .chat-workspace,
+html[data-theme="dark"] .sidebar,html[data-theme="blood"] .sidebar,
+html[data-theme="dark"] .sidebar-drawer,html[data-theme="blood"] .sidebar-drawer,
+html[data-theme="dark"] main,html[data-theme="blood"] main,
+html[data-theme="dark"] .settings-view,html[data-theme="blood"] .settings-view,
+html[data-theme="dark"] .content-panel,html[data-theme="blood"] .content-panel {
+  background-color:var(--bg)!important;color:var(--text)!important;
+}
+html[data-theme="dark"] .card,html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .composer,html[data-theme="dark"] .conversation-item,
+html[data-theme="dark"] .chat-input-wrap,html[data-theme="dark"] .sidebar-drawer .sidebar-section,
+html[data-theme="blood"] .card,html[data-theme="blood"] .settings-card,
+html[data-theme="blood"] .composer,html[data-theme="blood"] .conversation-item,
+html[data-theme="blood"] .chat-input-wrap,html[data-theme="blood"] .sidebar-drawer .sidebar-section {
+  background-color:var(--card)!important;color:var(--text)!important;
+}
+html[data-theme="blood"] header,html[data-theme="dark"] header {
+  background-color:var(--bg)!important;color:var(--text)!important;
+}
+html[data-theme="blood"] .new-chat-button {background:#FF1E2E!important;color:#FFFFFF!important;border-color:#FF1E2E!important;}
+html[data-theme="dark"] .new-chat-button {background:#222222!important;color:#FFFFFF!important;border-color:#444444!important;}
+html[data-theme="blood"] .mobile-menu-button,html[data-theme="dark"] .mobile-menu-button,
+html[data-theme="blood"] .mobile-only.icon-button,html[data-theme="dark"] .mobile-only.icon-button {color:#FFFFFF!important;}
+html[data-theme="blood"] .appearance-theme-option span,html[data-theme="dark"] .appearance-theme-option span {color:#FFFFFF!important;}
