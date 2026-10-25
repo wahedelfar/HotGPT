@@ -33,6 +33,7 @@ import {
   Skull,
   Wifi,
   Cpu,
+  Image as ImageIcon,
   Lock,
   X,
 } from "lucide-react";
@@ -55,6 +56,7 @@ type ChatMessage = {
   continuationAvailable?: boolean;
   isComplete?: boolean; partCount?: number; lastFinishReason?: string | null;
   continuationDisabled?: boolean; continuationLabel?: string;
+  imageUrl?: string;
 };
 
 type Conversation = {
@@ -428,6 +430,8 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
           <span>{message.timestamp}</span>
         </div>
         <div className="message-content" ref={codeContainerRef}>
+          {message.imageUrl && <img src={message.imageUrl} alt={tr(language, "صورة مولّدة", "Generated image")} style={{ maxWidth: "100%", borderRadius: 12, marginBottom: 8 }} />}
+          {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span></div>}
           {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
         </div>
         <div className="message-actions">
@@ -459,7 +463,7 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
     <div className="welcome-state hotgpt-welcome">
       {hotLuckyBannerVisible && (
         <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
-          <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
+                    <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
           <span className="hotlucky-slim-copy">
             <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — ادفع بعد موافقة الإدارة واستلم كود توكن عشوائي", "🎁 HotLucky — an approved payment unlocks a random token code")}</span>
             <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — اكسب توكنات بكود عشوائي", "🎁 HotLucky — random token codes after approval")}</span>
@@ -822,6 +826,7 @@ export default function Home() {
   const [writingAssist, setWritingAssist] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [darkWebEnabled, setDarkWebEnabled] = useState(false);
+  const [imageMode, setImageMode] = useState(false);
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
   const [walletBalance, setWalletBalance] = useState(() => {
     try { return typeof window !== "undefined" ? Math.max(0, Number(localStorage.getItem("hotgpt-token-balance")) || 0) : 0; }
@@ -1053,6 +1058,34 @@ export default function Home() {
           : message.content,
       }));
       setMessages(current => [...current, userMessage]);
+
+      if (imageMode) {
+        // Image generation (user feature, 2026-10-25): the server charges a
+        // flat 5 tokens and returns the image for this session only; images
+        // are not persisted in the database yet.
+        try {
+          const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId }) });
+          const imagePayload = await imageResponse.json().catch(() => ({}));
+          if (!imageResponse.ok || !imagePayload.imageDataUrl) {
+            const imageErrors: Record<string, string> = {
+              insufficient_credits: tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough."),
+              image_generation_failed: tr(language, "تعذر توليد الصورة الآن. لم يُخصم الرصيد؛ حاول مرة أخرى.", "Image generation failed. No charge was made; please try again."),
+              image_not_configured: tr(language, "توليد الصور غير مُعدّ على الخادم بعد.", "Image generation is not configured on the server yet."),
+              login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+            };
+            throw new Error(imageErrors[String(imagePayload.error || "")] || tr(language, "تعذر توليد الصورة الآن.", "Image generation failed."));
+          }
+          if (typeof imagePayload.tokenBalance === "number") setWalletBalance(imagePayload.tokenBalance);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: tr(language, `🎨 صورة مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 Image generated from your prompt: "${trimmed.slice(0, 200)}"`), timestamp: formatTime(), imageUrl: String(imagePayload.imageDataUrl) }]);
+        } catch (imageError) {
+          setRequestError(imageError instanceof Error ? imageError.message : tr(language, "تعذر توليد الصورة الآن.", "Image generation failed."));
+        } finally {
+          setIsSending(false);
+          setIsSearchingWeb(false);
+          setImageMode(false);
+        }
+        return;
+      }
       setConversations(current => {
         const existing = current.some(item => item.id === conversationId);
         const next: Conversation = {
@@ -1202,7 +1235,7 @@ export default function Home() {
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : webSearchEnabled ? "البحث المتقدم يحتاج إلى 5 توكينات لكل عملية. رصيدك غير كافٍ؛ اختر باقة مناسبة." : darkWebEnabled ? "تبدأ تكلفة الدارك ويب من 3 توكينات، وقد تصل إلى 9 حسب طول الإجابة وعمقها. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "تتراوح تكلفة Beast Pro بين 3 و9 توكينات حسب طول الإجابة وعمقها. اشترِ باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : webSearchEnabled ? "البحث المتقدم يحتاج إلى 5 توكينات لكل عملية. رصيدك غير كافٍ؛ اختر باقة مناسبة." : darkWebEnabled ? "تبدأ تكلفة الدارك ويب من 3 توكينات، وقد تصل إلى 9 حسب طول الإجابة وعمقها. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "تتراوح تكلفة الوحش PRO بين 3 و9 توكينات حسب طول الإجابة وعمقها. اشترِ باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
@@ -1256,7 +1289,7 @@ export default function Home() {
       ? tr(language, "البحث على الإنترنت", "Internet Search")
       : feature === "darkweb"
         ? tr(language, "وضع الدارك ويب", "Dark Web mode")
-        : "Beast Pro";
+        : "الوحش PRO";
     if (walletBalance <= 0) {
       setRequestError(tr(language,
         `يجب الاشتراك من هنا لاستخدام ${featureName}.`,
@@ -1272,6 +1305,7 @@ export default function Home() {
     // Both modes may be enabled; the server gives Dark Web analysis priority.
 
     setRequestError(null);
+    setImageMode(false);
     if (feature === "search") setWebSearchEnabled(value => !value);
     else setDarkWebEnabled(value => !value);
   };
@@ -1513,7 +1547,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 </div>
               )}
             </div>
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("Beast Pro") || requestError.includes("الباقات المدفوعة")) && <a href="/billing" className="mt-2 inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الباقات المدفوعة")) && <a href="/billing" className="mt-2 inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
               <div
                 className={
@@ -1564,16 +1598,20 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setWebSearchEnabled(false); setDarkWebEnabled(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
+                    <ImageIcon size={16} /><span>صورة</span>
+                  </button>
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
+                    setImageMode(false);
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
                     if (!requireProFeature("beast")) return;
-                    if (walletBalance < 3) { setRequestError(tr(language, "تحتاج إلى 3 توكينات على الأقل لتشغيل Beast Pro. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 توكينات).", "At least 3 tokens are required for Beast Pro. Final cost depends on answer length and depth (3, 5, or 9 tokens).")); return; }
+                    if (walletBalance < 3) { setRequestError(tr(language, "تحتاج إلى 3 توكينات على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 توكينات).", "At least 3 tokens are required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 tokens).")); return; }
                     setRequestError(null); setSelectedModel("dadgpt-beast");
-                  }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "Beast Pro", "Beast Pro")}>
-                    <span>Beast</span><span>PRO</span>
+                  }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "الوحش PRO", "الوحش PRO")}>
+                    <span>الوحش</span><span>PRO</span>
                   </button>
                 </div>
               </div>
