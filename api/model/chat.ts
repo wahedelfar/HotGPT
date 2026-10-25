@@ -404,8 +404,8 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
         model,
         messages: [
           { role: "system", content: [BASE_PROMPT, MODE_PROMPTS[mode]].filter(Boolean).join("\\n\\n") },
-          { role: "assistant", content: String(row.content || "") },
           { role: "system", content: "Continue exactly from where the previous part stopped. Do not repeat anything. Complete ALL remaining sections and finish the task fully within this part, being as concise as needed to fit." },
+          { role: "assistant", content: String(row.content || "") },
         ],
         max_tokens: 3000,
         temperature: 0.4,
@@ -432,7 +432,7 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
     }
     const append = generated.slice(overlap).trim();
     const merged = append ? (previous ? previous + (previous.endsWith("\\n") ? "" : "\\n\\n") + append : append) : previous;
-    const complete = finishReason !== "length" && Boolean(finishReason);
+    const complete = ["stop", "end_turn", "completed", "eos_token"].includes(String(finishReason));
     await updateAssistantMessage(user.id, messageId, {
       content: merged,
       part_count: partIndex,
@@ -947,7 +947,7 @@ export default async function handler(req: any, res: any) {
         const finishReason = choice?.finish_reason ?? payload?.choices?.[0]?.finish_reason ?? null;
         lastFinishReason = typeof finishReason === "string" ? finishReason : null;
         if (finishReason === "length" && paidStagedRequest) continuationAvailable = true;
-        if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || (!paidStagedRequest && finishReason === "length"))) {          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
+        if (darkWebEnabled && ((normalizedCandidate.length < darkWebMinimumChars && !(paidStagedRequest && finishReason === "length")) || (!paidStagedRequest && finishReason === "length"))) {          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
           console.warn("[DarkWeb] Provider response incomplete; trying next provider", JSON.stringify({
             requestId, provider: provider.name, chars: normalizedCandidate.length,
             minimumChars: darkWebMinimumChars, finishReason,
@@ -1012,7 +1012,7 @@ export default async function handler(req: any, res: any) {
       ? `${answerWithSignoff}\n\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
       : answerWithSignoff;
     const cleanFinalContent = (webSearchEnabled || darkWebEnabled) ? sanitizeSearchAnswer(finalContent) : finalContent;
-    const isComplete = !paidStagedRequest || (!partialResponse && lastFinishReason !== "length" && Boolean(lastFinishReason));
+    const isComplete = !paidStagedRequest || (!partialResponse && ["stop", "end_turn", "completed", "eos_token"].includes(String(lastFinishReason)));
     let billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;
     if (false) {
       const classification = classifyPremiumAnswer(content);
@@ -1036,7 +1036,7 @@ export default async function handler(req: any, res: any) {
       billing = { cost: classification.cost, tier: classification.tier, labelAr: classification.labelAr, labelEn: classification.labelEn };
     }
     if (paidStagedRequest && stagedMessageId) {
-      await updateAssistantMessage(user.id, stagedMessageId, { content: cleanFinalContent, is_complete: isComplete, part_count: 1, last_finish_reason: lastFinishReason || (partialResponse ? "provider_interrupted" : null) });
+      await updateAssistantMessage(user.id, stagedMessageId, { content: cleanFinalContent, created_at: new Date().toISOString(), is_complete: isComplete, part_count: 1, last_finish_reason: lastFinishReason || (partialResponse ? "provider_interrupted" : null) });
       stagedOutputPersisted = true;
     } else {
       await saveMessage(user.id, conversationId, "assistant", cleanFinalContent);
