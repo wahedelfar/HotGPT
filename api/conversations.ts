@@ -6,12 +6,16 @@ export default async function handler(req: any, res: any) {
 
   let url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   while (url.endsWith("/")) url = url.slice(0, -1);
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
+  // Server-side auth verification can use the service key as the apikey fallback
+  // when the project has only the service key configured. The user JWT remains
+  // the bearer token, and the service key is never returned to the client.
   const publicKey = process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY || "";
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    serviceKey;
 
   if (!url || !publicKey || !serviceKey) {
     console.error("[Conversations] Supabase server configuration is incomplete", { hasUrl: !!url, hasPublicKey: !!publicKey, hasServiceKey: !!serviceKey });
