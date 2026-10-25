@@ -167,6 +167,47 @@ async function refundCredit(userId: string, kind: "free" | "paid", cost: number)
   });
 }
 
+// Image generation (user feature, 2026-10-25): FLUX.3 Image Klein on
+// OpenRouter (open weights, from $0.008/image), flat 5 tokens per image,
+// refunded on failure. Per the user's storage decision, the image bytes are
+// NEVER written to the database — they return in this response only and live
+// in the client's current session; the saved history keeps just the prompt
+// and a marker line. Real persistence arrives with object storage later.
+async function handleImageGeneration(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const prompt = String(body?.prompt || "").trim().slice(0, 1000);
+  const conversationId = String(body?.conversationId || "");
+  if (!prompt || !conversationId) { res.status(400).json({ error: "invalid_image_request" }); return; }
+  const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  if (!orKey) { res.status(503).json({ error: "image_not_configured" }); return; }
+  const IMAGE_COST = 5;
+  const kind = await consumeCredit(user.id, IMAGE_COST, false).catch(() => null);
+  if (!kind) { res.status(402).json({ error: "insufficient_credits" }); return; }
+  try {
+    const model = (process.env.OPENROUTER_IMAGE_MODEL || "black-forest-labs/flux-3-image-klein").trim();
+    const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+      body: JSON.stringify({ model, prompt }),
+      signal: AbortSignal.timeout(55000),
+    });
+    const payload: any = await response.json().catch(() => null);
+    const b64 = payload?.data?.[0]?.b64_json;
+    const remoteUrl = payload?.data?.[0]?.url;
+    const imageDataUrl = b64 ? `data:image/png;base64,${b64}` : (typeof remoteUrl === "string" && remoteUrl ? remoteUrl : "");
+    if (!response.ok || !imageDataUrl) throw new Error("image_generation_failed");
+    await saveMessage(user.id, conversationId, "user", prompt);
+    await saveMessage(user.id, conversationId, "assistant", `🎨 صورة مولّدة بناءً على وصفك: «${prompt.slice(0, 200)}» — الصور المولّدة تظهر خلال الجلسة الحالية فقط ولا تُحفظ في قاعدة البيانات بعد. احفظ الصورة على جهازك لأنها تُحذف عند تسجيل خروجك.`);
+    const wallet = await getWallet(user.id).catch(() => null);
+    res.status(200).json({ imageDataUrl, tokenBalance: wallet?.tokenBalance, cost: IMAGE_COST });
+  } catch (error) {
+    await refundCredit(user.id, kind, IMAGE_COST).catch(() => null);
+    console.error("[Image] generation failed", error instanceof Error ? error.message : "unknown");
+    res.status(502).json({ error: "image_generation_failed" });
+  }
+}
+
 async function searchInternet(query: string, darkWebSearch = false): Promise<string> {
   const cleanQuery = query.trim().slice(0, 500);
   if (!cleanQuery) throw new Error("web_search_failed");
@@ -293,7 +334,7 @@ async function searchInternet(query: string, darkWebSearch = false): Promise<str
     ),
     "",
     "عدد المصادر: " + unique.length,
-  ].join("\n\n").slice(0, deepResearch ? 14000 : 9000);
+    ].join("\n\n").slice(0, deepResearch ? 14000 : 9000);
 }
 async function getWallet(userId: string) {
   const rows = await supabaseRest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=free_answers_used,token_balance&limit=1`);
@@ -331,7 +372,6 @@ async function saveMessage(userId: string, conversationId: string, role: "user" 
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({ conversation_id: conversationId, user_id: userId, role, content }),
   });
-  
   const patch: Record<string, string> = { updated_at: new Date().toISOString() };
   if (role === "user" && conversation.title === "محادثة جديدة") patch.title = content.slice(0, 80);
   await supabaseRest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}`, {
@@ -406,7 +446,7 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
   }catch(e){console.error("[Chat] Continuation charge/setup failed",e instanceof Error?e.message:"unknown");return res.status(503).json({error:"continuation_unavailable"});}
   const base=(process.env.NEXA_PROVIDER_BASE_URL||"").trim().replace(/\/+$/,""),key=(process.env.NEXA_PROVIDER_API_KEY||"").trim();
   const mode=resolveChatMode(body.mode),model=(process.env.NEXA_PROVIDER_BEAST_MODEL||process.env.NEXA_PROVIDER_PRO_MODEL||process.env.NEXA_PROVIDER_MODEL_PRO||process.env.NEXA_PROVIDER_MODEL||"dadgpt-beast").trim();
-  const orKey=(process.env.OPENROUTER_API_KEY||"").trim(),useOR=(mode==="Beast pro"||mode==="darkweb")&&Boolean(orKey),orModel=(mode==="darkweb"?(process.env.OPENROUTER_DARK_MODEL||"cognitivecomputations/dolphin-mistral-24b-venice-edition"):(process.env.OPENROUTER_BEAST_MODEL||"deepseek/deepseek-v4-pro")).trim();
+  const orKey=(process.env.OPENROUTER_API_KEY||"").trim(),useOR=Boolean(orKey),orModel=(mode==="darkweb"?(process.env.OPENROUTER_DARK_MODEL||"cognitivecomputations/dolphin-mistral-24b-venice-edition"):mode==="Beast pro"?(process.env.OPENROUTER_BEAST_MODEL||"deepseek/deepseek-v4-pro"):(process.env.OPENROUTER_DEFAULT_MODEL||"deepseek/deepseek-v4-flash")).trim();
   const streaming=body.stream===true,emit=(e:Record<string,unknown>)=>{if(streaming&&!res.writableEnded)res.write(`data: ${JSON.stringify(e)}\n\n`);};
   if(streaming){res.statusCode=200;res.setHeader("Content-Type","text/event-stream; charset=utf-8");res.setHeader("Cache-Control","no-cache, no-transform");res.setHeader("Connection","keep-alive");res.setHeader("X-Accel-Buffering","no");res.flushHeaders?.();}
   let generated="",finishReason:string|null=null;const started=Date.now();let firstDelta:number|null=null;let reasoningChars=0,lastThink=0;
@@ -454,13 +494,16 @@ export default async function handler(req: any, res: any) {
   // the verified configuration uses "Dadgpt-default", so do not rewrite its casing.
   const model = (process.env.NEXA_PROVIDER_MODEL || "").trim();
   const hasPrimaryProvider = Boolean(baseUrl && apiKey && model);
+  const body = req.body ?? {};
+  // Image generation runs purely on OpenRouter and never touches the chat
+  // providers, so it is handled before the provider gate below.
+  if (body?.imageMode === true) return await handleImageGeneration(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
   // to OpenRouter when OPENROUTER_API_KEY is configured (see engine routing below).
   if (!hasPrimaryProvider) {
     return res.status(503).json({ error: "provider_not_configured" });
   }
 
-  const body = req.body ?? {};
   if (typeof body.continueMessageId === "string" && body.continueMessageId) return await handleContinueChatPart(req, res, body);
   const chatMode = resolveChatMode(body.mode);
   const messages = body.messages;
@@ -717,19 +760,27 @@ export default async function handler(req: any, res: any) {
     // effort "low" as primary and Qwen3 235B Instruct (no thinking mode) as the
     // paired backup. Default, search and dark-web keep the DadGPT pair below.
     const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
-    const useOpenRouterBeast = chatMode === "Beast pro" && !darkWebEnabled && !webSearchEnabled && Boolean(openRouterKey);
-    // Dark-web desk (user decision, 2026-10-25): the dark-web mode runs on the
-    // uncensored Dolphin Mistral 24B Venice Edition via OpenRouter, steered by
-    // the CTI darkweb prompt, with dadgpt-beast as the paired backup.
+    const openRouterEndpoint = new URL("https://openrouter.ai/api/v1/chat/completions");
+    const orQwenModel = (process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim();
+    // Engine routing (user decisions, 2026-10-25): whenever the OpenRouter key
+    // exists it powers every mode, because the user does not trust the opaque
+    // DadGPT endpoint. Beast (with or without web search) synthesizes on
+    // DeepSeek V4 Pro; the dark-web desk runs the uncensored Dolphin; the
+    // default mode — including the free trial answers — runs DeepSeek V4
+    // Flash so the free experience is strong, not a weak teaser. DadGPT stays
+    // only as a no-key fallback. Every engine keeps a paired backup.
+    const useOpenRouterBeast = chatMode === "Beast pro" && !darkWebEnabled && Boolean(openRouterKey);
     const useOpenRouterDark = chatMode === "darkweb" && Boolean(openRouterKey);
+    const useOpenRouterDefault = chatMode === "default" && Boolean(openRouterKey);
     if (useOpenRouterBeast) {
-      const openRouterEndpoint = new URL("https://openrouter.ai/api/v1/chat/completions");
       providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_BEAST_MODEL || "deepseek/deepseek-v4-pro").trim(), openRouter: true, reasoningEffort: "low" });
-      providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(), openRouter: true });
+      providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (useOpenRouterDark) {
-      const openRouterEndpoint = new URL("https://openrouter.ai/api/v1/chat/completions");
       providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DARK_MODEL || "cognitivecomputations/dolphin-mistral-24b-venice-edition").trim(), openRouter: true });
-      if (endpoint && apiKey) providers.push({ name: "backup", endpoint, key: apiKey, model: beastModel });
+      providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
+    } else if (useOpenRouterDefault) {
+      providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "deepseek/deepseek-v4-flash").trim(), openRouter: true, reasoningEffort: "low" });
+      providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (endpoint && apiKey) {
       providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
       // Smart-backup pair (user design, 2026-10-25): the two DadGPT models watch
@@ -743,7 +794,7 @@ export default async function handler(req: any, res: any) {
         providers.push({ name: "backup", endpoint, key: apiKey, model: partnerModel });
       }
     }
-    console.info("[Chat] Engine routing", JSON.stringify({ requestId, engine: useOpenRouterBeast ? "openrouter-beast" : useOpenRouterDark ? "openrouter-dark" : "dadgpt", models: providers.map((p) => p.model) }));
+    console.info("[Chat] Engine routing", JSON.stringify({ requestId, engine: useOpenRouterBeast ? "openrouter-beast" : useOpenRouterDark ? "openrouter-dark" : useOpenRouterDefault ? "openrouter-default" : "dadgpt", models: providers.map((p) => p.model) }));
     let content = "";
     let bestPartialContent = "";
     let partialResponse = false;
@@ -1083,4 +1134,3 @@ export default async function handler(req: any, res: any) {
   }
             }
      
- 
