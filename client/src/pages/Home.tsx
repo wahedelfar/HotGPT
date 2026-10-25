@@ -488,9 +488,9 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { language, toggleLanguage } = useLanguage();
   const auth = useAuth();
   const [theme, setTheme] = useState<"dark" | "blood">(() => {
-    if (typeof window === "undefined") return "dark";
+    if (typeof window === "undefined") return "blood";
     const saved = localStorage.getItem("hotgpt-theme") || localStorage.getItem("theme");
-    return saved === "blood" ? "blood" : "dark";
+    return saved === "dark" ? "dark" : "blood";
   });
   const [style, setStyle] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("hotgpt-response-style") || "professional" : "professional"
@@ -519,7 +519,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
         if (!response.ok) throw new Error(payload.error || "preferences_unavailable");
         const preferences = payload.preferences;
         if (!preferences || cancelled) return;
-        const nextTheme = preferences.theme === "light" ? "light" : "dark";
+        const nextTheme = (localStorage.getItem("hotgpt-theme") === "dark" || localStorage.getItem("hotgpt-theme") === "blood") ? localStorage.getItem("hotgpt-theme")! : "blood";
         const nextStyle = ["professional", "concise", "friendly", "detailed"].includes(preferences.style) ? preferences.style : "professional";
         const nextInstructions = typeof preferences.instructions === "string" ? preferences.instructions.slice(0, 2000) : "";
         localStorage.setItem("hotgpt-theme", nextTheme);
@@ -584,11 +584,11 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
             <h3>{tr(language, "المظهر", "Appearance")}</h3>
             <p>{tr(language, "اختر أحد الوضعين الداكنين.", "Choose one of the two dark themes.")}</p>
             <div className="appearance-theme-options" role="group" aria-label={tr(language, "اختيار المظهر", "Choose appearance")}>
-              <button type="button" className={theme === "dark" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "dark"} onClick={() => setTheme("dark")} title="Dark">
-                <strong>Dark</strong><span>{tr(language, "أسود #000000", "Black #000000")}</span>
-              </button>
-              <button type="button" className={theme === "blood" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "blood"} onClick={() => setTheme("blood")} title="Blood Mode">
+              <button type="button" className={theme === "blood" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "blood"} onClick={() => { localStorage.setItem("hotgpt-theme", "blood"); localStorage.setItem("theme", "blood"); document.documentElement.dataset.theme = "blood"; setTheme("blood"); }} title="Blood Mode">
                 <strong>Blood Mode</strong><span>{tr(language, "أحمر داكن #2B0000", "Deep red #2B0000")}</span>
+              </button>
+              <button type="button" className={theme === "dark" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "dark"} onClick={() => { localStorage.setItem("hotgpt-theme", "dark"); localStorage.setItem("theme", "dark"); document.documentElement.dataset.theme = "dark"; setTheme("dark"); }} title="Dark">
+                <strong>Dark</strong><span>{tr(language, "أسود #000000", "Black #000000")}</span>
               </button>
             </div>
           </div>
@@ -1218,7 +1218,13 @@ html[data-theme="blood"] .settings-card,html[data-theme="blood"] .settings-card 
 .appearance-theme-option{display:flex;flex:1 1 0;min-width:0;flex-direction:column;align-items:flex-start;gap:5px;padding:12px;border:1px solid #555;border-radius:10px;background:#111;color:#fff;text-align:start}
 .appearance-theme-option strong{color:#fff;font-size:13px;line-height:1.4}.appearance-theme-option span{color:#bbb;font-size:11px;line-height:1.5}
 .appearance-theme-option.selected{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-html[data-theme="blood"] .appearance-theme-option{background:#400000;color:#fff}html[data-theme="blood"] .appearance-theme-option.selected{border-color:#FF1E2E;box-shadow:inset 0 0 0 1px #FF1E2E}
+html[data-theme="blood"] .appearance-theme-option{background:#400000;color:#fff}
+.new-chat-button{background:#FF1E2E!important;color:#FFFFFF!important;border:1px solid #FF1E2E!important;box-shadow:0 5px 18px rgba(255,30,46,.18)!important}
+.new-chat-button:hover{background:#d91427!important;color:#FFFFFF!important}
+.new-chat-shortcut{color:#FFFFFF!important;border-color:rgba(255,255,255,.45)!important}
+html[data-theme="dark"] .new-chat-button{background:#222222!important;color:#FFFFFF!important;border-color:#444!important;box-shadow:none!important}
+html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
+.mobile-menu-button,.mobile-only.icon-button{color:#FFFFFF!important}html[data-theme="blood"] .appearance-theme-option.selected{border-color:#FF1E2E;box-shadow:inset 0 0 0 1px #FF1E2E}
 .composer-mode-row{display:flex!important;flex-wrap:nowrap!important;gap:6px!important;padding:6px 10px!important;overflow:visible!important}
 .composer-mode-row>.composer-mode{flex:1 1 0!important;min-width:0!important;max-width:none!important;padding-inline:4px!important;font-size:12px!important;white-space:nowrap!important;justify-content:center}
 .composer-mode.beast-mode{padding-inline:4px!important}.composer-mode.beast-mode>span:first-child{font-size:12px!important}
