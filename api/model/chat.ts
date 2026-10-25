@@ -331,7 +331,8 @@ async function saveMessage(userId: string, conversationId: string, role: "user" 
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({ conversation_id: conversationId, user_id: userId, role, content }),
   });
-    const patch: Record<string, string> = { updated_at: new Date().toISOString() };
+  
+  const patch: Record<string, string> = { updated_at: new Date().toISOString() };
   if (role === "user" && conversation.title === "محادثة جديدة") patch.title = content.slice(0, 80);
   await supabaseRest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}`, {
     method: "PATCH",
@@ -405,14 +406,14 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
   }catch(e){console.error("[Chat] Continuation charge/setup failed",e instanceof Error?e.message:"unknown");return res.status(503).json({error:"continuation_unavailable"});}
   const base=(process.env.NEXA_PROVIDER_BASE_URL||"").trim().replace(/\/+$/,""),key=(process.env.NEXA_PROVIDER_API_KEY||"").trim();
   const mode=resolveChatMode(body.mode),model=(process.env.NEXA_PROVIDER_BEAST_MODEL||process.env.NEXA_PROVIDER_PRO_MODEL||process.env.NEXA_PROVIDER_MODEL_PRO||process.env.NEXA_PROVIDER_MODEL||"dadgpt-beast").trim();
-  const orKey=(process.env.OPENROUTER_API_KEY||"").trim(),useOR=mode==="Beast pro"&&Boolean(orKey),orModel=(process.env.OPENROUTER_BEAST_MODEL||"deepseek/deepseek-v4-pro").trim();
+  const orKey=(process.env.OPENROUTER_API_KEY||"").trim(),useOR=(mode==="Beast pro"||mode==="darkweb")&&Boolean(orKey),orModel=(mode==="darkweb"?(process.env.OPENROUTER_DARK_MODEL||"cognitivecomputations/dolphin-mistral-24b-venice-edition"):(process.env.OPENROUTER_BEAST_MODEL||"deepseek/deepseek-v4-pro")).trim();
   const streaming=body.stream===true,emit=(e:Record<string,unknown>)=>{if(streaming&&!res.writableEnded)res.write(`data: ${JSON.stringify(e)}\n\n`);};
   if(streaming){res.statusCode=200;res.setHeader("Content-Type","text/event-stream; charset=utf-8");res.setHeader("Cache-Control","no-cache, no-transform");res.setHeader("Connection","keep-alive");res.setHeader("X-Accel-Buffering","no");res.flushHeaders?.();}
   let generated="",finishReason:string|null=null;const started=Date.now();let firstDelta:number|null=null;let reasoningChars=0,lastThink=0;
   try{
     if(useOR?!orKey:(!base||!key||!model))throw new Error("provider_not_configured");
     const endpoint=useOR?new URL("https://openrouter.ai/api/v1/chat/completions"):new URL(base+"/chat/completions");if(endpoint.protocol!=="https:")throw new Error("provider_https_required");
-    const response=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${useOR?orKey:key}`,...(useOR?{"HTTP-Referer":"https://hot-gpt-ai.vercel.app","X-Title":"HotGPT"}:{})},body:JSON.stringify({model:useOR?orModel:model,...(useOR?{reasoning_effort:"low"}:{}),messages:[
+    const response=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${useOR?orKey:key}`,...(useOR?{"HTTP-Referer":"https://hot-gpt-ai.vercel.app","X-Title":"HotGPT"}:{})},body:JSON.stringify({model:useOR?orModel:model,...(useOR&&mode!=="darkweb"?{reasoning_effort:"low"}:{}),messages:[
       {role:"system",content:[BASE_PROMPT,MODE_PROMPTS[mode]].filter(Boolean).join("\n\n")},
       {role:"system",content:"Continue exactly from where the previous part stopped. Do not repeat anything. Complete ALL remaining sections and finish the task fully within this part, being as concise as needed to fit."},
       ...history,{role:"assistant",content:String(row.content||"")}
@@ -717,10 +718,18 @@ export default async function handler(req: any, res: any) {
     // paired backup. Default, search and dark-web keep the DadGPT pair below.
     const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
     const useOpenRouterBeast = chatMode === "Beast pro" && !darkWebEnabled && !webSearchEnabled && Boolean(openRouterKey);
+    // Dark-web desk (user decision, 2026-10-25): the dark-web mode runs on the
+    // uncensored Dolphin Mistral 24B Venice Edition via OpenRouter, steered by
+    // the CTI darkweb prompt, with dadgpt-beast as the paired backup.
+    const useOpenRouterDark = chatMode === "darkweb" && Boolean(openRouterKey);
     if (useOpenRouterBeast) {
       const openRouterEndpoint = new URL("https://openrouter.ai/api/v1/chat/completions");
       providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_BEAST_MODEL || "deepseek/deepseek-v4-pro").trim(), openRouter: true, reasoningEffort: "low" });
       providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(), openRouter: true });
+    } else if (useOpenRouterDark) {
+      const openRouterEndpoint = new URL("https://openrouter.ai/api/v1/chat/completions");
+      providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DARK_MODEL || "cognitivecomputations/dolphin-mistral-24b-venice-edition").trim(), openRouter: true });
+      if (endpoint && apiKey) providers.push({ name: "backup", endpoint, key: apiKey, model: beastModel });
     } else if (endpoint && apiKey) {
       providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
       // Smart-backup pair (user design, 2026-10-25): the two DadGPT models watch
@@ -734,7 +743,7 @@ export default async function handler(req: any, res: any) {
         providers.push({ name: "backup", endpoint, key: apiKey, model: partnerModel });
       }
     }
-    console.info("[Chat] Engine routing", JSON.stringify({ requestId, engine: useOpenRouterBeast ? "openrouter" : "dadgpt", models: providers.map((p) => p.model) }));
+    console.info("[Chat] Engine routing", JSON.stringify({ requestId, engine: useOpenRouterBeast ? "openrouter-beast" : useOpenRouterDark ? "openrouter-dark" : "dadgpt", models: providers.map((p) => p.model) }));
     let content = "";
     let bestPartialContent = "";
     let partialResponse = false;
