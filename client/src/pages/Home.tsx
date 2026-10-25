@@ -1248,6 +1248,34 @@ export default function Home() {
       void sendMessage();
     }
   };
+  const handleLogout = () => {
+    setProfileMenuOpen(false);
+    // Dismissal is reset so the visitor gate can appear once after logout.
+    try {
+      sessionStorage.removeItem("hotgpt-visitor-popup-dismissed");
+      sessionStorage.removeItem("hotgpt-welcome-pending");
+      sessionStorage.removeItem("hotgpt.supabase.session");
+      sessionStorage.removeItem("access_token");
+      sessionStorage.removeItem("refresh_token");
+      sessionStorage.removeItem("token");
+      for (const key of Object.keys(sessionStorage)) {
+        if (/^sb-.+-auth-token$/i.test(key) || /^(hotgpt\\.auth\\.token|supabase\\.auth\\.token)$/i.test(key)) sessionStorage.removeItem(key);
+      }
+    } catch {}
+    try {
+      localStorage.removeItem("hotgpt.supabase.session");
+      localStorage.removeItem("hotgpt.chat.v1");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("token");
+      for (const key of Object.keys(localStorage)) {
+        if (/^sb-.+-auth-token$/i.test(key) || /^(hotgpt\\.auth\\.token|supabase\\.auth\\.token)$/i.test(key)) localStorage.removeItem(key);
+      }
+    } catch {}
+    // Re-enter the app as a fresh guest state; this removes the account avatar immediately.
+    window.location.replace("/");
+  };
+
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -1394,7 +1422,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
                       <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
-                      <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={() => { setProfileMenuOpen(false); void auth.logout().catch(() => {}); }}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
+                      <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={handleLogout}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
                     </div>
                   </>
                 )}
