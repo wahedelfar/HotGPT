@@ -42,6 +42,7 @@ export default function AuthPage() {
       } else {
         await signIn(email, password);
       }
+      try { sessionStorage.setItem("hotgpt-welcome-pending", "1"); } catch {}
       window.location.replace("/");
     } catch (error) {
       setNotice(messageFor(error));
