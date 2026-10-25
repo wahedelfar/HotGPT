@@ -68,13 +68,22 @@ export default async function handler(req: any, res: any) {
   if (!url || !key) return res.status(503).json({ error: "service_unavailable" });
   try {
     if (action === "status" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,prize_key,prize_label,prize_code,spun_at,hotlucky_daily_gifts(prize_code,prize_label,created_at)&order=created_at.desc&limit=500");
+      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,prize_key,prize_label,prize_code,spun_at,token_code_used,reward_issued,hotlucky_daily_gifts(prize_code,prize_label,created_at)&order=created_at.desc&limit=500");
       const ready = (orders || []).find((o: any) => o.status === "approved" && !o.spun_at);
       const prizes = (orders || []).filter((o: any) => !!o.prize_label).map((o: any) => {
         const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : o.hotlucky_daily_gifts;
-        return { label: String(o.prize_label), code: o.prize_code ? String(o.prize_code) : gift?.prize_code ? String(gift.prize_code) : undefined, date: o.spun_at || gift?.created_at || null };
+        return { label: String(o.prize_label), code: o.prize_code ? String(o.prize_code) : gift?.prize_code ? String(gift.prize_code) : undefined, used: Boolean(o.token_code_used || o.reward_issued), date: o.spun_at || gift?.created_at || null };
       });
       return res.status(200).json({ eligible: !!ready, email: member.email || "", prize: prizes[0] || null, prizes });
+    }
+    if (action === "redeem" && req.method === "POST") {
+      const code = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
+      if (!/^HOT-[A-F0-9]{6}$/.test(code)) return res.status(400).json({ error: "invalid_token_code" });
+      const result = await request("rpc/hotlucky_redeem_token_code", {
+        method: "POST",
+        body: JSON.stringify({ p_user_id: member.id, p_email: String(member.email || "").toLowerCase(), p_code: code }),
+      });
+      return res.status(200).json(result);
     }
     if (action === "spin" && req.method === "POST") {
       const result = await request("rpc/hotlucky_spin", { method: "POST", body: JSON.stringify({ p_user_id: member.id }) });
@@ -103,6 +112,8 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("spin_not_available")) return res.status(409).json({ error: "spin_not_available" });
+    if (message.includes("token_code_used")) return res.status(409).json({ error: "token_code_used" });
+    if (message.includes("token_code_not_found")) return res.status(404).json({ error: "token_code_not_found" });
     console.error("[HotLucky]", message || "unknown");
     return res.status(503).json({ error: "hotlucky_unavailable" });
   }
