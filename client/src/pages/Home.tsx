@@ -229,7 +229,7 @@ function Sidebar({
         </div>
       </div>
 
-      <a href="/rewards" className="rewards-sidebar-link">🎁 <span>صفحة الجوائز</span></a>
+      <a href="/rewards" className="rewards-sidebar-link">🎁 <span>{tr(language, "صفحة الجوائز", "Rewards")}</span></a>
       <div className="sidebar-bottom">
         <div className="sidebar-note">
           <span className="note-mark">
@@ -578,10 +578,10 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
           <div className="settings-card-icon purple">{theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}</div>
           <div>
             <h3>{tr(language, "المظهر", "Appearance")}</h3>
-            <p>{tr(language, "اختر الوضع الداكن الافتراضي أو الوضع الفاتح.", "Choose the default dark theme or a light theme.")}</p>
-            <span className="setting-status">{theme === "dark" ? tr(language, "الوضع الداكن", "Dark mode") : tr(language, "الوضع الفاتح", "Light mode")}</span>
+            <p>{tr(language, "اختر الوضع الداكن الافتراضي أو Blood Mode.", "Choose Dark or Blood Mode.")}</p>
+            <span className="setting-status">{theme === "dark" ? tr(language, "Dark", "Dark") : tr(language, "Blood Mode", "Blood Mode")}</span>
           </div>
-          <Button variant="outline" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? tr(language, "تفعيل الفاتح", "Use light") : tr(language, "تفعيل الداكن", "Use dark")}</Button>
+          <Button variant="outline" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? tr(language, "تفعيل Blood Mode", "Use Blood Mode") : tr(language, "تفعيل Dark", "Use Dark")}</Button>
         </section>
 
         <section className="settings-card">
@@ -1199,6 +1199,7 @@ export default function Home() {
   return (
     <LanguageContext.Provider value={{ language, toggleLanguage }}>
     <div className="app-shell" dir={language === "ar" ? "rtl" : "ltr"} lang={language}>
+      <style>{`html[data-theme="light"],html[data-theme="light"] body,html[data-theme="light"] #root{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .app-shell,html[data-theme="light"] .main-shell,html[data-theme="light"] .chat-workspace,html[data-theme="light"] main{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .sidebar-drawer,html[data-theme="light"] .sidebar,html[data-theme="light"] .settings-card,html[data-theme="light"] .content-panel,html[data-theme="light"] .composer,html[data-theme="light"] .message-content{background-color:#3D0005!important;color:#fff!important;border-color:#6B1018!important}html[data-theme="light"] h1,html[data-theme="light"] h2,html[data-theme="light"] h3,html[data-theme="light"] p,html[data-theme="light"] label,html[data-theme="light"] small,html[data-theme="light"] strong,html[data-theme="light"] span,html[data-theme="light"] .nav-item,html[data-theme="light"] .conversation-item,html[data-theme="light"] .profile-row,html[data-theme="light"] .setting-status{color:#fff}html[data-theme="light"] input,html[data-theme="light"] textarea,html[data-theme="light"] select{background:#400000!important;color:#fff!important;border-color:#76202A!important}html[data-theme="light"] input::placeholder,html[data-theme="light"] textarea::placeholder{color:#E7BFC3!important}html[data-theme="light"] .new-chat-button,html[data-theme="light"] .send-button.ready,html[data-theme="light"] .hotlucky-slim-cta{background:#FF1E2E!important;color:#fff!important;border-color:#FF1E2E!important}.extended-toggle.active,.extended-toggle.active>svg{color:#22C55E!important}.extended-toggle.active .toggle-track{background:#166534!important}.extended-toggle.active .toggle-track span{background:#22C55E!important}.extended-cost-label{color:#22C55E!important;font-size:10px;white-space:nowrap}.darkweb-mode{padding:6px 12px!important}.composer-mode-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:visible!important;gap:8px!important;padding-inline:6px!important;justify-content:flex-start!important}.composer-mode-row>.composer-mode{flex:0 0 auto!important}html[data-theme="light"] .composer-mode{padding-inline:12px!important}`}</style>
       <div
         className={sidebarOpen ? "mobile-scrim visible" : "mobile-scrim"}
         onClick={() => setSidebarOpen(false)}
@@ -1420,8 +1421,8 @@ export default function Home() {
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
-                  <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark Web" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
-                    <Skull size={18} /><span className="darkweb-mode-label">Dark Web</span>
+                  <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
+                    <Skull size={18} /><span className="darkweb-mode-label">Dark</span>
                   </button>
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
@@ -1442,7 +1443,7 @@ export default function Home() {
                   }
                   onClick={() => setExtended(value => !value)}
                 >
-                  <Sparkles size={14} /> {tr(language, "استجابة موسعة", "Extended response")}{" "}
+                  <Sparkles size={14} /> {tr(language, "استجابة موسعة", "Extended response")} {extended && <strong className="extended-cost-label">{tr(language, "يستهلك توكن أكتر", "Uses more tokens")}</strong>} 
                   <span className="toggle-track">
                     <span />
                   </span>
