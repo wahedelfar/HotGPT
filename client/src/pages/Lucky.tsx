@@ -4,14 +4,10 @@ import { Check, Copy, Gift, ShieldCheck, Clock3, Users, Upload, Coins, Sparkles 
 
 type Prize = { label: string; chance: string; icon: string; detail: string };
 const prizes: Prize[] = [
-  { label: "50 توكن إضافي", chance: "40%", icon: "🪙", detail: "رصيد رقمي" },
-  { label: "100 توكن إضافي", chance: "25%", icon: "💰", detail: "رصيد رقمي" },
-  { label: "200 توكن إضافي", chance: "15%", icon: "💎", detail: "رصيد رقمي" },
-  { label: "Pro لمدة 7 أيام", chance: "10%", icon: "⚡", detail: "ميزة اشتراك — عند تفعيل التكامل" },
-  { label: "Pro لمدة 30 يومًا", chance: "5%", icon: "👑", detail: "ميزة اشتراك — عند تفعيل التكامل" },
-  { label: "500 توكن إضافي", chance: "3%", icon: "🏆", detail: "رصيد رقمي" },
-  { label: "Ultra لمدة 30 يومًا", chance: "1.5%", icon: "🌟", detail: "ميزة اشتراك — عند تفعيل التكامل" },
-  { label: "1000 توكن + Ultra", chance: "0.5%", icon: "🎁", detail: "رصيد رقمي + ميزة اشتراك" },
+  { label: "10 توكن", chance: "70%", icon: "🪙", detail: "كود توكن لمرة واحدة" },
+  { label: "25 توكن", chance: "20%", icon: "🎁", detail: "كود توكن لمرة واحدة" },
+  { label: "50 توكن", chance: "7%", icon: "💰", detail: "كود توكن لمرة واحدة" },
+  { label: "100 توكن", chance: "3%", icon: "💎", detail: "كود توكن لمرة واحدة" },
 ];
 type Winner = { member: string; prize: string; date?: string };
 
@@ -173,7 +169,7 @@ export default function LuckyPage() {
       <header className="py-9 text-center sm:py-12">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-4 py-2 text-xs font-bold tracking-wide text-amber-200"><Sparkles size={15}/> HOTLUCKY · باقة + هدية ترويجية</div>
         <h1 className="text-3xl font-black leading-tight sm:text-5xl">صندوق قسائم الحظ الكبرى <span className="hl-gold">| HotLucky</span></h1>
-        <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-slate-200 sm:text-lg">اشترِ باقة HotLucky بسعر 100 جنيه؛ تحصل على 100 توكن أساسي بعد تأكيد الدفع، ثم يمكنك فتح هديتك الرقمية المجانية المضمونة وفق الشروط المعلنة.</p>
+        <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-slate-200 sm:text-lg">سجّل طلب HotLucky بقيمة 100 جنيه أو 2 دولار. بعد مراجعة الإدارة، تمنح أول عملية دفع معتمدة 100 توكن أساسي مرة واحدة؛ والدفعات التالية تمنح كود توكن عشوائيًا حسب الاحتمالات المعلنة.</p>
         <div className="mx-auto mt-7 max-w-4xl rounded-2xl border border-amber-300/35 bg-[#14110a] px-4 py-5 sm:px-8">
           <p className="text-sm font-semibold text-amber-100/90">موعد الجولة اليومية: 7 مساءً بتوقيت مصر</p>
           <div className="mt-3 grid grid-cols-4 gap-2 sm:gap-4" aria-label="الوقت المتبقي للجولة">
@@ -186,7 +182,7 @@ export default function LuckyPage() {
           <div className="hl-card p-4"><p className="text-sm text-slate-400">الهدية الترويجية</p><p className="mt-1 text-2xl font-black">مشمولة مجانًا</p></div>
           <div className="hl-card p-4"><p className="text-sm text-slate-400">الإجمالي</p><p className="mt-1 text-2xl font-black hl-gold">100 جنيه</p></div>
         </div>
-        <p className="mx-auto mt-4 max-w-4xl text-xs leading-6 text-slate-400">لا يُخصم أي مبلغ آليًا من المحفظة. يراجع المسؤول إثبات التحويل يدويًا؛ وبعد التأكيد تُضاف 100 توكن إلى حسابك وتتاح الهدية المجانية.</p>
+        <p className="mx-auto mt-4 max-w-4xl text-xs leading-6 text-slate-400">لا يُخصم أي مبلغ آليًا من المحفظة. يراجع المسؤول إثبات التحويل يدويًا. أول طلب معتمد يمنح 100 توكن أساسي مرة واحدة، أما الطلبات التالية فيصدر لها كود توكن عشوائي بعد الموافقة.</p>
         <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Users size={16} className="hl-gold"/>{participants} مشاركين حتى الآن في هذه الجولة</div>
       </header>
 
@@ -203,13 +199,13 @@ export default function LuckyPage() {
       <section className="mt-12">
         <div className="text-center"><h2 className="text-2xl font-black sm:text-3xl">💡 كيف تعمل الباقة؟ (3 خطوات بسيطة)</h2><p className="mt-2 text-sm text-amber-200">واضحة، موثقة، والمنتج الأساسي مضمون</p></div>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {[{n:"01",icon:"💳",title:"حوّل قيمة الباقة",desc:"حوّل 100 جنيه عبر فودافون كاش 01063537686، أو ادفع 2 دولار عبر PayPal عند إتاحة الرابط الرسمي."},{n:"02",icon:"📩",title:"أرسل إثبات الدفع",desc:"استخدم بريد حساب HotGPT وارفع صورة التحويل. تراجع الإدارة الإثبات قبل اعتماد الطلب."},{n:"03",icon:"🎁",title:"استلم المنتج وافتح الهدية",desc:"بعد تأكيد الدفع، تضاف 100 توكن أولًا إلى حسابك، ثم يمكنك كشف الهدية الرقمية المجانية مرة واحدة."}].map(s=><article key={s.n} className="hl-card p-5"><div className="flex items-center justify-between"><span className="text-xs font-black tracking-widest hl-gold">STEP {s.n}</span><span className="text-3xl">{s.icon}</span></div><h3 className="mt-4 text-lg font-extrabold">{s.title}</h3><p className="mt-2 text-sm leading-7 text-slate-400">{s.desc}</p></article>)}
+          {[{n:"01",icon:"💳",title:"حوّل قيمة الباقة",desc:"حوّل 100 جنيه عبر فودافون كاش 01063537686، أو ادفع 2 دولار عبر PayPal عند إتاحة الرابط الرسمي."},{n:"02",icon:"📩",title:"أرسل إثبات الدفع",desc:"استخدم بريد حساب HotGPT وارفع صورة التحويل. تراجع الإدارة الإثبات قبل اعتماد الطلب."},{n:"03",icon:"🎁",title:"استلم المنتج وافتح الهدية",desc:"أول طلب معتمد يمنح 100 توكن أساسي مرة واحدة؛ والطلبات التالية تمنح كود توكن عشوائيًا يمكن تفعيله مرة واحدة."}].map(s=><article key={s.n} className="hl-card p-5"><div className="flex items-center justify-between"><span className="text-xs font-black tracking-widest hl-gold">STEP {s.n}</span><span className="text-3xl">{s.icon}</span></div><h3 className="mt-4 text-lg font-extrabold">{s.title}</h3><p className="mt-2 text-sm leading-7 text-slate-400">{s.desc}</p></article>)}
         </div>
       </section>
 
       <section id="payment" className="mt-12 grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
         <div className="hl-card p-5 sm:p-7">
-          <div className="flex items-center gap-3"><div className="rounded-xl bg-amber-200/10 p-3 text-amber-200"><Upload size={22}/></div><div><h2 className="text-xl font-black">الدفع وإرسال الإثبات</h2><p className="mt-1 text-sm text-slate-400">المنتج الأساسي: 100 توكن بعد اعتماد الدفع</p></div></div>
+          <div className="flex items-center gap-3"><div className="rounded-xl bg-amber-200/10 p-3 text-amber-200"><Upload size={22}/></div><div><h2 className="text-xl font-black">الدفع وإرسال الإثبات</h2><p className="mt-1 text-sm text-slate-400">أول طلب معتمد: 100 توكن أساسي مرة واحدة؛ الطلبات التالية: كود توكن عشوائي</p></div></div>
           <div className="mt-5 rounded-2xl border border-amber-200/20 bg-black/25 p-4"><div className="flex items-center justify-between gap-2"><span className="text-sm text-slate-400">Vodafone Cash</span><button type="button" onClick={()=>void copyNumber()} className="inline-flex items-center gap-2 rounded-lg border border-amber-200/30 px-3 py-2 text-xs text-amber-200">{copied?<Check size={14}/>:<Copy size={14}/>} {copied?"تم النسخ":"نسخ الرقم"}</button></div><p dir="ltr" className="mt-2 text-3xl font-black tracking-wider hl-gold">01063537686</p><p className="mt-2 text-xs leading-5 text-slate-500">حوّل 100 جنيه، ثم ارفع صورة إثبات التحويل في النموذج.</p></div>
           {paypalUrl ? <a href={paypalUrl} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-between rounded-xl border border-amber-200/25 p-4 text-sm hover:bg-amber-200/5"><span>الدفع عبر PayPal · 2 USD</span><span className="hl-gold">فتح رابط الدفع ↗</span></a> : <a href="#" onClick={e=>e.preventDefault()} aria-disabled="true" className="mt-3 flex items-center justify-between rounded-xl border border-white/10 p-4 text-sm text-slate-400"><span>PayPal · 2 USD</span><span>الدفع عبر PayPal</span></a>}
           <label className="mt-5 block text-sm font-semibold">البريد الإلكتروني لحسابك<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="hl-field mt-2" autoComplete="email"/></label>
