@@ -408,7 +408,7 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: [BASE_PROMPT, MODE_PROMPTS[mode]].filter(Boolean).join("\\n\\n") },
+          { role: "system", content: [BASE_PROMPT, MODE_PROMPTS[mode]].filter(Boolean).join("\n\n") },
           { role: "system", content: "Continue exactly from where the previous part stopped. Do not repeat anything. Complete ALL remaining sections and finish the task fully within this part, being as concise as needed to fit." },
           ...history,
           { role: "assistant", content: String(row.content || "") },
@@ -437,7 +437,7 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
       if (previous.slice(-size).trim() === generated.slice(0, size).trim()) { overlap = size; break; }
     }
     const append = generated.slice(overlap).trim();
-    const merged = append ? (previous ? previous + (previous.endsWith("\\n") ? "" : "\\n\\n") + append : append) : previous;
+    const merged = append ? (previous ? previous + (previous.endsWith("\n") ? "" : "\n\n") + append : append) : previous;
     const complete = ["stop", "end_turn", "completed", "eos_token"].includes(String(finishReason));
     await updateAssistantMessage(user.id, messageId, {
       content: merged,
@@ -457,7 +457,7 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
       try {
         const previous = String(row.content || "");
         await updateAssistantMessage(user.id, messageId, {
-          content: previous + (previous ? "\\n\\n" : "") + generated,
+          content: previous + (previous ? "\n\n" : "") + generated,
           part_count: partIndex,
           is_complete: false,
           last_finish_reason: "provider_interrupted",
