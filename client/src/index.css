@@ -1178,3 +1178,12 @@ html[data-theme="blood"] .message-content pre,
 html[data-theme="blood"] .message-content code {
   color: #FFFFFF;
 }
+
+/* Gold labels for the two security cards named in the HotLucky palette. */
+html[data-theme="blood"] .hotgpt-starter-card:nth-child(1) .starter-copy strong,
+html[data-theme="blood"] .hotgpt-starter-card:nth-child(2) .starter-copy strong {
+  color: #FBBF24 !important;
+}
+html[data-theme="blood"] .hotgpt-starter-card .starter-copy small {
+  color: #D1D5DB !important;
+}
