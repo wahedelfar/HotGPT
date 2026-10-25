@@ -78,6 +78,19 @@ function formatTime() {
   }).format(new Date());
 }
 
+const ANSWER_SIGNOFF = "هل تكتفي بهذه الإجابة؟ أم تريد تحليلًا أعمق؟ HotGPT دائمًا في خدمتك";
+
+function normalizeAssistantContent(content: string) {
+  const withoutOldNotice = content
+    .replace(/\n*\s*>?\s*توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
+    .replace(/\n*\s*>?\s*توقف الاتصال قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
+    .trim();
+  if (!withoutOldNotice) return "";
+  return withoutOldNotice.includes(ANSWER_SIGNOFF)
+    ? withoutOldNotice
+    : `${withoutOldNotice}\\n\\n---\\n${ANSWER_SIGNOFF}`;
+}
+
 function BrandMark({ compact = false }: { compact?: boolean }) {
   const { language } = useLanguage();
   return (
@@ -947,7 +960,9 @@ export default function Home() {
   useEffect(() => {
     let id = location.startsWith("/chat/") ? location.slice(6) : "";
     if (id.endsWith("/")) id = id.slice(0, -1);
-    if (id.length !== 36 || auth.loading || !auth.isAuthenticated) return;
+    // The optimistic in-flight transcript is authoritative while sending. Do not
+    // overwrite it with a history fetch triggered by the initial /chat/:id route.
+    if (id.length !== 36 || auth.loading || !auth.isAuthenticated || isSending) return;
     let cancelled = false;
     setActiveConversation(id);
     setActiveView("chat");
@@ -961,7 +976,8 @@ export default function Home() {
         return;
       }
       setMessages((payload.messages ?? []).map((item: any) => ({
-        id: String(item.id), role: item.role, content: String(item.content),
+        id: String(item.id), role: item.role,
+        content: item.role === "assistant" ? normalizeAssistantContent(String(item.content)) : String(item.content),
         timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
       })));
       setRequestError(null);
@@ -1200,14 +1216,15 @@ export default function Home() {
       }
       if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
       if (typeof payload.wallet?.freeAnswersRemaining === "number") setFreeAnswersRemaining(Math.max(0, payload.wallet.freeAnswersRemaining));
+      const finalAssistantContent = normalizeAssistantContent(payload.content!);
       setMessages(current => streamedAssistantId
         ? current.map(message => message.id === streamedAssistantId
-          ? { ...message, content: payload.content!, timestamp: formatTime(), continuationAvailable: payload.continuationAvailable === true }
+          ? { ...message, content: finalAssistantContent, timestamp: formatTime(), continuationAvailable: payload.continuationAvailable === true }
           : message)
         : [...current, {
             id: crypto.randomUUID(),
             role: "assistant",
-            content: payload.content!,
+            content: finalAssistantContent,
             timestamp: formatTime(),
             continuationAvailable: payload.continuationAvailable === true,
           }]);
@@ -1344,7 +1361,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               setMessages((payload.messages ?? []).map((item: any) => ({
                 id: String(item.id),
                 role: item.role,
-                content: String(item.content),
+                content: item.role === "assistant" ? normalizeAssistantContent(String(item.content)) : String(item.content),
                 timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
               })));
             }).catch(() => setRequestError("تعذر فتح المحادثة المحفوظة. حاول مرة أخرى."));
