@@ -1019,28 +1019,7 @@ export default async function handler(req: any, res: any) {
       : answerWithSignoff;
     const cleanFinalContent = (webSearchEnabled || darkWebEnabled) ? sanitizeSearchAnswer(finalContent) : finalContent;
     const isComplete = !paidStagedRequest || (!partialResponse && ["stop", "end_turn", "completed", "eos_token"].includes(String(lastFinishReason)));
-    let billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;
-    if (false) {
-      const classification = classifyPremiumAnswer(content);
-      let premiumCredit: "free" | "paid" | null = null;
-      try {
-        premiumCredit = await consumeCredit(user.id, classification.cost, false);
-      } catch (error) {
-        console.error("[Billing] Post-generation premium charge failed", error instanceof Error ? error.message : "unknown");
-      }
-      if (!premiumCredit) {
-        console.warn("[Billing] Premium response not delivered because balance cannot cover classified tier", JSON.stringify({ requestId, requiredCost: classification.cost }));
-        if (streamToClient) {
-          if (streamHeartbeat) clearInterval(streamHeartbeat);
-          writeStreamEvent({ type: "error", error: "insufficient_credits" });
-          return res.end();
-        }
-        return res.status(402).json({ error: "insufficient_credits", wallet: await getWallet(user.id).catch(() => null) });
-      }
-      credit = premiumCredit;
-      creditCost = classification.cost;
-      billing = { cost: classification.cost, tier: classification.tier, labelAr: classification.labelAr, labelEn: classification.labelEn };
-    }
+    const billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;
     if (paidStagedRequest && stagedMessageId) {
       await updateAssistantMessage(user.id, stagedMessageId, { content: cleanFinalContent, created_at: new Date().toISOString(), is_complete: isComplete, part_count: 1, last_finish_reason: lastFinishReason || (partialResponse ? "provider_interrupted" : null) });
       stagedOutputPersisted = true;
