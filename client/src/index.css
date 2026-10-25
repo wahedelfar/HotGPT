@@ -1024,3 +1024,157 @@ html[data-theme="dark"] .new-chat-button {background:#222222!important;color:#FF
 html[data-theme="blood"] .mobile-menu-button,html[data-theme="dark"] .mobile-menu-button,
 html[data-theme="blood"] .mobile-only.icon-button,html[data-theme="dark"] .mobile-only.icon-button {color:#FFFFFF!important;}
 html[data-theme="blood"] .appearance-theme-option span,html[data-theme="dark"] .appearance-theme-option span {color:#FFFFFF!important;}
+
+
+/* HotLucky reference palette: unify homepage, chat bubbles and markdown tables. */
+html[data-theme="blood"] {
+  --bg: #2B0000;
+  --card: #1A0505;
+  --card-raised: #2A0000;
+  --assistant-bubble: #400000;
+  --gold: #FBBF24;
+  --gold-border: #C9A227;
+  --text: #FFFFFF;
+  --description: #D1D5DB;
+}
+html[data-theme="blood"],
+html[data-theme="blood"] body,
+html[data-theme="blood"] #root,
+html[data-theme="blood"] .app-shell,
+html[data-theme="blood"] .main-shell,
+html[data-theme="blood"] .chat-workspace,
+html[data-theme="blood"] .messages-scroll,
+html[data-theme="blood"] .content-panel,
+html[data-theme="blood"] .sidebar,
+html[data-theme="blood"] .sidebar-drawer,
+html[data-theme="blood"] main {
+  background: #2B0000 !important;
+  color: #FFFFFF !important;
+}
+html[data-theme="blood"] .topbar,
+html[data-theme="blood"] header {
+  background: #2B0000 !important;
+  color: #FFFFFF !important;
+  border-color: #C9A227 !important;
+}
+html[data-theme="blood"] .starter-card,
+html[data-theme="blood"] .settings-card,
+html[data-theme="blood"] .composer,
+html[data-theme="blood"] .sidebar-search,
+html[data-theme="blood"] .sidebar-note,
+html[data-theme="blood"] .upload-empty,
+html[data-theme="blood"] .provider-notice,
+html[data-theme="blood"] .welcome-glyph,
+html[data-theme="blood"] .conversation-item:hover,
+html[data-theme="blood"] .conversation-item.selected {
+  background: #1A0505 !important;
+  border: 1px solid #C9A227 !important;
+  color: #FFFFFF !important;
+}
+html[data-theme="blood"] .starter-card:hover,
+html[data-theme="blood"] .nav-item:hover,
+html[data-theme="blood"] .nav-item.active {
+  background: #2A0000 !important;
+  border-color: #C9A227 !important;
+}
+html[data-theme="blood"] .sidebar-drawer {
+  background: #2A0000 !important;
+  border-color: #C9A227 !important;
+}
+html[data-theme="blood"] .brand-wordmark,
+html[data-theme="blood"] .brand-wordmark span,
+html[data-theme="blood"] .topbar h2,
+html[data-theme="blood"] .welcome-state h1 span,
+html[data-theme="blood"] .eyebrow,
+html[data-theme="blood"] .starter-card .starter-icon,
+html[data-theme="blood"] .starter-card strong,
+html[data-theme="blood"] .starter-card [data-label="VULN_SCAN"],
+html[data-theme="blood"] .starter-card [data-label="NET_RECON"] {
+  color: #FBBF24 !important;
+}
+html[data-theme="blood"] .welcome-state h1,
+html[data-theme="blood"] .message-meta strong,
+html[data-theme="blood"] .settings-card h3,
+html[data-theme="blood"] .settings-card strong,
+html[data-theme="blood"] .starter-card,
+html[data-theme="blood"] .conversation-item,
+html[data-theme="blood"] .nav-item,
+html[data-theme="blood"] .profile-row {
+  color: #FFFFFF !important;
+}
+html[data-theme="blood"] .welcome-copy,
+html[data-theme="blood"] .settings-card p,
+html[data-theme="blood"] .panel-heading p:not(.eyebrow),
+html[data-theme="blood"] .conversation-copy small,
+html[data-theme="blood"] .composer-footer,
+html[data-theme="blood"] .message-meta span,
+html[data-theme="blood"] .setting-status {
+  color: #D1D5DB !important;
+}
+html[data-theme="blood"] .new-chat-button {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #C9A227 !important;
+}
+html[data-theme="blood"] .assistant-row .message-content {
+  background: #400000 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #C9A227 !important;
+  border-radius: 4px 12px 12px 12px;
+  padding: 10px 13px;
+}
+html[data-theme="blood"] .user-row .message-content {
+  background: #1A0505 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #C9A227 !important;
+}
+html[data-theme="blood"] .message-content table,
+html[data-theme="blood"] .markdown-table-scroll table,
+html[data-theme="blood"] .table-wrapper table {
+  width: max-content;
+  max-width: none;
+  border-collapse: collapse !important;
+  background: #1A0505 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #C9A227 !important;
+}
+html[data-theme="blood"] .message-content th,
+html[data-theme="blood"] .markdown-table-scroll th,
+html[data-theme="blood"] .table-wrapper th {
+  background: #FBBF24 !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  border: 1px solid #C9A227 !important;
+  padding: 9px 12px !important;
+}
+html[data-theme="blood"] .message-content td,
+html[data-theme="blood"] .markdown-table-scroll td,
+html[data-theme="blood"] .table-wrapper td {
+  color: #FFFFFF !important;
+  border: 1px solid #C9A227 !important;
+  padding: 9px 12px !important;
+}
+html[data-theme="blood"] .message-content tbody tr:nth-child(odd),
+html[data-theme="blood"] .markdown-table-scroll tbody tr:nth-child(odd),
+html[data-theme="blood"] .table-wrapper tbody tr:nth-child(odd) {
+  background: #1A0505 !important;
+}
+html[data-theme="blood"] .message-content tbody tr:nth-child(even),
+html[data-theme="blood"] .markdown-table-scroll tbody tr:nth-child(even),
+html[data-theme="blood"] .table-wrapper tbody tr:nth-child(even) {
+  background: #2B0000 !important;
+}
+html[data-theme="blood"] .message-content tbody tr:nth-child(odd) td,
+html[data-theme="blood"] .markdown-table-scroll tbody tr:nth-child(odd) td,
+html[data-theme="blood"] .table-wrapper tbody tr:nth-child(odd) td {
+  background: #1A0505 !important;
+}
+html[data-theme="blood"] .message-content tbody tr:nth-child(even) td,
+html[data-theme="blood"] .markdown-table-scroll tbody tr:nth-child(even) td,
+html[data-theme="blood"] .table-wrapper tbody tr:nth-child(even) td {
+  background: #2B0000 !important;
+}
+html[data-theme="blood"] .message-content pre,
+html[data-theme="blood"] .message-content code {
+  color: #FFFFFF;
+}
