@@ -804,6 +804,7 @@ export default function Home() {
   });
   const [freeAnswersRemaining, setFreeAnswersRemaining] = useState(2);
   const [showFreeUsagePopup, setShowFreeUsagePopup] = useState(false);
+  const [freePopupSeen, setFreePopupSeen] = useState(() => { try { return sessionStorage.getItem("hotgpt-free-usage-popup-seen") === "1"; } catch { return false; } });
   const [hotLuckyPrize, setHotLuckyPrize] = useState<{ label: string; code?: string; date?: string } | null>(null);
   const [showWinModal, setShowWinModal] = useState(false);
   const promptedPrizeCode = useRef<string | null>(null);
@@ -855,6 +856,14 @@ export default function Home() {
     } catch {}
     setShowWinModal(true);
   }, [auth.loading, auth.isAuthenticated, auth.user?.id, hotLuckyPrize?.code]);
+
+  useEffect(() => {
+    if (!auth.loading && auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0 && !freePopupSeen) {
+      setShowFreeUsagePopup(true);
+      setFreePopupSeen(true);
+      try { sessionStorage.setItem("hotgpt-free-usage-popup-seen", "1"); } catch {}
+    }
+  }, [auth.loading, auth.isAuthenticated, freeAnswersRemaining, walletBalance, freePopupSeen]);
 
   useEffect(() => {
     if (auth.loading) return;
@@ -950,7 +959,11 @@ export default function Home() {
     const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
     if (!trimmed || isSending) return;
     if (auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0) {
-      setShowFreeUsagePopup(true);
+      if (!freePopupSeen) {
+        setShowFreeUsagePopup(true);
+        setFreePopupSeen(true);
+        try { sessionStorage.setItem("hotgpt-free-usage-popup-seen", "1"); } catch {}
+      }
       setRequestError(null);
       return;
     }
