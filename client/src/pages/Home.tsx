@@ -985,7 +985,7 @@ export default function Home() {
       if (!cancelled) setRequestError(tr(language, "تعذر فتح المحادثة المحفوظة.", "Could not load this conversation."));
     });
     return () => { cancelled = true; };
-  }, [location, auth.loading, auth.isAuthenticated, auth.user?.id]);
+  }, [location, auth.loading, auth.isAuthenticated, auth.user?.id, isSending]);
 
   const startNew = () => {
     setLocation("/");
