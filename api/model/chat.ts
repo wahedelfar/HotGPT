@@ -592,6 +592,23 @@ export default async function handler(req: any, res: any) {
     if (endpoint && apiKey) {
       providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
     }
+    // Use the configured OpenRouter model as a real server-side fallback when the primary
+    // returns an empty body, an incompatible response, or a transient upstream failure.
+    // Never expose provider credentials to the browser or log their values.
+    const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
+    if (openRouterKey) {
+      const openRouterModel = (
+        isProRequest
+          ? process.env.OPENROUTER_BEAST_MODEL
+          : process.env.OPENROUTER_MODEL
+      )?.trim() || (isProRequest ? "deepseek/deepseek-v4-pro" : "deepseek/deepseek-v4-flash");
+      providers.push({
+        name: "openrouter-fallback",
+        endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
+        key: openRouterKey,
+        model: openRouterModel,
+      });
+    }
     let content = "";
     let bestPartialContent = "";
     let partialResponse = false;
@@ -625,7 +642,10 @@ export default async function handler(req: any, res: any) {
           headers: {
             "content-type": "application/json",
             authorization: `Bearer ${provider.key}`,
-
+            ...(provider.name === "openrouter-fallback" ? {
+              "HTTP-Referer": "https://hot-gpt-ai.vercel.app",
+              "X-Title": "HotGPT",
+            } : {}),
           },
           body: JSON.stringify({
             model: provider.model,
@@ -634,9 +654,9 @@ export default async function handler(req: any, res: any) {
             temperature: darkWebEnabled ? 0.2 : 0.7,
             stream: streamToClient,
           }),
-          // Keep the primary's proven response window, but use shorter bounded
-          // timeouts for fallback attempts so a failed provider cannot stall chat.
-          signal: AbortSignal.timeout(60000),
+          // Stay below Vercel's 60-second function ceiling so a primary timeout still
+          // leaves enough time for one fallback attempt and a clean SSE done/error event.
+          signal: AbortSignal.timeout(provider.name === "primary" ? 28000 : 24000),
         });
         // Read the body once as text. Some compatible providers return SSE or
         // non-JSON error pages even when the status is 200; response.json()
