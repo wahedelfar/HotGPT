@@ -745,7 +745,25 @@ export default function Home() {
 
   useEffect(() => {
     if (auth.loading) return;
-    setShowWelcomeModal(!auth.isAuthenticated);
+    if (auth.isAuthenticated) {
+      setShowAuthGateModal(false);
+      try {
+        const pending = sessionStorage.getItem("hotgpt-welcome-pending") === "1";
+        const alreadyShown = sessionStorage.getItem("hotgpt-welcome-shown") === "1";
+        if (pending && !alreadyShown) {
+          sessionStorage.setItem("hotgpt-welcome-shown", "1");
+          setShowWelcomeModal(true);
+        }
+        sessionStorage.removeItem("hotgpt-welcome-pending");
+      } catch {}
+      return;
+    }
+    setShowWelcomeModal(false);
+    try {
+      if (sessionStorage.getItem("hotgpt-visitor-popup-dismissed") !== "1") setShowAuthGateModal(true);
+    } catch {
+      setShowAuthGateModal(true);
+    }
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   // Gate interactive workspace features for visitors. Public auth links remain accessible.
@@ -1242,7 +1260,8 @@ export default function Home() {
 
   return (
     <LanguageContext.Provider value={{ language, toggleLanguage }}>
-    <style>{`html[data-theme="dark"]{--bg:#000000;--card:#111111;--text:#FFFFFF;--accent:#FFFFFF;color-scheme:dark}
+    <style>{`.visitor-modal-backdrop,.post-login-welcome-backdrop{background:rgba(0,0,0,.72)!important;backdrop-filter:blur(5px)}.visitor-modal-card,.post-login-welcome-card{background:#000000!important;border:1px solid #555!important;color:#FFFFFF!important}.visitor-modal-card .welcome-modal-close,.post-login-welcome-card .welcome-modal-close{left:12px!important;right:auto!important;color:#FFFFFF!important}.visitor-modal-card .welcome-modal-lead,.post-login-welcome-card .welcome-modal-lead{color:#FFFFFF!important}.visitor-modal-card .welcome-modal-cta{display:block;text-align:center;margin-top:10px}.visitor-modal-card .visitor-signup-cta{background:transparent!important;border:1px solid #C9A227!important;color:#FFFFFF!important}.post-login-welcome-actions{display:flex;flex-direction:column;gap:10px;margin-top:22px}.post-login-welcome-actions a{display:block;border-radius:12px;padding:13px 16px;text-align:center;font-weight:900;text-decoration:none}.post-login-rewards-cta{background:#FBBF24!important;color:#1A0505!important}.post-login-plans-cta{background:#DC2626!important;color:#FFFFFF!important}html[data-theme="blood"] .visitor-modal-card,html[data-theme="blood"] .post-login-welcome-card{background:#1A0505!important;border-color:#C9A227!important;color:#FFFFFF!important}html[data-theme="blood"] .visitor-modal-card .welcome-modal-eyebrow,html[data-theme="blood"] .post-login-welcome-card .welcome-modal-eyebrow,html[data-theme="blood"] .visitor-modal-card h2,html[data-theme="blood"] .post-login-welcome-card h2{color:#FBBF24!important}html[data-theme="blood"] .visitor-modal-card .welcome-modal-close,html[data-theme="blood"] .post-login-welcome-card .welcome-modal-close{background:#2B0000!important;border-color:#C9A227!important;color:#FFFFFF!important}html[data-theme="dark"] .visitor-modal-card .welcome-modal-eyebrow,html[data-theme="dark"] .post-login-welcome-card .welcome-modal-eyebrow,html[data-theme="dark"] .visitor-modal-card h2,html[data-theme="dark"] .post-login-welcome-card h2{color:#FBBF24!important}html[data-theme="dark"] .visitor-modal-card .welcome-modal-close,html[data-theme="dark"] .post-login-welcome-card .welcome-modal-close{background:#111111!important;border-color:#555!important;color:#FFFFFF!important}html[data-theme="dark"] .visitor-modal-card .welcome-modal-cta{background:#DC2626!important;color:#FFFFFF!important}html[data-theme="dark"] .visitor-modal-card .visitor-signup-cta{background:#111111!important;border-color:#C9A227!important;color:#FFFFFF!important}`}</style>
+      <style>{`html[data-theme="dark"]{--bg:#000000;--card:#111111;--text:#FFFFFF;--accent:#FFFFFF;color-scheme:dark}
 html[data-theme="blood"]{--bg:#2B0000;--card:#400000;--text:#FFFFFF;--accent:#FF1E2E;color-scheme:dark}
 html[data-theme="dark"] body,html[data-theme="blood"] body,html[data-theme="dark"] #root,html[data-theme="blood"] #root,html[data-theme="dark"] .app-shell,html[data-theme="blood"] .app-shell,html[data-theme="dark"] .main-shell,html[data-theme="blood"] .main-shell,html[data-theme="dark"] .chat-workspace,html[data-theme="blood"] .chat-workspace,html[data-theme="dark"] .sidebar,html[data-theme="blood"] .sidebar,html[data-theme="dark"] .sidebar-drawer,html[data-theme="blood"] .sidebar-drawer,html[data-theme="dark"] main,html[data-theme="blood"] main,html[data-theme="dark"] .settings-view,html[data-theme="blood"] .settings-view{background:var(--bg)!important;color:var(--text)!important}
 html[data-theme="dark"] header,html[data-theme="dark"] .settings-card,html[data-theme="blood"] .settings-card,html[data-theme="dark"] .composer,html[data-theme="blood"] .composer,html[data-theme="dark"] .conversation-item,html[data-theme="blood"] .conversation-item,html[data-theme="dark"] .chat-input-wrap,html[data-theme="blood"] .chat-input-wrap{background:var(--card)!important;color:var(--text)!important}
@@ -1535,19 +1554,15 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
         </div>
       )}
       {showAuthGateModal && !auth.loading && !auth.isAuthenticated && (
-        <div className="welcome-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowAuthGateModal(false); }}>
-          <section className="welcome-modal auth-required-modal" role="dialog" aria-modal="true" aria-labelledby="auth-required-title" dir={language === "ar" ? "rtl" : "ltr"}>
-            <button type="button" className="welcome-modal-close" onClick={() => setShowAuthGateModal(false)} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>
+        <div className="welcome-modal-backdrop visitor-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) { setShowAuthGateModal(false); try { sessionStorage.setItem("hotgpt-visitor-popup-dismissed", "1"); } catch {} } }}>
+          <section className="welcome-modal auth-required-modal visitor-modal-card" role="dialog" aria-modal="true" aria-labelledby="visitor-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
+            <button type="button" className="welcome-modal-close" onClick={() => { setShowAuthGateModal(false); try { sessionStorage.setItem("hotgpt-visitor-popup-dismissed", "1"); } catch {} }} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>
             <div className="welcome-modal-brand"><BrandMark compact /></div>
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
-            <h2 id="auth-required-title">{tr(language, "يلزم تسجيل الدخول", "Sign in required")}</h2>
-            <p className="welcome-modal-lead">{tr(language, "يرجى تسجيل الدخول أو إنشاء حساب للاستفادة من هذه الخاصية ومتابعة محادثاتك.", "Please log in or create an account to use this feature and keep your conversations.")}</p>
+            <h2 id="visitor-modal-title">{tr(language, "أهلًا بك في HOT GPT", "Welcome to HOT GPT")}</h2>
+            <p className="welcome-modal-lead">{tr(language, "سجّل الدخول أو أنشئ حسابًا للمتابعة.", "Log in or create an account to continue.")}</p>
             <a href="/auth?mode=login" className="welcome-modal-cta">{tr(language, "تسجيل الدخول", "Log in")}</a>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.1)",fontSize:12,lineHeight:1.8,color:"#d6d0c3"}}>
-              <span>{tr(language,"مش عايز تشترك؟ جرّب HotLucky - 100 جنيه ممكن تكسب Pro 30 يوم","Not ready to subscribe? Try HotLucky — a 100 EGP package includes a digital bonus.")}</span>
-              <a href="/hotlucky" target="_blank" rel="noopener noreferrer" style={{color:"#f7cf65",fontWeight:900,textDecoration:"underline",textUnderlineOffset:3}}>{tr(language,"جرّب HotLucky ↗","Try HotLucky ↗")}</a>
-            </div>
-            <p className="welcome-modal-login">{tr(language, "ليس لديك حساب؟", "Don't have an account?")} <a href="/auth?mode=signup">{tr(language, "إنشاء حساب مجاني", "Create a free account")}</a></p>
+            <a href="/auth?mode=signup" className="welcome-modal-cta visitor-signup-cta">{tr(language, "إنشاء حساب", "Create account")}</a>
           </section>
         </div>
       )}
@@ -1566,26 +1581,17 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           </section>
         </div>
       )}
-      {showWelcomeModal && !auth.loading && !auth.isAuthenticated && (
-        <div className="welcome-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowWelcomeModal(false); }}>
-          <section className="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
+      {showWelcomeModal && !auth.loading && auth.isAuthenticated && (
+        <div className="welcome-modal-backdrop post-login-welcome-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowWelcomeModal(false); }}>
+          <section className="welcome-modal post-login-welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
             <button type="button" className="welcome-modal-close" onClick={() => setShowWelcomeModal(false)} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>
             <div className="welcome-modal-brand"><BrandMark compact /></div>
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
-            <h2 id="welcome-modal-title">{tr(language, "مرحبًا بك في HotGPT", "Welcome to HotGPT")}</h2>
-            <p className="welcome-modal-lead">{tr(language, "حيث الحرية المطلقة وذكاء اصطناعي متقدم.", "Where freedom meets advanced artificial intelligence.")}</p>
-            <div className="welcome-modal-features">
-              <span>{tr(language, "بحث شامل على الشبكة", "Comprehensive web search")}</span>
-              <span>{tr(language, "خبير بعالم الدارك ويب", "Dark web expertise")}</span>
-              <span>{tr(language, "أدوات الاختراق والأمن السيبراني", "Cybersecurity and penetration-testing tools")}</span>
+            <h2 id="welcome-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
+            <div className="post-login-welcome-actions">
+              <a href="/rewards" className="post-login-rewards-cta">{tr(language, "🎁 صفحة الجوائز", "🎁 Rewards")}</a>
+              <a href="/billing" className="post-login-plans-cta">{tr(language, "💎 صفحة الباقات", "💎 Plans")}</a>
             </div>
-            <p className="welcome-modal-free">{tr(language, "التسجيل مجاني ويمكنك تجربة نماذجنا المتقدمة.", "Registration is free. Try our advanced models.")}</p>
-            <a href="/auth?mode=signup" className="welcome-modal-cta">{tr(language, "سجل الآن", "Sign up now")}</a>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,.1)",fontSize:12,lineHeight:1.8,color:"#d6d0c3"}}>
-              <span>{tr(language,"مش عايز تشترك؟ جرّب HotLucky - 100 جنيه ممكن تكسب Pro 30 يوم","Not ready to subscribe? Try HotLucky — a 100 EGP package includes a digital bonus.")}</span>
-              <a href="/hotlucky" target="_blank" rel="noopener noreferrer" style={{color:"#f7cf65",fontWeight:900,textDecoration:"underline",textUnderlineOffset:3}}>{tr(language,"جرّب HotLucky ↗","Try HotLucky ↗")}</a>
-            </div>
-            <p className="welcome-modal-login">{tr(language, "لديك حساب بالفعل؟", "Already have an account?")} <a href="/auth?mode=login">{tr(language, "تسجيل الدخول", "Log in")}</a></p>
           </section>
         </div>
       )}
