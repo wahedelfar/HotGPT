@@ -549,7 +549,7 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const creditCost = attachment ? 1 : (webSearchEnabled || darkWebEnabled) ? 5 : selectedModel === "dadgpt-beast" ? 9 : 1;
+  const creditCost = attachment ? 1 : (webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast") ? 5 : 1;
   const usageBasedPremium = false;
   let credit: "free" | "paid" | null = null;
   let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
@@ -595,6 +595,7 @@ export default async function handler(req: any, res: any) {
     let content = "";
     let bestPartialContent = "";
     let partialResponse = false;
+    let continuationAvailable = false;
     let searchSynthesisFallback = false;
     let lastFailure = "provider_request_failed";
     let primaryFailed = false;
@@ -775,6 +776,7 @@ export default async function handler(req: any, res: any) {
         }        const normalizedCandidate = candidate.trim();
         const darkWebMinimumChars = darkWebEnabled ? 1500 : 600;
         const finishReason = choice?.finish_reason ?? payload?.choices?.[0]?.finish_reason ?? null;
+        if (finishReason === "length" && selectedModel === "dadgpt-beast" && !darkWebEnabled) continuationAvailable = true;
         if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || finishReason === "length")) {          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
           console.warn("[DarkWeb] Provider response incomplete; trying next provider", JSON.stringify({
             requestId, provider: provider.name, chars: normalizedCandidate.length,
@@ -870,10 +872,10 @@ export default async function handler(req: any, res: any) {
       if (partialResponse) {
         try { finalWallet = await getWallet(user.id); } catch { /* Refresh balance on next load. */ }
       }
-      writeStreamEvent({ type: "done", content: cleanFinalContent, wallet: finalWallet, conversationId, partial: partialResponse, billing });
+      writeStreamEvent({ type: "done", content: cleanFinalContent, wallet: finalWallet, conversationId, partial: partialResponse, continuationAvailable, billing });
       return res.end();
     }
-    return res.status(200).json({ content: cleanFinalContent, wallet, conversationId, partial: partialResponse, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
+    return res.status(200).json({ content: cleanFinalContent, wallet, conversationId, partial: partialResponse, continuationAvailable, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
   } catch (error: any) {
     if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
       console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
