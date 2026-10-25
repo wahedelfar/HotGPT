@@ -303,6 +303,23 @@ async function getWallet(userId: string) {
   };
 }
 
+async function createAssistantMessage(userId: string, conversationId: string) {
+  const owners = await supabaseRest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`);
+  if (!owners?.[0]) throw new Error("conversation_not_found");
+  const rows = await supabaseRest("messages?select=id", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ conversation_id: conversationId, user_id: userId, role: "assistant", content: "", is_complete: false, part_count: 1, last_finish_reason: null }) });
+  if (typeof rows?.[0]?.id !== "string") throw new Error("assistant_message_create_failed");
+  return rows[0].id as string;
+}
+async function updateAssistantMessage(userId: string, messageId: string, patch: Record<string, unknown>) {
+  await supabaseRest(`messages?id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(userId)}&role=eq.assistant`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(patch) });
+}
+async function chargeChatPart(userId: string, messageId: string, partIndex: number) {
+  return await supabaseRest("rpc/hotgpt_charge_chat_part", { method: "POST", body: JSON.stringify({ p_user_id: userId, p_message_id: messageId, p_part_index: partIndex, p_cost: 5 }) }) as { charged?: boolean; duplicate?: boolean; insufficient?: boolean; user_credits?: number };
+}
+async function refundChatPart(userId: string, messageId: string, partIndex: number) {
+  return await supabaseRest("rpc/hotgpt_refund_chat_part", { method: "POST", body: JSON.stringify({ p_user_id: userId, p_message_id: messageId, p_part_index: partIndex, p_cost: 5 }) });
+}
+
 async function saveMessage(userId: string, conversationId: string, role: "user" | "assistant", content: string) {
   const owners = await supabaseRest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(userId)}&select=id,title&limit=1`);
   const conversation = owners?.[0];
@@ -471,6 +488,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const body = req.body ?? {};
+  if (typeof body.continueMessageId === "string" && body.continueMessageId) return await handleContinueChatPart(req, res, body);
   const chatMode = resolveChatMode(body.mode);
   const messages = body.messages;
   const attachment = body.attachment;
@@ -664,14 +682,30 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  const paidStagedRequest = !attachment && (webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast");
   const creditCost = attachment ? 1 : (webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast") ? 5 : 1;
-  const usageBasedPremium = false;
   let credit: "free" | "paid" | null = null;
   let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
-
-  // Dark Web and Beast Pro are billed only after a complete answer has been generated.
-  // Other modes retain the existing credit reservation/refund flow.
-  if (!usageBasedPremium) {
+  let stagedMessageId: string | null = null;
+  let chargedPartIndex: number | null = null;
+  let chargeSucceeded = false;
+  let lastFinishReason: string | null = null;
+  const STAGE_MAX = 3000;
+  if (paidStagedRequest) {
+    try {
+      stagedMessageId = await createAssistantMessage(user.id, conversationId);
+      const charged = await chargeChatPart(user.id, stagedMessageId, 1);
+      if (charged?.duplicate === true) return res.status(409).json({ error: "duplicate_chat_part", messageId: stagedMessageId, partIndex: 1 });
+      if (charged?.insufficient === true || charged?.charged !== true) {
+        await updateAssistantMessage(user.id, stagedMessageId, { is_complete: true, last_finish_reason: "insufficient_credits" });
+        return res.status(402).json({ error: "insufficient_credits", user_credits: charged?.user_credits ?? null });
+      }
+      chargedPartIndex = 1; chargeSucceeded = true;
+    } catch (error) {
+      console.error("[Billing] Chat part charge failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "billing_unavailable" });
+    }
+  } else {
     try {
       credit = await consumeCredit(user.id, creditCost, !attachment && !webSearchEnabled && selectedModel === "dadgpt-default");
     } catch (error) {
@@ -679,8 +713,7 @@ export default async function handler(req: any, res: any) {
       return res.status(503).json({ error: "billing_unavailable" });
     }
     if (!credit) {
-      let wallet = null;
-      try { wallet = await getWallet(user.id); } catch {}
+      let wallet = null; try { wallet = await getWallet(user.id); } catch {}
       return res.status(webSearchEnabled ? 403 : 402).json({ error: webSearchEnabled ? "pro_required" : "insufficient_credits", wallet });
     }
   }
@@ -765,7 +798,7 @@ export default async function handler(req: any, res: any) {
           body: JSON.stringify({
             model: provider.model,
             messages: outgoingMessages,
-            max_tokens: darkWebEnabled ? 4000 : extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
+            max_tokens: paidStagedRequest ? STAGE_MAX : darkWebEnabled ? 4000 : extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
             temperature: darkWebEnabled ? 0.2 : 0.7,
             stream: streamToClient,
           }),
@@ -911,8 +944,9 @@ export default async function handler(req: any, res: any) {
         }        const normalizedCandidate = candidate.trim();
         const darkWebMinimumChars = darkWebEnabled ? 1500 : 600;
         const finishReason = choice?.finish_reason ?? payload?.choices?.[0]?.finish_reason ?? null;
-        if (finishReason === "length" && selectedModel === "dadgpt-beast" && !darkWebEnabled) continuationAvailable = true;
-        if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || finishReason === "length")) {          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
+        lastFinishReason = typeof finishReason === "string" ? finishReason : null;
+        if (finishReason === "length" && paidStagedRequest) continuationAvailable = true;
+        if (darkWebEnabled && (normalizedCandidate.length < darkWebMinimumChars || (!paidStagedRequest && finishReason === "length"))) {          lastFailure = finishReason === "length" ? "provider_output_truncated" : "provider_response_too_short";
           console.warn("[DarkWeb] Provider response incomplete; trying next provider", JSON.stringify({
             requestId, provider: provider.name, chars: normalizedCandidate.length,
             minimumChars: darkWebMinimumChars, finishReason,
@@ -952,6 +986,10 @@ export default async function handler(req: any, res: any) {
     }
     if (!content) {
       console.error("[Chat] All providers failed", JSON.stringify({ requestId, primaryConfigured: Boolean(endpoint && apiKey), secondaryProviderConfigured: false, lastFailure }));
+      if (paidStagedRequest && chargeSucceeded && stagedMessageId && chargedPartIndex !== null) {
+        try { await refundChatPart(user.id, stagedMessageId, chargedPartIndex); await updateAssistantMessage(user.id, stagedMessageId, { is_complete: true, last_finish_reason: lastFailure }); }
+        catch (refundError) { console.error("[Billing] Chat part refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
+      }
       if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (error) { console.error("[Billing] Credit refund failed", error instanceof Error ? error.message : "unknown"); } }
       if (streamToClient) {
         if (streamHeartbeat) clearInterval(streamHeartbeat);
@@ -966,15 +1004,16 @@ export default async function handler(req: any, res: any) {
       .replace(/\n*\s*>?\s*توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
       .replace(/\n*\s*>?\s*توقف الاتصال قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
       .trim();
-    const answerWithSignoff = answerWithoutOldNotice
+    const answerWithSignoff = paidStagedRequest ? answerWithoutOldNotice : answerWithoutOldNotice
       ? `${answerWithoutOldNotice}\n\n---\nهل تكتفي بهذه الإجابة؟ أم تريد تحليلًا أعمق؟ HotGPT دائمًا في خدمتك`
       : answerWithoutOldNotice;
     const finalContent = searchSynthesisFallback
       ? `${answerWithSignoff}\n\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
       : answerWithSignoff;
     const cleanFinalContent = (webSearchEnabled || darkWebEnabled) ? sanitizeSearchAnswer(finalContent) : finalContent;
+    const isComplete = !paidStagedRequest || (!partialResponse && lastFinishReason !== "length" && Boolean(lastFinishReason));
     let billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;
-    if (!partialResponse && !searchSynthesisFallback && usageBasedPremium) {
+    if (false) {
       const classification = classifyPremiumAnswer(content);
       let premiumCredit: "free" | "paid" | null = null;
       try {
@@ -995,7 +1034,11 @@ export default async function handler(req: any, res: any) {
       creditCost = classification.cost;
       billing = { cost: classification.cost, tier: classification.tier, labelAr: classification.labelAr, labelEn: classification.labelEn };
     }
-    await saveMessage(user.id, conversationId, "assistant", cleanFinalContent);
+    if (paidStagedRequest && stagedMessageId) {
+      await updateAssistantMessage(user.id, stagedMessageId, { content: cleanFinalContent, is_complete: isComplete, part_count: 1, last_finish_reason: lastFinishReason || (partialResponse ? "provider_interrupted" : null) });
+    } else {
+      await saveMessage(user.id, conversationId, "assistant", cleanFinalContent);
+    }
     if ((partialResponse || searchSynthesisFallback) && credit) {
       try { await refundCredit(user.id, credit, creditCost); } catch (error) {
         console.error("[Billing] Failed-generation credit refund failed", JSON.stringify({
@@ -1013,11 +1056,15 @@ export default async function handler(req: any, res: any) {
       if (partialResponse) {
         try { finalWallet = await getWallet(user.id); } catch { /* Refresh balance on next load. */ }
       }
-      writeStreamEvent({ type: "done", content: cleanFinalContent, wallet: finalWallet, conversationId, partial: partialResponse, continuationAvailable, billing });
+      writeStreamEvent({ type: "done", content: cleanFinalContent, wallet: finalWallet, conversationId, partial: partialResponse, continuationAvailable: paidStagedRequest ? !isComplete : continuationAvailable, messageId: stagedMessageId, is_complete: isComplete, part_count: paidStagedRequest ? 1 : undefined, last_finish_reason: lastFinishReason, billing });
       return res.end();
     }
-    return res.status(200).json({ content: cleanFinalContent, wallet, conversationId, partial: partialResponse, continuationAvailable, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
+    return res.status(200).json({ content: cleanFinalContent, wallet, conversationId, partial: partialResponse, continuationAvailable: paidStagedRequest ? !isComplete : continuationAvailable, messageId: stagedMessageId, is_complete: isComplete, part_count: paidStagedRequest ? 1 : undefined, last_finish_reason: lastFinishReason, billing, ...((webSearchEnabled || darkWebEnabled) ? { searchMode: webSearchEnabled, darkWebMode: darkWebEnabled } : {}) });
   } catch (error: any) {
+    if (paidStagedRequest && chargeSucceeded && stagedMessageId && chargedPartIndex !== null) {
+      try { await refundChatPart(user.id, stagedMessageId, chargedPartIndex); await updateAssistantMessage(user.id, stagedMessageId, { is_complete: true, last_finish_reason: "request_failed" }); }
+      catch (refundError) { console.error("[Billing] Chat part refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
+    }
     if (credit) { try { await refundCredit(user.id, credit, creditCost); } catch (refundError) {
       console.error("[Billing] Credit refund failed", refundError instanceof Error ? refundError.message : "unknown");
     } }
