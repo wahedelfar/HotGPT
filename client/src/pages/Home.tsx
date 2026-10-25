@@ -1274,7 +1274,7 @@ export default function Home() {
             </button>
           </div>
           <div className="topbar-actions hotgpt-topbar-actions">
-            {auth.isAuthenticated && (
+            {(auth.isAuthenticated || (auth.loading && walletBalance > 0)) && (
               <>
                 <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
                   <Coins size={20} /><span>{walletBalance}</span>
