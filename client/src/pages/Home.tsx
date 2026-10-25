@@ -1083,6 +1083,7 @@ export default function Home() {
           conversationId,
           stream: true,
           attachment: filePayload,
+          mode: darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default",
           modes: { writingAssist, webSearch: webSearchEnabled, darkWeb: darkWebEnabled },
           preferences: {
             style: localStorage.getItem("hotgpt-response-style") || "professional",
