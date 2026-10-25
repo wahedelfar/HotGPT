@@ -50,6 +50,7 @@ export default function LuckyPage() {
   const [eligible, setEligible] = useState(false);
   const [gift, setGift] = useState("");
   const [giftCode, setGiftCode] = useState("");
+  const [giftUsed, setGiftUsed] = useState(false);
   const [paypalUrl, setPaypalUrl] = useState("");
   const [winners, setWinners] = useState<Winner[]>([]);
   const [participants, setParticipants] = useState<number>(0);
@@ -65,7 +66,7 @@ export default function LuckyPage() {
       const data = await response.json();
       setEligible(Boolean(data.eligible));
       if (typeof data.email === "string") setEmail(data.email);
-      if (data.prize?.label) { setGift(data.prize.label); setGiftCode(data.prize.code || ""); }
+      if (data.prize?.label) { setGift(data.prize.label); setGiftCode(data.prize.code || ""); setGiftUsed(Boolean(data.prize.used)); }
     } catch {}
   }
   async function loadParticipants() {
@@ -118,11 +119,35 @@ export default function LuckyPage() {
         };
         throw new Error(errors[data.error] || "تعذر إرسال الطلب. تحقق من الاتصال وحاول مجددًا.");
       }
-      setMessage("تم إرسال إثبات الدفع للمراجعة. بعد تأكيد التحويل، يُضاف المنتج الأساسي (100 توكن) إلى حسابك وتتاح لك الهدية المجانية.");
+      setMessage("تم إرسال إثبات الدفع للمراجعة. بعد موافقة الإدارة، يُضاف الرصيد الأساسي مرة واحدة فقط؛ أما الطلبات التالية فتحصل على كود توكن عشوائي حسب النتيجة المسجلة.");
       setProof(""); setFileName(""); void refreshStatus(); void loadParticipants();
     } catch (error) { setMessage(error instanceof Error ? error.message : "حدث خطأ غير متوقع."); }
     finally { setBusy(false); }
   }
+  async function activateTokenCode() {
+    if (!giftCode || giftUsed) return;
+    setBusy(true); setMessage("");
+    try {
+      const response = await authFetch("/api/lucky?action=redeem", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: giftCode }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errors: Record<string,string> = {
+          token_code_used: "تم تفعيل هذا الكود من قبل.",
+          token_code_not_found: "الكود غير صالح أو لا يخص هذا الحساب.",
+          invalid_token_code: "صيغة الكود غير صحيحة.",
+        };
+        throw new Error(errors[data.error] || "تعذر تفعيل الكود الآن. حاول مرة أخرى.");
+      }
+      setGiftUsed(true);
+      setMessage(`تم تفعيل الكود وإضافة ${Number(data.tokens) || 0} توكن إلى رصيدك.`);
+      void refreshStatus();
+    } catch (error) { setMessage(error instanceof Error ? error.message : "تعذر تفعيل الكود."); }
+    finally { setBusy(false); }
+  }
+
   async function revealGift() {
     setBusy(true); setMessage("");
     try {
@@ -194,11 +219,11 @@ export default function LuckyPage() {
           <button type="button" disabled={busy} onClick={()=>void submit()} className="hl-cta mt-5 w-full rounded-xl px-5 py-3.5 font-black">{busy?"جارٍ المعالجة…":"إرسال إثبات الدفع"}</button>
           {message&&<p role="status" className="mt-4 rounded-xl border border-amber-100/15 bg-black/25 p-3 text-sm leading-6 text-slate-200">{message}</p>}
           {eligible&&<button type="button" disabled={busy} onClick={()=>void revealGift()} className="hl-cta mt-4 w-full rounded-xl px-5 py-3.5 font-black"><Gift className="ml-2 inline" size={18}/> كشف الهدية المجانية المضمونة</button>}
-          {gift&&<div className="mt-5 rounded-2xl border border-amber-200/45 bg-amber-200/[.08] p-5 text-center"><p className="text-sm text-amber-200">مبروك، هديتك المسجلة!</p><p className="mt-2 text-2xl font-black">{gift}</p>{giftCode&&<p dir="ltr" className="mt-3 inline-block rounded-lg border border-amber-100/20 bg-black/30 px-4 py-2 font-mono text-sm text-amber-200">{giftCode}</p>}<p className="mt-3 text-xs text-slate-400">تعرض هذه الرسالة بناءً على الهدية المسجلة في قاعدة البيانات.</p></div>}
+          {gift&&<div className="mt-5 rounded-2xl border border-amber-200/45 bg-amber-200/[.08] p-5 text-center"><p className="text-sm text-amber-200">مبروك، هديتك المسجلة!</p><p className="mt-2 text-2xl font-black">{gift}</p>{giftCode&&<p dir="ltr" className="mt-3 inline-block rounded-lg border border-amber-100/20 bg-black/30 px-4 py-2 font-mono text-sm text-amber-200">{giftCode}</p>}{giftCode && <button type="button" disabled={busy || giftUsed} onClick={() => void activateTokenCode()} className="hl-cta mt-4 w-full rounded-xl px-4 py-3 font-black disabled:opacity-50">{giftUsed ? "تم تفعيل الكود" : busy ? "جارٍ التفعيل…" : "تفعيل الكود وإضافة التوكنات"}</button>}<p className="mt-3 text-xs text-slate-400">{giftUsed ? "تم استخدام هذا الكود ولا يمكن تفعيله مرة أخرى." : "الكود مرتبط بحسابك، ولا يمكن استخدامه إلا مرة واحدة بعد موافقة الإدارة."}</p></div>}
           <p className="mt-4 text-xs leading-6 text-slate-500">صورة التحويل مستند للمراجعة البشرية فقط ولا تعني تأكيد الدفع تلقائيًا.</p>
         </div>
         <aside className="space-y-5">
-          <div className="hl-card p-5"><div className="flex items-center gap-3"><ShieldCheck className="hl-gold" size={22}/><h2 className="text-lg font-black">شروط مختصرة وواضحة</h2></div><ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300"><li>• المشاركة للبالغين بعمر 18 عامًا فأكثر.</li><li>• المنتج الأساسي 100 توكن، ويُضاف بعد تأكيد الدفع حتى إن لم تُفتح الهدية بعد.</li><li>• الهدية الترويجية رقمية ومضمونة للطلب المؤهل، وليست جائزة نقدية.</li><li>• لكل طلب مؤهل هدية واحدة؛ لا يمكن تكرار الكشف بإعادة تحميل الصفحة.</li></ul><a href="/lucky-terms" className="mt-4 inline-block text-sm font-bold text-amber-200 underline underline-offset-4">قراءة الشروط والأحكام كاملة</a></div>
+          <div className="hl-card p-5"><div className="flex items-center gap-3"><ShieldCheck className="hl-gold" size={22}/><h2 className="text-lg font-black">شروط مختصرة وواضحة</h2></div><ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300"><li>• المشاركة للبالغين بعمر 18 عامًا فأكثر.</li><li>• أول عملية دفع معتمدة تمنح 100 توكن أساسي مرة واحدة فقط؛ الطلبات التالية تمنح كود توكن عشوائيًا بعد موافقة الإدارة.</li><li>• الهدية الترويجية رقمية ومضمونة للطلب المؤهل، وليست جائزة نقدية.</li><li>• لكل طلب مؤهل هدية واحدة؛ لا يمكن تكرار الكشف بإعادة تحميل الصفحة.</li></ul><a href="/lucky-terms" className="mt-4 inline-block text-sm font-bold text-amber-200 underline underline-offset-4">قراءة الشروط والأحكام كاملة</a></div>
           <div className="hl-card p-5"><div className="flex items-center gap-3"><Users className="hl-gold" size={22}/><h2 className="text-lg font-black">آخر الهدايا المسجلة</h2></div>{winners.length?<div className="mt-4 space-y-3">{winners.map((w,i)=><div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><div><p className="text-sm font-semibold">{w.member}</p>{w.date&&<p className="mt-1 text-[11px] text-slate-500">{new Date(w.date).toLocaleString("ar-EG",{timeZone:"Africa/Cairo"})}</p>}</div><span className="text-left text-xs font-bold text-amber-200">{w.prize}</span></div>)}</div>:<p className="mt-3 text-sm leading-6 text-slate-500">ستظهر الهدايا الحقيقية هنا بعد تسجيلها في قاعدة البيانات. لا تُعرض نتائج وهمية.</p>}</div>
           <div className="hl-card p-5"><div className="flex items-center gap-3"><Clock3 className="hl-gold" size={22}/><h2 className="text-lg font-black">موعد الجولة اليومية</h2></div><p className="mt-2 text-sm leading-7 text-slate-300">7 مساءً بتوقيت مصر (Africa/Cairo). يعتمد التوقيت المرجعي على الخادم، وليس ساعة جهاز المستخدم.</p><div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-4"><Coins className="hl-gold" size={21}/><div><p className="font-bold">هدية ترضية: 10 توكن</p><p className="mt-1 text-xs leading-5 text-slate-500">تخضع للأهلية والتسجيل الإداري مرة واحدة للطلب؛ راجع الحالة في لوحة الإدارة.</p></div></div></div>
         </aside>
