@@ -53,6 +53,8 @@ type ChatMessage = {
   timestamp: string;
   notice?: boolean;
   continuationAvailable?: boolean;
+  isComplete?: boolean; partCount?: number; lastFinishReason?: string | null;
+  continuationDisabled?: boolean; continuationLabel?: string;
 };
 
 type Conversation = {
@@ -78,18 +80,6 @@ function formatTime() {
   }).format(new Date());
 }
 
-const ANSWER_SIGNOFF = "هل تكتفي بهذه الإجابة؟ أم تريد تحليلًا أعمق؟ HotGPT دائمًا في خدمتك";
-
-function normalizeAssistantContent(content: string) {
-  const withoutOldNotice = content
-    .replace(/\n*\s*>?\s*توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
-    .replace(/\n*\s*>?\s*توقف الاتصال قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
-    .trim();
-  if (!withoutOldNotice) return "";
-  return withoutOldNotice.includes(ANSWER_SIGNOFF)
-    ? withoutOldNotice
-    : `${withoutOldNotice}\n\n---\n${ANSWER_SIGNOFF}`;
-}
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   const { language } = useLanguage();
@@ -452,10 +442,7 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
             <span>{copied ? tr(language, "تم النسخ", "Copied") : tr(language, "نسخ", "Copy")}</span>
           </button>
           {message.role === "assistant" && message.continuationAvailable && onContinue && (
-            <button type="button" className="message-continue-button" onClick={onContinue} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8, padding: "7px 12px", borderRadius: 10, border: "1px solid #C9A227", background: "rgba(201,162,39,0.10)", color: "#FBBF24", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              <ChevronDown size={14} />
-              <span>{tr(language, "أكمل الشرح", "Continue explanation")}</span>
-            </button>
+            <button type="button" className="message-continue-button" onClick={onContinue} disabled={message.continuationDisabled || !onContinue} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8, padding: "7px 12px", borderRadius: 10, border: "1px solid #C9A227", background: "rgba(201,162,39,0.10)", color: "#FBBF24", fontSize: 13, fontWeight: 600, cursor: message.continuationDisabled || !onContinue ? "not-allowed" : "pointer", opacity: message.continuationDisabled || !onContinue ? 0.6 : 1 }}><ChevronDown size={14} /><span>{message.continuationLabel || tr(language, "أكمل الشرح", "Continue explanation")}</span></button>
           )}
         </div>
       </div>
@@ -977,8 +964,10 @@ export default function Home() {
       }
       setMessages((payload.messages ?? []).map((item: any) => ({
         id: String(item.id), role: item.role,
-        content: item.role === "assistant" ? normalizeAssistantContent(String(item.content)) : String(item.content),
+        content: String(item.content),
         timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
+        isComplete: item.is_complete !== false, partCount: Number(item.part_count || 1), lastFinishReason: item.last_finish_reason ?? null,
+        continuationAvailable: item.role === "assistant" && item.is_complete === false,
       })));
       setRequestError(null);
     }).catch(() => {
@@ -1122,7 +1111,7 @@ export default function Home() {
         wallet?: { tokenBalance?: number } | null;
         conversationId?: string;
         partial?: boolean;
-        continuationAvailable?: boolean;
+        continuationAvailable?: boolean; messageId?: string; is_complete?: boolean; part_count?: number; last_finish_reason?: string | null;
         billing?: { cost: number; tier: string; labelAr: string; labelEn: string } | null;
       };
       let streamedAssistantId: string | null = null;
@@ -1147,8 +1136,7 @@ export default function Home() {
               try {
                 const event = JSON.parse(dataLine.slice(5).trim());
                 if (event.type === "attempt") {
-                  streamedText = "";
-                  setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: "" } : message));
+                  // Never erase text already received when a new attempt starts.
                 } else if (event.type === "delta" && typeof event.content === "string") {
                   setIsSearchingWeb(false);
                   setHasStartedStreaming(true);
@@ -1216,18 +1204,11 @@ export default function Home() {
       }
       if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
       if (typeof payload.wallet?.freeAnswersRemaining === "number") setFreeAnswersRemaining(Math.max(0, payload.wallet.freeAnswersRemaining));
-      const finalAssistantContent = normalizeAssistantContent(payload.content!);
+      const finalAssistantContent = payload.content!;
+      const serverMessageId = payload.messageId || streamedAssistantId || crypto.randomUUID();
       setMessages(current => streamedAssistantId
-        ? current.map(message => message.id === streamedAssistantId
-          ? { ...message, content: finalAssistantContent, timestamp: formatTime(), continuationAvailable: payload.continuationAvailable === true }
-          : message)
-        : [...current, {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: finalAssistantContent,
-            timestamp: formatTime(),
-            continuationAvailable: payload.continuationAvailable === true,
-          }]);
+        ? current.map(message => message.id === streamedAssistantId ? { ...message, id: serverMessageId, content: finalAssistantContent, timestamp: formatTime(), continuationAvailable: payload.is_complete === false || payload.continuationAvailable === true, isComplete: payload.is_complete !== false, partCount: Number(payload.part_count || 1), lastFinishReason: payload.last_finish_reason ?? null } : message)
+        : [...current, { id: serverMessageId, role: "assistant", content: finalAssistantContent, timestamp: formatTime(), continuationAvailable: payload.is_complete === false || payload.continuationAvailable === true, isComplete: payload.is_complete !== false, partCount: Number(payload.part_count || 1), lastFinishReason: payload.last_finish_reason ?? null }]);
       setAttachment(null);
       setConversations(current => current.map(item => item.id === conversationId
         ? { ...item, preview: payload.content!.slice(0, 32), date: "الآن" }
@@ -1244,6 +1225,25 @@ export default function Home() {
       setIsSending(false);
     }
   };
+  const continueMessage = async (target: ChatMessage) => {
+    if (isSending || !target.continuationAvailable || walletBalance < 5) return;
+    setIsSending(true); setRequestError(null); setHasStartedStreaming(true);
+    setMessages(current => current.map(m => m.id === target.id ? { ...m, continuationDisabled: true, continuationLabel: tr(language, "جارٍ الإكمال...", "Continuing...") } : m));
+    try {
+      const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ continueMessageId: target.id, stream: true, mode: darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default" }), signal: AbortSignal.timeout(120000) });
+      if (!response.ok) { const err = await response.json().catch(() => ({})); if (response.status === 402 || err.error === "insufficient_credits") { if (typeof err.user_credits === "number") setWalletBalance(err.user_credits); throw new Error(tr(language, "الرصيد غير كافٍ لإكمال الشرح؛ تحتاج إلى 5 توكن.", "Not enough credits to continue; 5 credits are required.")); } throw new Error(String(err.error || "تعذر إكمال الشرح.")); }
+      let payload: any = {}, pending = "";
+      if (response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
+        const reader = response.body.getReader(), decoder = new TextDecoder();
+        try { while (true) { const {done,value}=await reader.read(); if(done)break; pending+=decoder.decode(value,{stream:true}); const frames=pending.split(/\r?\n\r?\n/); pending=frames.pop()||""; for(const frame of frames){const line=frame.split(/\r?\n/).find(v=>v.startsWith("data:"));if(!line)continue;let ev:any;try{ev=JSON.parse(line.slice(5).trim())}catch{continue}if(ev.type==="delta"&&typeof ev.content==="string")setMessages(cur=>cur.map(m=>m.id===target.id?{...m,content:String(m.content||"")+ev.content}:m));else if(ev.type==="done")payload=ev;else if(ev.type==="error")throw new Error(String(ev.error||"provider_request_failed"));}} } finally { reader.releaseLock(); }
+      } else payload = await response.json().catch(() => ({}));
+      if(typeof payload.content!=="string")throw new Error("provider_request_failed");
+      setMessages(cur=>cur.map(m=>m.id===target.id?{...m,id:String(payload.messageId||target.id),content:payload.content,continuationAvailable:payload.is_complete===false||payload.continuationAvailable===true,isComplete:payload.is_complete!==false,partCount:Number(payload.part_count||(m.partCount||1)+1),lastFinishReason:payload.last_finish_reason??null,continuationDisabled:false,continuationLabel:undefined}:m));
+      if(typeof payload.wallet?.tokenBalance==="number")setWalletBalance(payload.wallet.tokenBalance);else setWalletBalance(v=>Math.max(0,v-5));
+    } catch(error) { setRequestError(error instanceof Error?error.message:"تعذر إكمال الشرح."); setMessages(cur=>cur.map(m=>m.id===target.id?{...m,continuationDisabled:false,continuationLabel:undefined}:m)); }
+    finally { setIsSending(false); }
+  };
+
   const requireProFeature = (feature: "search" | "darkweb" | "beast") => {
     const featureName = feature === "search"
       ? tr(language, "البحث على الإنترنت", "Internet Search")
@@ -1361,7 +1361,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               setMessages((payload.messages ?? []).map((item: any) => ({
                 id: String(item.id),
                 role: item.role,
-                content: item.role === "assistant" ? normalizeAssistantContent(String(item.content)) : String(item.content),
+                content: item.role === "assistant" ? String(item.content) : String(item.content),
                 timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
               })));
             }).catch(() => setRequestError("تعذر فتح المحادثة المحفوظة. حاول مرة أخرى."));
@@ -1489,18 +1489,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {messages.map(message => (
-                    <MessageBubble
-                      message={message}
-                      key={message.id}
-                      onContinue={message.role === "assistant" && message.continuationAvailable && !isSending
-                        ? () => {
-                            setMessages(current => current.map(item => item.id === message.id ? { ...item, continuationAvailable: false } : item));
-                            void sendMessage(tr(language, "أكمل الشرح من حيث توقفت دون تكرار ما سبق.", "Continue the explanation from where you stopped without repeating previous content."));
-                          }
-                        : undefined}
-                    />
-                  ))}
+                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<5;return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined}/>;})}
                   {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">

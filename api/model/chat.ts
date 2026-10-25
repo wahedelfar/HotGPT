@@ -355,122 +355,55 @@ function classifyPremiumAnswer(content: string): { cost: 3 | 5 | 9; tier: "simpl
 
 
 async function handleContinueChatPart(req: any, res: any, body: any) {
-  res.setHeader("Cache-Control", "no-store");
-  if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
-  const user = await requireUser(req, res);
-  if (!user) return;
-  const messageId = String(body.continueMessageId || "");
-  if (!/^[0-9a-f-]{36}$/i.test(messageId)) return res.status(400).json({ error: "invalid_message_id" });
-  let row: any;
-  let history: Array<{ role: "user" | "assistant"; content: string }> = [];
-  let partIndex = 0;
+  res.setHeader("Cache-Control","no-store");
+  if(req.method!=="POST")return res.status(405).json({error:"method_not_allowed"});
+  const user=await requireUser(req,res);if(!user)return;
+  const messageId=String(body.continueMessageId||"");
+  if(!/^[0-9a-f-]{36}$/i.test(messageId))return res.status(400).json({error:"invalid_message_id"});
+  let row:any,partIndex=0,history:Array<{role:"user"|"assistant";content:string}>=[];
   try {
-    const rows = await supabaseRest(`messages?id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(user.id)}&role=eq.assistant&select=id,conversation_id,content,part_count,is_complete&limit=1`);
-    row = rows?.[0];
-    if (!row) return res.status(404).json({ error: "message_not_found" });
-    if (row.is_complete !== false) return res.status(409).json({ error: "message_already_complete" });
-    const priorRows = await supabaseRest(`messages?conversation_id=eq.${encodeURIComponent(row.conversation_id)}&user_id=eq.${encodeURIComponent(user.id)}&id=neq.${encodeURIComponent(messageId)}&select=role,content,created_at&order=created_at.asc&limit=38`);
-    history = (Array.isArray(priorRows) ? priorRows : [])
-      .filter((item: any) => (item.role === "user" || item.role === "assistant") && typeof item.content === "string" && item.content.trim())
-      .map((item: any) => ({ role: item.role, content: item.content }));
-    partIndex = Number(row.part_count || 1) + 1;
-    const charged = await chargeChatPart(user.id, messageId, partIndex);
-    if (charged?.duplicate === true) {
-      return res.status(409).json({ error: "duplicate_chat_part", messageId, partIndex });
-    }
-    if (charged?.insufficient === true || charged?.charged !== true) {
-      return res.status(402).json({ error: "insufficient_credits", user_credits: charged?.user_credits ?? null });
-    }
-  } catch (error) {
-    console.error("[Chat] Continuation charge/setup failed", error instanceof Error ? error.message : "unknown");
-    return res.status(503).json({ error: "continuation_unavailable" });
-  }
-
-  const baseUrl = (process.env.NEXA_PROVIDER_BASE_URL || "").trim().replace(/\/+$/, "");
-  const apiKey = (process.env.NEXA_PROVIDER_API_KEY || "").trim();
-  const mode = resolveChatMode(body.mode);
-  const model = (
-    process.env.NEXA_PROVIDER_BEAST_MODEL ||
-    process.env.NEXA_PROVIDER_PRO_MODEL ||
-    process.env.NEXA_PROVIDER_MODEL_PRO ||
-    process.env.NEXA_PROVIDER_MODEL ||
-    "dadgpt-beast"
-  ).trim();
-  let generated = "";
-  let finishReason: string | null = null;
-  try {
-    if (!baseUrl || !apiKey || !model) throw new Error("provider_not_configured");
-    const endpoint = new URL(baseUrl + "/chat/completions");
-    if (endpoint.protocol !== "https:") throw new Error("provider_https_required");
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: [BASE_PROMPT, MODE_PROMPTS[mode]].filter(Boolean).join("\n\n") },
-          { role: "system", content: "Continue exactly from where the previous part stopped. Do not repeat anything. Complete ALL remaining sections and finish the task fully within this part, being as concise as needed to fit." },
-          ...history,
-          { role: "assistant", content: String(row.content || "") },
-        ],
-        max_tokens: 3000,
-        temperature: 0.4,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(28000),
-    });
-    const payload = await response.json().catch(() => null) as any;
-    if (!response.ok) throw new Error(response.status === 429 ? "provider_rate_limited" : "provider_request_failed");
-    const choice = payload?.choices?.[0];
-    finishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
-    const raw = choice?.message?.content;
-    generated = typeof raw === "string" ? raw.trim()
-      : Array.isArray(raw) ? raw.map((p: any) => typeof p?.text === "string" ? p.text : "").join("").trim()
-      : "";
-    if (!generated) throw new Error("provider_empty_response");
-
-    // Remove a repeated boundary if a provider ignores the no-repeat instruction.
-    const previous = String(row.content || "");
-    const overlapLimit = Math.min(500, previous.length, generated.length);
-    let overlap = 0;
-    for (let size = overlapLimit; size >= 40; size--) {
-      if (previous.slice(-size).trim() === generated.slice(0, size).trim()) { overlap = size; break; }
-    }
-    const append = generated.slice(overlap).trim();
-    const merged = append ? (previous ? previous + (previous.endsWith("\n") ? "" : "\n\n") + append : append) : previous;
-    const complete = ["stop", "end_turn", "completed", "eos_token"].includes(String(finishReason));
-    await updateAssistantMessage(user.id, messageId, {
-      content: merged,
-      part_count: partIndex,
-      is_complete: complete,
-      last_finish_reason: finishReason || "provider_interrupted",
-    });
-    const wallet = await getWallet(user.id).catch(() => null);
-    return res.status(200).json({
-      content: merged, appended: append, messageId, conversationId: row.conversation_id,
-      part_count: partIndex, is_complete: complete, last_finish_reason: finishReason,
-      continuationAvailable: !complete, wallet: wallet ? { tokenBalance: wallet.tokenBalance } : null,
-    });
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : "provider_request_failed";
-    if (generated.trim()) {
-      try {
-        const previous = String(row.content || "");
-        await updateAssistantMessage(user.id, messageId, {
-          content: previous + (previous ? "\n\n" : "") + generated,
-          part_count: partIndex,
-          is_complete: false,
-          last_finish_reason: "provider_interrupted",
-        });
-      } catch (saveError) {
-        console.error("[Chat] Could not persist partial continuation", saveError instanceof Error ? saveError.message : "unknown");
-      }
-    } else {
-      try { await refundChatPart(user.id, messageId, partIndex); }
-      catch (refundError) { console.error("[Billing] Continuation refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
-    }
-    console.error("[Chat] Continuation failed", reason);
-    return res.status(reason === "provider_timeout" ? 504 : 502).json({ error: reason, messageId, partIndex });
+    const rows=await supabaseRest(`messages?id=eq.${encodeURIComponent(messageId)}&user_id=eq.${encodeURIComponent(user.id)}&role=eq.assistant&select=id,conversation_id,content,part_count,is_complete&limit=1`);
+    row=rows?.[0];if(!row)return res.status(404).json({error:"message_not_found"});
+    if(row.is_complete!==false)return res.status(409).json({error:"message_already_complete"});
+    const prior=await supabaseRest(`messages?conversation_id=eq.${encodeURIComponent(row.conversation_id)}&user_id=eq.${encodeURIComponent(user.id)}&id=neq.${encodeURIComponent(messageId)}&select=role,content,created_at&order=created_at.asc&limit=38`);
+    history=(Array.isArray(prior)?prior:[]).filter((m:any)=>(m.role==="user"||m.role==="assistant")&&typeof m.content==="string"&&m.content.trim()).map((m:any)=>({role:m.role,content:m.content}));
+    partIndex=Number(row.part_count||1)+1;
+    const charge=await chargeChatPart(user.id,messageId,partIndex);
+    if(charge?.duplicate===true)return res.status(409).json({error:"duplicate_chat_part",messageId,partIndex});
+    if(charge?.insufficient===true||charge?.charged!==true)return res.status(402).json({error:"insufficient_credits",user_credits:charge?.user_credits??null});
+  }catch(e){console.error("[Chat] Continuation charge/setup failed",e instanceof Error?e.message:"unknown");return res.status(503).json({error:"continuation_unavailable"});}
+  const base=(process.env.NEXA_PROVIDER_BASE_URL||"").trim().replace(/\/+$/,""),key=(process.env.NEXA_PROVIDER_API_KEY||"").trim();
+  const mode=resolveChatMode(body.mode),model=(process.env.NEXA_PROVIDER_BEAST_MODEL||process.env.NEXA_PROVIDER_PRO_MODEL||process.env.NEXA_PROVIDER_MODEL_PRO||process.env.NEXA_PROVIDER_MODEL||"dadgpt-beast").trim();
+  const streaming=body.stream===true,emit=(e:Record<string,unknown>)=>{if(streaming&&!res.writableEnded)res.write(`data: ${JSON.stringify(e)}\n\n`);};
+  if(streaming){res.statusCode=200;res.setHeader("Content-Type","text/event-stream; charset=utf-8");res.setHeader("Cache-Control","no-cache, no-transform");res.setHeader("Connection","keep-alive");res.setHeader("X-Accel-Buffering","no");res.flushHeaders?.();}
+  let generated="",finishReason:string|null=null;const started=Date.now();let firstDelta:number|null=null;
+  try{
+    if(!base||!key||!model)throw new Error("provider_not_configured");
+    const endpoint=new URL(base+"/chat/completions");if(endpoint.protocol!=="https:")throw new Error("provider_https_required");
+    const response=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${key}`},body:JSON.stringify({model,messages:[
+      {role:"system",content:[BASE_PROMPT,MODE_PROMPTS[mode]].filter(Boolean).join("\n\n")},
+      {role:"system",content:"Continue exactly from where the previous part stopped. Do not repeat anything. Complete ALL remaining sections and finish the task fully within this part, being as concise as needed to fit."},
+      ...history,{role:"assistant",content:String(row.content||"")}
+    ],max_tokens:3000,temperature:.4,stream:streaming}),signal:AbortSignal.timeout(50000)});
+    const contentType=response.headers.get("content-type")||"",isSse=/text\/event-stream/i.test(contentType);
+    console.info("[Chat] Continuation provider response",JSON.stringify({messageId,partIndex,status:response.status,contentType,streamingRequested:streaming,providerSupportsSse:isSse}));
+    if(!response.ok)throw new Error(response.status===429?"provider_rate_limited":"provider_request_failed");
+    const accept=(frame:string)=>{const line=frame.split(/\r?\n/).find(v=>v.startsWith("data:"));if(!line)return;const raw=line.slice(5).trim();if(!raw||raw==="[DONE]")return;let event:any;try{event=JSON.parse(raw)}catch{return}if(event?.error)throw new Error("provider_request_failed");const choice=event?.choices?.[0];if(typeof choice?.finish_reason==="string")finishReason=choice.finish_reason;const p=choice?.delta?.content??choice?.message?.content??choice?.text;const text=typeof p==="string"?p:Array.isArray(p)?p.map((x:any)=>typeof x?.text==="string"?x.text:"").join(""):"";if(text){if(firstDelta===null)firstDelta=Date.now();generated+=text;emit({type:"delta",content:text});}};
+    if(streaming&&isSse&&response.body){const reader=response.body.getReader(),decoder=new TextDecoder();let pending="";try{while(true){const {done,value}=await reader.read();if(done)break;pending+=decoder.decode(value,{stream:true});const frames=pending.split(/\r?\n\r?\n/);pending=frames.pop()||"";for(const frame of frames)accept(frame);}if(pending.trim())accept(pending);}finally{reader.releaseLock();}}
+    else {const payload=await response.json() as any,choice=payload?.choices?.[0],raw=choice?.message?.content??choice?.text;finishReason=typeof choice?.finish_reason==="string"?choice.finish_reason:null;generated=typeof raw==="string"?raw:Array.isArray(raw)?raw.map((x:any)=>typeof x?.text==="string"?x.text:"").join(""):"";if(generated&&streaming){firstDelta=Date.now();emit({type:"delta",content:generated});}}
+    if(!generated.trim())throw new Error("provider_empty_response");
+    console.info("[Chat] Continuation stream metrics",JSON.stringify({messageId,partIndex,contentType,firstDeltaMs:firstDelta===null?null:firstDelta-started,totalMs:Date.now()-started,finishReason,streamed:isSse}));
+    const previous=String(row.content||"");let overlap=0;for(let n=Math.min(500,previous.length,generated.length);n>=40;n--){if(previous.slice(-n).trim()===generated.slice(0,n).trim()){overlap=n;break;}}
+    const append=generated.slice(overlap).trim(),merged=append?previous+(previous?(previous.endsWith("\n")?"":"\n\n"):"")+append:previous;
+    const complete=["stop","end_turn","completed","eos_token"].includes(String(finishReason));
+    await updateAssistantMessage(user.id,messageId,{content:merged,part_count:partIndex,is_complete:complete,last_finish_reason:finishReason||"provider_interrupted"});
+    const wallet=await getWallet(user.id).catch(()=>null),result={content:merged,appended:append,messageId,conversationId:row.conversation_id,part_count:partIndex,is_complete:complete,last_finish_reason:finishReason,continuationAvailable:!complete,wallet:wallet?{tokenBalance:wallet.tokenBalance}:null};
+    if(streaming){emit({type:"done",...result});return res.end();}return res.status(200).json(result);
+  }catch(error){const reason=error instanceof Error?error.message:"provider_request_failed";
+    if(generated.trim()){try{const previous=String(row.content||"");await updateAssistantMessage(user.id,messageId,{content:previous+(previous?"\n\n":"")+generated,part_count:partIndex,is_complete:false,last_finish_reason:"provider_interrupted"});}catch(e){console.error("[Chat] Partial continuation persistence failed",e instanceof Error?e.message:"unknown");}}
+    else{try{await refundChatPart(user.id,messageId,partIndex)}catch(e){console.error("[Billing] Continuation refund failed",e instanceof Error?e.message:"unknown")}}
+    console.error("[Chat] Continuation failed",JSON.stringify({messageId,partIndex,reason,totalMs:Date.now()-started}));
+    if(streaming&&res.headersSent){emit({type:"error",error:reason});return res.end();}return res.status(reason==="provider_timeout"?504:502).json({error:reason,messageId,partIndex});
   }
 }
 
@@ -747,23 +680,7 @@ export default async function handler(req: any, res: any) {
     if (endpoint && apiKey) {
       providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
     }
-    // Use the configured OpenRouter model as a real server-side fallback when the primary
-    // returns an empty body, an incompatible response, or a transient upstream failure.
-    // Never expose provider credentials to the browser or log their values.
-    const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
-    if (openRouterKey) {
-      const openRouterModel = (
-        isProRequest
-          ? process.env.OPENROUTER_BEAST_MODEL
-          : process.env.OPENROUTER_MODEL
-      )?.trim() || (isProRequest ? "deepseek/deepseek-v4-pro" : "deepseek/deepseek-v4-flash");
-      providers.push({
-        name: "openrouter-fallback",
-        endpoint: new URL("https://openrouter.ai/api/v1/chat/completions"),
-        key: openRouterKey,
-        model: openRouterModel,
-      });
-    }
+    // Only the configured primary provider is used; no fallback provider is active.
     let content = "";
     let bestPartialContent = "";
     let partialResponse = false;
@@ -791,6 +708,8 @@ export default async function handler(req: any, res: any) {
       if (streamToClient) writeStreamEvent({ type: "attempt", provider: provider.name });
       console.info("[Chat] Provider attempt started", JSON.stringify({ requestId, provider: provider.name, model: provider.model }));
       let attemptStreamedContent = "";
+      const providerStartedAt = Date.now();
+      let firstContentAt: number | null = null;
       try {
         const upstream = await fetch(provider.endpoint, {
           method: "POST",
@@ -848,7 +767,8 @@ export default async function handler(req: any, res: any) {
                     : Array.isArray(piece) ? piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("") : "";
                   if (textPiece) {
                     attemptStreamedContent += textPiece;
-                    if (!darkWebEnabled) writeStreamEvent({ type: "delta", content: textPiece });
+                    if (firstContentAt === null) firstContentAt = Date.now();
+                    writeStreamEvent({ type: "delta", content: textPiece });
                   }
                   if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
                 } catch { /* Ignore malformed provider keepalive frames. */ }
@@ -866,7 +786,8 @@ export default async function handler(req: any, res: any) {
                     : Array.isArray(piece) ? piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("") : "";
                   if (textPiece) {
                     attemptStreamedContent += textPiece;
-                    if (!darkWebEnabled) writeStreamEvent({ type: "delta", content: textPiece });
+                    if (firstContentAt === null) firstContentAt = Date.now();
+                    writeStreamEvent({ type: "delta", content: textPiece });
                   }
                   if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
                 } catch { /* Ignore an incomplete final provider frame. */ }
@@ -890,8 +811,8 @@ export default async function handler(req: any, res: any) {
                 const event = JSON.parse(data);
                 const choice = event?.choices?.[0];
                 const piece = choice?.delta?.content ?? choice?.message?.content ?? choice?.text;
-                if (typeof piece === "string") attemptStreamedContent += piece;
-                else if (Array.isArray(piece)) attemptStreamedContent += piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("");
+                if (typeof piece === "string") { attemptStreamedContent += piece; if (firstContentAt === null && piece) firstContentAt = Date.now(); if (piece) writeStreamEvent({ type: "delta", content: piece }); }
+                else if (Array.isArray(piece)) { const pieceText = piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join(""); attemptStreamedContent += pieceText; if (firstContentAt === null && pieceText) firstContentAt = Date.now(); if (pieceText) writeStreamEvent({ type: "delta", content: pieceText }); }
                 if (event && typeof event === "object" && (event.choices || event.error)) payload = event;
               } catch { /* Ignore malformed provider frames. */ }
             }
@@ -916,6 +837,8 @@ export default async function handler(req: any, res: any) {
         }
 
         const choice = payload?.choices?.[0];
+        const providerFinishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
+        console.info("[Chat] Provider stream metrics", JSON.stringify({ requestId, provider: provider.name, model: provider.model, contentType, firstDeltaMs: firstContentAt === null ? null : firstContentAt - providerStartedAt, totalMs: Date.now() - providerStartedAt, finishReason: providerFinishReason, streamed: /text\/event-stream/i.test(contentType) }));
         const messageContent = choice?.message?.content;
         const usableMessageContent = typeof messageContent === "string" && messageContent.trim()
           ? messageContent
@@ -1011,12 +934,7 @@ export default async function handler(req: any, res: any) {
       .replace(/\n*\s*>?\s*توقف التوليد قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
       .replace(/\n*\s*>?\s*توقف الاتصال قبل اكتمال الإجابة؛ راجع المحتوى أعلاه قبل استخدامه\.?/g, "")
       .trim();
-    const answerWithSignoff = paidStagedRequest ? answerWithoutOldNotice : answerWithoutOldNotice
-      ? `${answerWithoutOldNotice}\n\n---\nهل تكتفي بهذه الإجابة؟ أم تريد تحليلًا أعمق؟ HotGPT دائمًا في خدمتك`
-      : answerWithoutOldNotice;
-    const finalContent = searchSynthesisFallback
-      ? `${answerWithSignoff}\n\n> تعذر تلخيص النتائج عبر النموذج؛ عُرضت نتائج البحث الأصلية ولم يُخصم الرصيد.`
-      : answerWithSignoff;
+    const finalContent = answerWithoutOldNotice;
     const cleanFinalContent = (webSearchEnabled || darkWebEnabled) ? sanitizeSearchAnswer(finalContent) : finalContent;
     const isComplete = !paidStagedRequest || (!partialResponse && ["stop", "end_turn", "completed", "eos_token"].includes(String(lastFinishReason)));
     const billing: { cost: number; tier: string; labelAr: string; labelEn: string } | null = null;

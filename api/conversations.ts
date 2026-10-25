@@ -60,10 +60,10 @@ export default async function handler(req: any, res: any) {
         const rows = await rest(`conversations?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,title,created_at,updated_at&limit=1`);
         const row = rows?.[0];
         if (!row) return res.status(404).json({ error: "conversation_not_found" });
-        const messages = await rest(`messages?conversation_id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,role,content,created_at&order=created_at.asc&limit=500`);
+        const messages = await rest(`messages?conversation_id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,role,content,created_at,is_complete,part_count,last_finish_reason&order=created_at.asc&limit=500`);
         return res.status(200).json({
           conversation: { id: String(row.id), title: String(row.title || "محادثة جديدة"), createdAt: row.created_at, updatedAt: row.updated_at },
-          messages: (messages || []).map((m: any) => ({ id: String(m.id), role: m.role, content: String(m.content), createdAt: m.created_at })),
+          messages: (messages || []).map((m: any) => ({ id: String(m.id), role: m.role, content: String(m.content), createdAt: m.created_at, is_complete: m.is_complete ?? true, part_count: Number(m.part_count || 1), last_finish_reason: m.last_finish_reason ?? null })),
         });
       }
       const rows = await rest(`conversations?user_id=eq.${encodeURIComponent(user.id)}&select=id,title,created_at,updated_at&order=updated_at.desc&limit=100`);
