@@ -3,7 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <meta name="theme-color" content="#0c1017" />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("hotgpt-theme");
+          var theme = saved === "dark" ? "dark" : "blood";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = "dark";
+        } catch (_) {
+          document.documentElement.dataset.theme = "blood";
+        }
+      })();
+    </script>
+    <style>
+      html, body, #root { min-height: 100%; background: var(--bg, #2B0000); color: #FFFFFF; }
+      html[data-theme="dark"] { --bg: #000000; --card: #111111; --text: #FFFFFF; --accent: #FFFFFF; }
+      html[data-theme="blood"] { --bg: #2B0000; --card: #400000; --text: #FFFFFF; --accent: #FF1E2E; }
+      html[data-theme="dark"] body, html[data-theme="blood"] body { background: var(--bg); color: var(--text); }
+    </style>
+    <meta name="theme-color" content="#2B0000" />
     <meta name="description" content="HotGPT — بدون قيود، مساعدك الذكي للبرمجة والتحليل والأمن الرقمي." />
     <link rel="icon" type="image/svg+xml" href="/brand-ar.svg" />
     <link rel="apple-touch-icon" href="/brand-ar.svg" />
