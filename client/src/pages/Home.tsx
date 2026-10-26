@@ -397,8 +397,7 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
   if (message.notice) {
     return (
       <div className="provider-notice">
-        <div className="notice-icon">
-          <Sparkles size={16} />
+        <div className="notice-icon">          <Sparkles size={16} />
         </div>
         <div>
           <strong>{tr(language, "تم استلام رسالتك", "Message received")}</strong>
@@ -463,7 +462,7 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
     <div className="welcome-state hotgpt-welcome">
       {hotLuckyBannerVisible && (
         <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
-          <          <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
+                    <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
           <span className="hotlucky-slim-copy">
             <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — ادفع بعد موافقة الإدارة واستلم كود توكن عشوائي", "🎁 HotLucky — an approved payment unlocks a random token code")}</span>
             <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — اكسب توكنات بكود عشوائي", "🎁 HotLucky — random token codes after approval")}</span>
@@ -797,8 +796,7 @@ export default function Home() {
       ".upload-empty button",
     ].join(",");
     const gateClick = (event: Event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
+      const target = event.target;      if (!(target instanceof Element)) return;
       const protectedControl = target.closest(protectedSelector);
       if (!protectedControl) return;
       event.preventDefault();
@@ -1197,8 +1195,7 @@ export default function Home() {
                   // Never erase text already received when a new attempt starts.
                   setIsThinking(false);
                 } else if (event.type === "thinking") {
-                  setIsThinking(true);
-                } else if (event.type === "delta" && typeof event.content === "string") {
+                  setIsThinking(true);                } else if (event.type === "delta" && typeof event.content === "string") {
                   setIsSearchingWeb(false);
                   setIsThinking(false);
                   setHasStartedStreaming(true);
@@ -1597,8 +1594,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       accept=".pdf,.txt,.md,.csv,.json"
                     />
                   </label>
-                </div>
-                <textarea
+                </div>                <textarea
                   ref={textareaRef}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
