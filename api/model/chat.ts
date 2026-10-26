@@ -556,6 +556,22 @@ export default async function handler(req: any, res: any) {
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
 
+  // Sanitize in place before validation: drop empty/invalid remnants (a
+  // failed staged request can leave an empty assistant row), truncate any
+  // single message to 20000 chars (a two-stage report can exceed it), and
+  // drop the oldest messages until the history fits the count/total caps.
+  // Without this, one poisoned message kills the conversation forever.
+  if (Array.isArray(messages)) {
+    const clean: ChatMessage[] = [];
+    for (const m of messages as any[]) {
+      if (!m || (m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string" || !m.content.trim()) continue;
+      clean.push({ role: m.role, content: m.content.length > 20000 ? m.content.slice(0, 20000) : m.content });
+    }
+    while (clean.length > 40) clean.splice(clean.findIndex((m, i) => i < clean.length - 1), 1);
+    while (clean.length > 1 && clean.reduce((sum, m) => sum + m.content.length, 0) > 80000) clean.splice(clean.findIndex((m, i) => i < clean.length - 1), 1);
+    messages.splice(0, messages.length, ...clean);
+  }
+
   if (
     !Array.isArray(messages) ||
     messages.length === 0 ||
