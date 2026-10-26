@@ -89,7 +89,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
     <div className="brand-mark" aria-label={language === "ar" ? "بدون قيود" : "No Limits"}>
       <img
         className="brand-logo-img"
-        src={language === "ar" ? "/brand-ar.svg" : "/brand-en.svg"}
+        src="/brand/logo.png"
         alt={language === "ar" ? "بدون قيود" : "No Limits"}
         draggable={false}
       />

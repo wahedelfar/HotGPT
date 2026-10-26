@@ -96,6 +96,13 @@ export async function getWallet(userId: string) {
       if (Array.isArray(claimed) && claimed.length > 0) {
         tokenBalance = Number(claimed[0].token_balance);
         welcomeGiftGranted = true;
+      } else {
+        // A concurrent request claimed the gift first. Re-read the balance so
+        // this response never reports the pre-gift balance (otherwise the UI
+        // shows the welcome message with a balance missing the 5 tokens
+        // until the next manual page refresh).
+        const fresh = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=token_balance&limit=1`);
+        if (fresh?.[0]) tokenBalance = Number(fresh[0].token_balance);
       }
     } catch (error) {
       console.error("[Billing] Welcome gift claim failed", error instanceof Error ? error.message : "unknown");
@@ -114,7 +121,7 @@ export async function refundAnswerCredit(userId: string, kind: "free" | "paid") 
 }
 
 export async function submitPaymentRequest(input: {
-  userId: string; email: string; paymentMethod: "vodafone_cash" | "paypal";
+  userId: string; email: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal";
   packageTokens: number; amountEgp: number; transferReference?: string; screenshotData: string;
 }) {
   const match = input.screenshotData.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
@@ -256,4 +263,31 @@ export async function reviewPaymentRequest(paymentId: string, approve: boolean, 
     method: "POST",
     body: JSON.stringify({ p_payment_id: paymentId, p_approve: approve, p_reviewer: reviewedBy }),
   });
+}
+
+export async function creditPurchasedTokens(userId: string, tokens: number, audit: { email: string; captureId: string; amountUsd: string }) {
+  const rows = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=token_balance&limit=1`);
+  if (!rows?.[0]) throw new Error("wallet_not_found");
+  const newBalance = Number(rows[0].token_balance) + tokens;
+  const updated = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}`, {
+    method: "PATCH", headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ token_balance: newBalance, updated_at: new Date().toISOString() }),
+  });
+  // Admin visibility: record the automatic purchase next to the manual
+  // payment requests (real USD amount and capture id ride in the reference).
+  // Best-effort only — a logging failure must never block paid tokens.
+  try {
+    await rest("payment_requests", {
+      method: "POST", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        user_id: userId, email: audit.email.toLowerCase(), payment_method: "paypal",
+        package_tokens: tokens, amount_egp: 0,
+        transfer_reference: `paypal:${audit.captureId}:$${audit.amountUsd}`,
+        proof_path: "paypal-auto", status: "approved",
+      }),
+    });
+  } catch (error) {
+    console.error("[Billing] PayPal audit record failed", error instanceof Error ? error.message : "unknown");
+  }
+  return Array.isArray(updated) && updated[0] ? Number(updated[0].token_balance) : newBalance;
 }

@@ -1,7 +1,8 @@
 import { requireMember } from "../server/_core/vercelAuth.ts";
 import * as db from "../server/supabaseBilling.ts";
+import { usdForEgp } from "../server/fxRate.ts";
 
-const PACKAGES: Record<number, number> = { 500: 300, 800: 500, 1000: 700 };
+export const PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 500, 1000: 700 };
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
@@ -27,10 +28,21 @@ export default async function handler(req: any, res: any) {
   }
   if (action === "config") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const packagesUsd = await Promise.all(Object.entries(PACKAGES).map(async ([tokens, priceEgp]) => {
+      const { usd } = await usdForEgp(priceEgp);
+      return { tokens: Number(tokens), priceUsd: usd };
+    }));
+    const { rate: usdEgpRate } = await usdForEgp(100);
     return res.status(200).json({
       vodafoneCashNumber: "01063537686",
+      vodafoneCashUrl: "https://vf.eg/vfcash?id=mt&qrId=G0gO2O",
+      instapayAddress: "wahedelfar1@instapay",
+      instapayUrl: "https://ipn.eg/S/wahedelfar1/instapay/5hwGuZ",
       paypalPaymentUrl: process.env.PAYPAL_PAYMENT_URL ?? "",
-      packages: [{ tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }],
+      paypalClientId: process.env.PAYPAL_CLIENT_ID ?? "",
+      packages: [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }],
+      packagesUsd,
+      usdEgpRate,
       freeAnswers: 0, welcomeGiftTokens: 5, creditsPerAnswer: 1,
     });
   }
@@ -52,7 +64,7 @@ export default async function handler(req: any, res: any) {
     const tokens = Number(body.packageTokens);
     const method = body.paymentMethod;
     const screenshotData = body.screenshotData;
-    if (!PACKAGES[tokens] || !["vodafone_cash", "paypal"].includes(method)) return res.status(400).json({ error: "invalid_package_or_method" });
+    if (!PACKAGES[tokens] || !["vodafone_cash", "instapay"].includes(method)) return res.status(400).json({ error: "invalid_package_or_method" });
     if (typeof screenshotData !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(screenshotData) || screenshotData.length > 1_000_000) {
       return res.status(400).json({ error: "invalid_screenshot" });
     }
