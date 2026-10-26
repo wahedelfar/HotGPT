@@ -397,7 +397,8 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
   if (message.notice) {
     return (
       <div className="provider-notice">
-        <div className="notice-icon">          <Sparkles size={16} />
+        <div className="notice-icon">
+          <Sparkles size={16} />
         </div>
         <div>
           <strong>{tr(language, "تم استلام رسالتك", "Message received")}</strong>
@@ -462,7 +463,7 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
     <div className="welcome-state hotgpt-welcome">
       {hotLuckyBannerVisible && (
         <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
-                    <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
+                  <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
           <span className="hotlucky-slim-copy">
             <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — ادفع بعد موافقة الإدارة واستلم كود توكن عشوائي", "🎁 HotLucky — an approved payment unlocks a random token code")}</span>
             <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — اكسب توكنات بكود عشوائي", "🎁 HotLucky — random token codes after approval")}</span>
@@ -693,6 +694,7 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
 export default function Home() {
   const auth = useAuth();
   const [location, setLocation] = useLocation();
+  const routeConversationId = (() => { const m = /^\/chat\/([0-9a-f-]{36})\/?$/i.exec(location); return m ? m[1] : null; })();
   const [language, setLanguage] = useState<Language>(() => typeof window !== "undefined" && localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar");
   const toggleLanguage = () => setLanguage(current => current === "ar" ? "en" : "ar");
 
@@ -796,7 +798,8 @@ export default function Home() {
       ".upload-empty button",
     ].join(",");
     const gateClick = (event: Event) => {
-      const target = event.target;      if (!(target instanceof Element)) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
       const protectedControl = target.closest(protectedSelector);
       if (!protectedControl) return;
       event.preventDefault();
@@ -936,11 +939,21 @@ export default function Home() {
     try { localStorage.setItem("hotgpt-token-balance", String(Math.max(0, walletBalance))); } catch {}
   }, [walletBalance]);
 
+  const lastAuthUserIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (auth.loading) return;
     let cancelled = false;
-    setActiveConversation(null);
-    setMessages([]);
+    // Only a real user change (sign-in, sign-out, account switch) may clear
+    // the visible conversation. Auth re-validations (loading toggles, token
+    // refreshes) used to wipe the message list mid-session, which made
+    // completed answers "disappear" from the live view until a page refresh.
+    const uid = auth.user?.id ?? null;
+    const userChanged = lastAuthUserIdRef.current !== uid;
+    lastAuthUserIdRef.current = uid;
+    if (userChanged) {
+      setActiveConversation(null);
+      setMessages([]);
+    }
     if (!auth.isAuthenticated) {
       setConversations([]);
       try { localStorage.removeItem("hotgpt.chat.v1"); } catch {}
@@ -1011,6 +1024,20 @@ export default function Home() {
     setSidebarOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
+  const loadConversationMessages = async (id: string): Promise<boolean> => {
+    const response = await authFetch(`/api/conversations?id=${encodeURIComponent(id)}`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || String(payload.conversation?.id) !== id) return false;
+    setMessages((payload.messages ?? []).map((item: any) => ({
+      id: String(item.id), role: item.role,
+      content: String(item.content),
+      timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
+      isComplete: item.is_complete !== false, partCount: Number(item.part_count || 1), lastFinishReason: item.last_finish_reason ?? null,
+      continuationAvailable: item.role === "assistant" && item.is_complete === false,
+    })));
+    return true;
+  };
+
   const sendMessage = async (value = draft) => {
     const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
     if (!trimmed || isSending) return;
@@ -1195,7 +1222,8 @@ export default function Home() {
                   // Never erase text already received when a new attempt starts.
                   setIsThinking(false);
                 } else if (event.type === "thinking") {
-                  setIsThinking(true);                } else if (event.type === "delta" && typeof event.content === "string") {
+                  setIsThinking(true);
+                } else if (event.type === "delta" && typeof event.content === "string") {
                   setIsSearchingWeb(false);
                   setIsThinking(false);
                   setHasStartedStreaming(true);
@@ -1283,6 +1311,10 @@ export default function Home() {
       setIsSearchingWeb(false);
       setIsThinking(false);
       setIsSending(false);
+      // The server saves everything before it signals completion, so reload
+      // the authoritative history explicitly: no completed exchange can be
+      // lost from the visible list by stale local state again.
+      if (conversationId) { try { await loadConversationMessages(conversationId); } catch {} }
     }
   };
   const continueMessage = async (target: ChatMessage) => {
@@ -1301,7 +1333,7 @@ export default function Home() {
       setMessages(cur=>cur.map(m=>m.id===target.id?{...m,id:String(payload.messageId||target.id),content:payload.content,continuationAvailable:payload.is_complete===false||payload.continuationAvailable===true,isComplete:payload.is_complete!==false,partCount:Number(payload.part_count||(m.partCount||1)+1),lastFinishReason:payload.last_finish_reason??null,continuationDisabled:false,continuationLabel:undefined}:m));
       if(typeof payload.wallet?.tokenBalance==="number")setWalletBalance(payload.wallet.tokenBalance);else setWalletBalance(v=>Math.max(0,v-5));
     } catch(error) { setRequestError(error instanceof Error?error.message:"تعذر إكمال الشرح."); setMessages(cur=>cur.map(m=>m.id===target.id?{...m,continuationDisabled:false,continuationLabel:undefined}:m)); }
-    finally { setIsSending(false); }
+    finally { setIsSending(false); if (activeConversation) { try { await loadConversationMessages(activeConversation); } catch {} } }
   };
 
   const requireProFeature = (feature: "search" | "darkweb" | "beast") => {
@@ -1536,12 +1568,18 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               }
             >
               {messages.length === 0 ? (
+                routeConversationId && !requestError ? (
+                  <div className="welcome-state" role="status" aria-live="polite">
+                    <p className="welcome-copy">{tr(language, "جارٍ فتح المحادثة...", "Opening your conversation...")}</p>
+                  </div>
+                ) : (
                 <Welcome
                   onStarter={text => {
                     setDraft(text);
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                 />
+                )
               ) : (
                 <div className="messages-list">
                   {isSearchingWeb && (
@@ -1594,7 +1632,8 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       accept=".pdf,.txt,.md,.csv,.json"
                     />
                   </label>
-                </div>                <textarea
+                </div>
+                <textarea
                   ref={textareaRef}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
