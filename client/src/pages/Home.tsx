@@ -753,6 +753,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeGiftJustGranted, setWelcomeGiftJustGranted] = useState(false);
   const [showAuthGateModal, setShowAuthGateModal] = useState(false);
 
   useEffect(() => {
@@ -880,6 +881,7 @@ export default function Home() {
           const wallet = await walletResponse.json();
           if (!cancelled) {
             const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
+            if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); setShowWelcomeModal(true); }
             const freeRemaining = Math.max(0, Number(wallet.freeAnswersRemaining) || 0);
             setWalletBalance(balance);
             setFreeAnswersRemaining(freeRemaining);
@@ -927,6 +929,7 @@ export default function Home() {
       const wallet = await response.json();
       if (!cancelled) {
         const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
+        if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); setShowWelcomeModal(true); }
         setWalletBalance(balance);
         setFreeAnswersRemaining(Math.max(0, Number(wallet.freeAnswersRemaining) || 0));
         try { localStorage.setItem("hotgpt-token-balance", String(balance)); } catch {}
@@ -1749,6 +1752,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <div className="welcome-modal-brand"><BrandMark compact /></div>
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
             <h2 id="welcome-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
+            {welcomeGiftJustGranted && <p className="welcome-modal-lead">{tr(language, "🎁 ليك 5 توكين هدية وصلت رصيدك — جرّب بيهم أي وضع عندنا، حتى الوحش PRO أو توليد صورة.", "🎁 5 gift tokens just landed in your balance — try any mode with them, even Alwahsh PRO or an image.")}</p>}
             <div className="post-login-welcome-actions">
               <a href="/rewards" className="post-login-rewards-cta">{tr(language, "🎁 صفحة الجوائز", "🎁 Rewards")}</a>
               <a href="/billing" className="post-login-plans-cta">{tr(language, "💎 صفحة الباقات", "💎 Plans")}</a>
