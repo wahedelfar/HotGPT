@@ -104,7 +104,7 @@ export default function BillingPage() {
       w.paypal.Buttons({
         style: { layout: "vertical", color: "gold", shape: "pill", label: "pay" },
         createOrder: async () => {
-          const response = await authFetch("/api/paypal?action=create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ packageTokens }) });
+          const response = await authFetch("/api/billing?action=paypal-create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ packageTokens }) });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || !payload.orderId) throw new Error("create_failed");
           return payload.orderId;
@@ -112,7 +112,7 @@ export default function BillingPage() {
         onApprove: async (data: any) => {
           setBusy(true); setMessage("");
           try {
-            const response = await authFetch("/api/paypal?action=capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: data.orderID }) });
+            const response = await authFetch("/api/billing?action=paypal-capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: data.orderID }) });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload.success) throw new Error("capture_failed");
             setMessage(`تم الدفع بنجاح وأُضيف ${payload.tokensAdded} توكين إلى رصيدك. رصيدك الآن ${payload.tokenBalance} توكين.`);
