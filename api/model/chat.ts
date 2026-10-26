@@ -703,6 +703,22 @@ export default async function handler(req: any, res: any) {
     }
   }
 
+  // Cost guardrail (pricing strategy, 2026-10-26): cap the history actually
+  // sent to the model — at most the newest 21 messages and 24,000 characters —
+  // so a long conversation stops re-billing its whole past on every message.
+  if (providerMessages.length > 21) providerMessages = providerMessages.slice(-21);
+  {
+    let historyChars = 0;
+    let historyStart = providerMessages.length;
+    while (historyStart > 0) {
+      const nextLen = providerMessages[historyStart - 1].content.length;
+      if (historyStart < providerMessages.length && historyChars + nextLen > 24000) break;
+      historyChars += nextLen;
+      historyStart--;
+    }
+    if (historyStart > 0) providerMessages = providerMessages.slice(historyStart);
+  }
+
   if (attachment) {
     if (!attachment.path.startsWith(`${user.id}/`)) return res.status(403).json({ error: "invalid_attachment" });
     try {
@@ -725,8 +741,8 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  const paidStagedRequest = !attachment && (webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast");
-  const creditCost = attachment ? 1 : (webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast") ? 5 : 1;
+  const paidStagedRequest = !attachment && (darkWebEnabled || selectedModel === "dadgpt-beast" || (webSearchEnabled && extended));
+  const creditCost = attachment ? 3 : (webSearchEnabled || darkWebEnabled || selectedModel === "dadgpt-beast") ? 5 : 1;
   let credit: "free" | "paid" | null = null;
   let streamHeartbeat: ReturnType<typeof setInterval> | null = null;
   let stagedMessageId: string | null = null;
@@ -751,7 +767,7 @@ export default async function handler(req: any, res: any) {
     }
   } else {
     try {
-      credit = await consumeCredit(user.id, creditCost, !attachment && !webSearchEnabled && selectedModel === "dadgpt-default");
+      credit = await consumeCredit(user.id, creditCost, false);
     } catch (error) {
       console.error("[Billing] Credit reservation failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -877,7 +893,7 @@ export default async function handler(req: any, res: any) {
           body: JSON.stringify({
             model: provider.model,
             messages: outgoingMessages,
-            max_tokens: paidStagedRequest ? (provider.openRouter ? 8000 : STAGE_MAX) : darkWebEnabled ? 4000 : extended || selectedModel === "dadgpt-beast" ? 4096 : 2048,
+            max_tokens: paidStagedRequest ? (provider.openRouter ? 8000 : STAGE_MAX) : darkWebEnabled ? 4000 : extended || webSearchEnabled || selectedModel === "dadgpt-beast" ? 4096 : 2048,
             temperature: darkWebEnabled ? 0.2 : 0.7,
             stream: streamToClient,
             ...(provider.reasoningEffort ? { reasoning_effort: provider.reasoningEffort } : paidStagedRequest && !provider.openRouter ? { reasoning_effort: "medium" } : {}),
