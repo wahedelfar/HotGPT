@@ -463,7 +463,7 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
     <div className="welcome-state hotgpt-welcome">
       {hotLuckyBannerVisible && (
         <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
-          <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
+          <          <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
           <span className="hotlucky-slim-copy">
             <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — ادفع بعد موافقة الإدارة واستلم كود توكن عشوائي", "🎁 HotLucky — an approved payment unlocks a random token code")}</span>
             <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — اكسب توكنات بكود عشوائي", "🎁 HotLucky — random token codes after approval")}</span>
@@ -828,6 +828,26 @@ export default function Home() {
   const [darkWebEnabled, setDarkWebEnabled] = useState(false);
   const [imageMode, setImageMode] = useState(false);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
+
+  // Generated images live only in this session (by design), and any history
+  // reload replaces the message objects and drops their imageUrl. Instead of
+  // patching each reload path, re-attach session images after every messages
+  // change, whichever code path replaced the list.
+  useEffect(() => {
+    if (sessionImagesRef.current.size === 0) return;
+    setMessages(current => {
+      let changed = false;
+      const next = current.map(m => {
+        if (m.imageUrl) return m;
+        const match = /«([^»]+)»/.exec(m.content);
+        const url = match ? sessionImagesRef.current.get(match[1]) : undefined;
+        if (!url) return m;
+        changed = true;
+        return { ...m, imageUrl: url };
+      });
+      return changed ? next : current;
+    });
+  }, [messages]);
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
   const [walletBalance, setWalletBalance] = useState(() => {
     try { return typeof window !== "undefined" ? Math.max(0, Number(localStorage.getItem("hotgpt-token-balance")) || 0) : 0; }
