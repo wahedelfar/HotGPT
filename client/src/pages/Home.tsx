@@ -463,7 +463,7 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
     <div className="welcome-state hotgpt-welcome">
       {hotLuckyBannerVisible && (
         <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
-                    <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
+          <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
           <span className="hotlucky-slim-copy">
             <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — ادفع بعد موافقة الإدارة واستلم كود توكن عشوائي", "🎁 HotLucky — an approved payment unlocks a random token code")}</span>
             <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — اكسب توكنات بكود عشوائي", "🎁 HotLucky — random token codes after approval")}</span>
@@ -823,10 +823,11 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [extended, setExtended] = useState(false);
-  const [writingAssist, setWritingAssist] = useState(false);
+  const [writingAssist, setWritingAssist] = useState(true);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [darkWebEnabled, setDarkWebEnabled] = useState(false);
   const [imageMode, setImageMode] = useState(false);
+  const sessionImagesRef = useRef<Map<string, string>>(new Map());
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
   const [walletBalance, setWalletBalance] = useState(() => {
     try { return typeof window !== "undefined" ? Math.max(0, Number(localStorage.getItem("hotgpt-token-balance")) || 0) : 0; }
@@ -974,6 +975,7 @@ export default function Home() {
         timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
         isComplete: item.is_complete !== false, partCount: Number(item.part_count || 1), lastFinishReason: item.last_finish_reason ?? null,
         continuationAvailable: item.role === "assistant" && item.is_complete === false,
+        imageUrl: (() => { const match = /«([^»]+)»/.exec(String(item.content)); return match ? sessionImagesRef.current.get(match[1]) : undefined; })(),
       })));
       setRequestError(null);
     }).catch(() => {
@@ -1075,6 +1077,7 @@ export default function Home() {
             };
             throw new Error(imageErrors[String(imagePayload.error || "")] || tr(language, "تعذر توليد الصورة الآن.", "Image generation failed."));
           }
+          sessionImagesRef.current.set(trimmed.slice(0, 200), String(imagePayload.imageDataUrl));
           if (typeof imagePayload.tokenBalance === "number") setWalletBalance(imagePayload.tokenBalance);
           setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: tr(language, `🎨 صورة مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 Image generated from your prompt: "${trimmed.slice(0, 200)}"`), timestamp: formatTime(), imageUrl: String(imagePayload.imageDataUrl) }]);
         } catch (imageError) {
@@ -1591,6 +1594,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 >
                   <Send size={17} />
                 </button>
+                {draft.trim().length >= 12 && (writingAssist ? (
+                  <div className="attachment-cost-note">✨ {tr(language, "محسّن الطلب مفعّل — سيتم تنظيم طلبك قبل الإرسال.", "Prompt enhancer is on — your request will be organized before sending.")} <button type="button" onClick={() => setWritingAssist(false)} style={{ color: "#22d3ee", fontWeight: 700 }}>{tr(language, "إيقاف", "Turn off")}</button></div>
+                ) : (
+                  <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
+                ))}
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
                   <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "محسن الطلب", "Prompt enhancer")}>
                     <Wand size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
