@@ -76,10 +76,32 @@ export async function getSupabaseUser(accessToken: string) {
 }
 
 export async function getWallet(userId: string) {
-  const rows = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=free_answers_used,token_balance&limit=1`);
+  const rows = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=free_answers_used,token_balance,welcome_gift_claimed&limit=1`);
   if (!rows?.[0]) throw new Error("wallet_not_found");
   const row = rows[0];
-  return { freeAnswersUsed: Number(row.free_answers_used), tokenBalance: Number(row.token_balance), freeAnswersRemaining: Math.max(0, 2 - Number(row.free_answers_used)) };
+  let tokenBalance = Number(row.token_balance);
+  let welcomeGiftGranted = false;
+  // Welcome gift (product decision, 2026-10-26): every wallet claims 5 gift
+  // tokens exactly once, on its first wallet read. The claim is atomic — the
+  // PATCH only matches while welcome_gift_claimed is still false, so racing
+  // requests can never grant it twice. This replaces the retired 2-free-
+  // answers allowance (free answers are disabled in the chat handler).
+  // Requires the wallets.welcome_gift_claimed column (see the rollout SQL).
+  if (row.welcome_gift_claimed === false) {
+    try {
+      const claimed = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&welcome_gift_claimed=eq.false`, {
+        method: "PATCH", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ token_balance: tokenBalance + 5, welcome_gift_claimed: true, updated_at: new Date().toISOString() }),
+      });
+      if (Array.isArray(claimed) && claimed.length > 0) {
+        tokenBalance = Number(claimed[0].token_balance);
+        welcomeGiftGranted = true;
+      }
+    } catch (error) {
+      console.error("[Billing] Welcome gift claim failed", error instanceof Error ? error.message : "unknown");
+    }
+  }
+  return { freeAnswersUsed: Number(row.free_answers_used), tokenBalance, freeAnswersRemaining: 0, welcomeGiftGranted };
 }
 
 export async function consumeAnswerCredit(userId: string): Promise<"free" | "paid" | null> {
