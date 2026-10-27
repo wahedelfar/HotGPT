@@ -1425,8 +1425,16 @@ export default function Home() {
         liveSearch?: string;
       };
       let streamedAssistantId: string | null = null;
+      // Mirror of the streamed bubble, kept outside the stream block so
+      // the finally-reload can restore the text if the request died
+      // mid-generation and the server never saved the answer (field
+      // report, 2026-10-27: the user watched the answer stream in,
+      // then the reload erased it and only the question remained).
+      let preservedStreamedId: string | null = null;
+      let preservedStreamedText = "";
       if (response.ok && response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
         streamedAssistantId = crypto.randomUUID();
+        preservedStreamedId = streamedAssistantId;
         let streamedText = "";
         setMessages(current => [...current, { id: streamedAssistantId!, role: "assistant", content: "", timestamp: formatTime() }]);
         const reader = response.body.getReader();
@@ -1455,6 +1463,7 @@ export default function Home() {
                   setIsThinking(false);
                   setHasStartedStreaming(true);
                   streamedText += event.content;
+                  preservedStreamedText = streamedText;
                   setMessages(current => current.map(message => message.id === streamedAssistantId ? { ...message, content: streamedText } : message));
                 } else if (event.type === "done") {
                   payload = event;
@@ -1547,6 +1556,19 @@ export default function Home() {
       // the authoritative history explicitly: no completed exchange can be
       // lost from the visible list by stale local state again.
       if (conversationId) { try { await loadConversationMessages(conversationId); } catch {} }
+      // …unless the request died mid-generation (platform time
+      // ceiling): the server's staged row is still empty then, so the
+      // reload erases an answer the user already watched stream in.
+      // Restore the locally streamed text when the reloaded history
+      // does not already carry it.
+      if (preservedStreamedId && preservedStreamedText.trim().length >= 40) {
+        const keptId = preservedStreamedId;
+        const keptText = preservedStreamedText;
+        setMessages(current => {
+          const alreadyThere = current.some(message => message.role === "assistant" && message.content.trim().length >= 40 && message.content.slice(0, 120) === keptText.slice(0, 120));
+          return alreadyThere ? current : [...current, { id: keptId, role: "assistant", content: keptText, timestamp: formatTime() }];
+        });
+      }
     }
   };
   const continueMessage = async (target: ChatMessage) => {
