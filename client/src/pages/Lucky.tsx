@@ -309,7 +309,7 @@ export default function LuckyPage() {
       <header className="py-9 text-center sm:py-12">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-4 py-2 text-xs font-bold tracking-wide text-amber-200"><Sparkles size={15} /> {t("HOTLUCKY · لعبة لفّات الحظ", "HOTLUCKY · SPIN GAME")}</div>
         <h1 className="text-3xl font-black leading-tight sm:text-5xl">{t("لفّ واكسب توكنات", "Spin & win tokens")} <span className="hl-gold">| HotLucky</span></h1>
-        <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-slate-200 sm:text-lg">{t(`اللفة بـ ${price} جنيه أو بدولار عبر باقات PayPal. الجوائز من 25 لـ 100 توكن تُضاف لرصيدك فورًا بعد اللفة — `, `A spin costs ${price} EGP, or $1 via PayPal bundles. Prizes of 25–100 tokens are credited the moment you spin — `)}<strong className="text-amber-200">{t("ومفيش جائزة صفرية", "and there is NO zero prize")}</strong>{t(`: أقل نتيجة بترجعلك نص قيمة التذكرة.`, `: the worst result still returns half your ticket.`)}</p>
+        <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-slate-200 sm:text-lg">{t(`باقة HotLucky: بـ ${price} جنيه خد من 25 لـ 100 رسالة (أو بالدولار عبر باقات PayPal). الجوائز توكنات تُضاف لرصيدك فورًا بعد اللفة — `, `The HotLucky pack: ${price} EGP gets you 25 to 100 messages (or pay in dollars via PayPal bundles). Prizes are tokens credited to your balance the moment you spin — `)}<strong className="text-amber-200">{t("ومفيش جائزة صفرية", "and there is NO zero prize")}</strong>{t(`: أقل نتيجة بترجعلك نص قيمة التذكرة.`, `: the worst result still returns half your ticket.`)}</p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Users size={16} className="hl-gold" />{ticketsSold} {t("تذكرة مشاركة حتى الآن", "tickets played so far")}</span>
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Coins size={16} className="hl-gold" />{t("متوسط العائد المعلن: 48.75 توكن لكل لفة", "Published average return: 48.75 tokens per spin")}</span>
@@ -325,7 +325,8 @@ export default function LuckyPage() {
             <p className="mt-2 text-[11px] leading-5 text-slate-500">{language === "ar" ? p.detail : p.detailEn}</p>
           </article>)}
         </div>
-        <p className="mt-4 text-center text-xs leading-6 text-slate-500">{t("الاحتمالات منشورة بالكامل هنا وفي ", "The odds are published in full here and in the ")}<a className="text-amber-200 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a>{t("، ومجموعها 100%. السحب يتم على الخادم ونتيجته نهائية ومسجلة في حسابك.", ", and total 100%. The draw runs on the server; its result is final and recorded in your account.")}</p>
+        <p className="mt-4 text-center text-base font-black text-amber-200">{t("أقل حاجة هتاخدها 25 توكن، مفيش خسارة", "The least you'll get is 25 tokens — no loss")}</p>
+        <p className="mt-2 text-center text-xs leading-6 text-slate-500">{t("الاحتمالات منشورة بالكامل هنا وفي ", "The odds are published in full here and in the ")}<a className="text-amber-200 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a>{t("، ومجموعها 100%. السحب يتم على الخادم ونتيجته نهائية ومسجلة في حسابك.", ", and total 100%. The draw runs on the server; its result is final and recorded in your account.")}</p>
       </section>
 
       <section className="hl-card mt-10 p-5 text-center sm:p-8" aria-label={t("لفاتي", "My spins")}>

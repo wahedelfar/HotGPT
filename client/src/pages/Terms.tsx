@@ -66,8 +66,8 @@ const SECTIONS: Section[] = [
   {
     h: ["٩. التعديلات والتواصل", "9. Changes and contact"],
     p: [
-      "قد تُحدَّث هذه الشروط عند الحاجة، ويُعد استمرار الاستخدام بعد النشر قبولًا بالتحديث. للتواصل: support@hotgpt.pro",
-      "These terms may be updated when needed; continued use after publication constitutes acceptance of the update. Contact: support@hotgpt.pro",
+      "قد تُحدَّث هذه الشروط عند الحاجة، ويُعد استمرار الاستخدام بعد النشر قبولًا بالتحديث. للدعم الفني: hotgpt.pro@gmail.com — وللإدارة: wawavip@proton.me",
+      "These terms may be updated when needed; continued use after publication constitutes acceptance of the update. Technical support: hotgpt.pro@gmail.com — Administration: wawavip@proton.me",
     ],
   },
 ];

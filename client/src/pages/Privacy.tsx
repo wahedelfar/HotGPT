@@ -53,8 +53,8 @@ const SECTIONS: Section[] = [
   {
     h: ["٧. حقوقك", "7. Your rights"],
     p: [
-      "يمكنك طلب الاطلاع على بيانات حسابك أو تصحيحها أو حذف الحساب نهائيًا عبر support@hotgpt.pro. الحذف يزيل المحادثات وسجل المحفظة، مع الاحتفاظ فقط بسجلات المعاملات المالية التي يفرض الاحتفاظ بها لأغراض المحاسبة ومنع الاحتيال.",
-      "You may request access to your account data, its correction, or full account deletion via support@hotgpt.pro. Deletion removes conversations and wallet history, retaining only the financial transaction records that must be kept for accounting and fraud-prevention purposes.",
+      "يمكنك طلب الاطلاع على بيانات حسابك أو تصحيحها أو حذف الحساب نهائيًا عبر hotgpt.pro@gmail.com. الحذف يزيل المحادثات وسجل المحفظة، مع الاحتفاظ فقط بسجلات المعاملات المالية التي يفرض الاحتفاظ بها لأغراض المحاسبة ومنع الاحتيال.",
+      "You may request access to your account data, its correction, or full account deletion via hotgpt.pro@gmail.com. Deletion removes conversations and wallet history, retaining only the financial transaction records that must be kept for accounting and fraud-prevention purposes.",
     ],
   },
   {
