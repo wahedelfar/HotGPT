@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { authFetch } from "@/lib/auth";
-import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket, RotateCw } from "lucide-react";
+import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket } from "lucide-react";
 
 // HotLucky — spin game (restructured 2026-10-27).
 // One ticket = one spin. 50 EGP via Vodafone Cash / InstaPay (proof +
@@ -17,7 +17,7 @@ const PRIZES: PrizeInfo[] = [
   { tokens: 100, chance: "10%", icon: "💎", detail: "ضعف قيمة التذكرة" },
 ];
 type Winner = { member: string; prize: string; date?: string };
-type MyPrize = { label: string; tokens?: number; credited?: boolean; code?: string; used?: boolean; date?: string | null };
+type MyPrize = { label: string; tokens?: number; credited?: boolean; date?: string | null };
 type LuckyConfig = {
   vodafoneCashNumber: string; vodafoneCashUrl: string;
   instapayAddress: string; instapayUrl: string;
@@ -51,6 +51,55 @@ function loadPaypalSdk(clientId: string): Promise<any> {
   return paypalSdkPromise;
 }
 
+
+// Prize wheel geometry: each slice's angle IS its published probability
+// (38/39/13/10% -> 136.8/140.4/46.8/36 degrees), so the wheel is honest —
+// the big slices are the common prizes. The DRAW still happens on the
+// server; the wheel only animates to the slice the server picked.
+const WHEEL_SLICES = (() => {
+  const defs = [
+    { tokens: 25, weight: 38, fill: "#6e1423", text: "#ffe9d6" },
+    { tokens: 50, weight: 39, fill: "#9a7418", text: "#fff7e0" },
+    { tokens: 75, weight: 13, fill: "#2f4858", text: "#e0f2fe" },
+    { tokens: 100, weight: 10, fill: "#f7cf65", text: "#171006" },
+  ];
+  let acc = 0;
+  return defs.map(d => { const start = acc; acc += d.weight * 3.6; return { ...d, start, end: acc, mid: start + d.weight * 1.8 }; });
+})();
+function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
+  const rad = (deg * Math.PI) / 180;
+  return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];
+}
+function wedgePath(cx: number, cy: number, r: number, a0: number, a1: number) {
+  const [x0, y0] = polar(cx, cy, r, a0);
+  const [x1, y1] = polar(cx, cy, r, a1);
+  return `M ${cx} ${cy} L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`;
+}
+function PrizeWheel({ rotation, spinning }: { rotation: number; spinning: boolean }) {
+  const C = 160, R = 150;
+  return (
+    <div className="relative mx-auto" style={{ width: "min(82vw, 340px)", height: "min(82vw, 340px)" }}>
+      <div aria-hidden="true" style={{ position: "absolute", top: -4, left: "50%", transform: "translateX(-50%)", zIndex: 3, width: 0, height: 0, borderLeft: "13px solid transparent", borderRight: "13px solid transparent", borderTop: "24px solid #f7cf65", filter: "drop-shadow(0 2px 3px rgba(0,0,0,.65))" }} />
+      <svg viewBox="0 0 320 320" role="img" aria-label="عجلة جوائز HotLucky" style={{ width: "100%", height: "100%", display: "block", transform: `rotate(${rotation}deg)`, transition: spinning ? "transform 4.4s cubic-bezier(0.1, 0.7, 0.08, 1)" : "none" }}>
+        <circle cx={C} cy={C} r={158} fill="#0d0b06" stroke="#f7cf65" strokeWidth="3" />
+        {WHEEL_SLICES.map(sl => {
+          const [tx, ty] = polar(C, C, R * 0.7, sl.mid);
+          const [sx, sy] = polar(C, C, R * 0.48, sl.mid);
+          return (
+            <g key={sl.tokens}>
+              <path d={wedgePath(C, C, R, sl.start, sl.end)} fill={sl.fill} stroke="#0d0b06" strokeWidth="2" />
+              <text x={tx} y={ty} fill={sl.text} fontSize="23" fontWeight="900" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${sl.mid} ${tx} ${ty})`}>{sl.tokens}</text>
+              <text x={sx} y={sy} fill={sl.text} opacity="0.85" fontSize="11" fontWeight="700" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${sl.mid} ${sx} ${sy})`}>توكن</text>
+            </g>
+          );
+        })}
+        <circle cx={C} cy={C} r={45} fill="#171006" stroke="#f7cf65" strokeWidth="3" />
+        <text x={C} y={C - 2} fill="#f7cf65" fontSize="15" fontWeight="900" textAnchor="middle" dominantBaseline="middle">HotLucky</text>
+      </svg>
+    </div>
+  );
+}
+
 export default function LuckyPage() {
   const [config, setConfig] = useState<LuckyConfig | null>(null);
   const [email, setEmail] = useState("");
@@ -64,8 +113,8 @@ export default function LuckyPage() {
   const [pendingTickets, setPendingTickets] = useState(0);
   const [prizes, setPrizes] = useState<MyPrize[]>([]);
   const [spinning, setSpinning] = useState(false);
+  const [wheelRotation, setWheelRotation] = useState(0);
   const [lastWin, setLastWin] = useState<{ tokens: number; balance?: number } | null>(null);
-  const [manualCode, setManualCode] = useState("");
   const [winners, setWinners] = useState<Winner[]>([]);
   const [ticketsSold, setTicketsSold] = useState<number>(0);
   const [copiedKey, setCopiedKey] = useState("");
@@ -183,46 +232,27 @@ export default function LuckyPage() {
   async function spin() {
     if (spinCredits <= 0 || spinning) return;
     setSpinning(true); setMessage(""); setLastWin(null);
-    const started = Date.now();
     try {
+      // The server draws FIRST; the wheel then animates to the winning
+      // slice and the prize is revealed when the wheel stops.
       const response = await authFetch("/api/lucky?action=spin", { method: "POST" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error === "spin_not_available" ? "لا توجد لفات جاهزة. لو دفعت يدويًا، انتظر موافقة الإدارة." : "تعذر تنفيذ اللفة. أعد المحاولة.");
-      const wait = Math.max(0, 1400 - (Date.now() - started));
-      await new Promise(r => setTimeout(r, wait));
-      if (data.legacy) {
-        setMessage("تم كشف هدية طلبك السابق: " + (data.prize?.label || "") + (data.prize?.code ? " — فعّل الكود من قسم جوائزك بالأسفل." : ""));
-        void refreshStatus();
-      } else {
-        setLastWin({ tokens: Number(data.prize?.tokens) || 0, balance: typeof data.tokenBalance === "number" ? data.tokenBalance : undefined });
-        if (typeof data.spinCredits === "number") setSpinCredits(data.spinCredits); else void refreshStatus();
-      }
+      const prizeTokens = Number(data.prize?.tokens) || 0;
+      const slice = WHEEL_SLICES.find(x => x.tokens === prizeTokens) || WHEEL_SLICES[0];
+      const land = slice.start + (slice.end - slice.start) * (0.3 + Math.random() * 0.4);
+      const targetMod = ((360 - land) % 360 + 360) % 360;
+      setWheelRotation(prev => {
+        const cur = ((prev % 360) + 360) % 360;
+        const delta = (targetMod - cur + 360) % 360;
+        return prev + 360 * 6 + delta;
+      });
+      await new Promise(r => setTimeout(r, 4550));
+      setLastWin({ tokens: prizeTokens, balance: typeof data.tokenBalance === "number" ? data.tokenBalance : undefined });
+      if (typeof data.spinCredits === "number") setSpinCredits(data.spinCredits); else void refreshStatus();
       void loadStats();
     } catch (error) { setMessage(error instanceof Error ? error.message : "حدث خطأ."); }
     finally { setSpinning(false); }
-  }
-  async function redeem(code: string) {
-    const value = code.trim().toUpperCase();
-    if (!value) return;
-    setBusy(true); setMessage("");
-    try {
-      const response = await authFetch("/api/lucky?action=redeem", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: value }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const errors: Record<string, string> = {
-          token_code_used: "تم تفعيل هذا الكود من قبل.",
-          token_code_not_found: "الكود غير صالح أو لا يخص هذا الحساب.",
-          invalid_token_code: "صيغة الكود غير صحيحة.",
-        };
-        throw new Error(errors[data.error] || "تعذر تفعيل الكود الآن. حاول مرة أخرى.");
-      }
-      setMessage(`تم تفعيل الكود وإضافة ${Number(data.tokens) || 0} توكن إلى رصيدك.`);
-      setManualCode(""); void refreshStatus();
-    } catch (error) { setMessage(error instanceof Error ? error.message : "تعذر تفعيل الكود."); }
-    finally { setBusy(false); }
   }
 
   const price = config?.spinPriceEgp ?? 50;
@@ -268,9 +298,13 @@ export default function LuckyPage() {
       <section className="hl-card mt-10 p-5 text-center sm:p-8" aria-label="لفاتي">
         <div className="flex items-center justify-center gap-3"><Ticket className="hl-gold" size={24} /><h2 className="text-2xl font-black">لفّاتي</h2></div>
         <p className="mt-3 text-sm leading-7 text-slate-300">عندك <strong className="text-2xl font-black text-amber-200">{spinCredits}</strong> لفة جاهزة{pendingTickets > 0 ? <>، و{pendingTickets} تذكرة في انتظار الاعتماد</> : ""}.</p>
-        <button type="button" disabled={spinCredits <= 0 || spinning} onClick={() => void spin()} className={`hl-cta mt-5 inline-flex items-center gap-3 rounded-full px-10 py-4 text-xl font-black ${spinning ? "hl-spinning" : ""}`}>
-          <RotateCw size={24} className={spinning ? "animate-spin" : ""} /> {spinning ? "جارٍ اللف…" : "لفّ دلوقتي 🎰"}
-        </button>
+        <div className="relative mt-6">
+          <PrizeWheel rotation={wheelRotation} spinning={spinning} />
+          <button type="button" disabled={spinCredits <= 0 || spinning} onClick={() => void spin()} aria-label="لفّ العجلة" className="hl-cta" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 78, height: 78, borderRadius: "50%", fontWeight: 900, fontSize: 16, zIndex: 4 }}>
+            {spinning ? "…" : "لفّ 🎰"}
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">دوس على قلب العجلة — هتلف وتقف على جائزتك. أحجام الخانات هي نفس الاحتمالات المعلنة بالظبط.</p>
         {spinCredits <= 0 && !spinning && <p className="mt-3 text-xs text-slate-500">اشتري تذكرة من قسم الدفع بالأسفل — اليدوي بيظهر بعد موافقة الإدارة، و PayPal فوري.</p>}
         {lastWin && <div className="hl-pop mx-auto mt-6 max-w-md rounded-2xl border border-amber-200/50 bg-amber-200/[.09] p-5">
           <p className="text-sm text-amber-200">🎉 مبروك! كسبت</p>
@@ -282,7 +316,7 @@ export default function LuckyPage() {
       <section className="mt-12">
         <div className="text-center"><h2 className="text-2xl font-black sm:text-3xl">💡 كيف تلعب؟ (3 خطوات)</h2></div>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {[{ n: "01", icon: "💳", title: "اشتري تذكرة لفة", desc: `حوّل ${price} جنيه عبر فودافون كاش أو انستا باي وارفع الإثبات، أو ادفع عبر PayPal (لفتين $2 أو خمسة $5) وتوصلك اللفات فورًا.` }, { n: "02", icon: "✅", title: "الاعتماد", desc: "الدفع اليدوي بتراجعه الإدارة وبيظهر في «لفّاتي» بعد الموافقة. دفع PayPal موثّق تلقائيًا من غير انتظار." }, { n: "03", icon: "🎰", title: "لفّ واستلم جائزتك", desc: "دوس «لفّ دلوقتي» — السحب على الخادم بالاحتمالات المعلنة، والجائزة بتنزل في رصيدك في نفس اللحظة." }].map(s => <article key={s.n} className="hl-card p-5"><div className="flex items-center justify-between"><span className="text-xs font-black tracking-widest hl-gold">STEP {s.n}</span><span className="text-3xl">{s.icon}</span></div><h3 className="mt-4 text-lg font-extrabold">{s.title}</h3><p className="mt-2 text-sm leading-7 text-slate-400">{s.desc}</p></article>)}
+          {[{ n: "01", icon: "💳", title: "اشتري تذكرة لفة", desc: `حوّل ${price} جنيه عبر فودافون كاش أو انستا باي وارفع الإثبات، أو ادفع عبر PayPal (لفتين $2 أو خمسة $5) وتوصلك اللفات فورًا.` }, { n: "02", icon: "✅", title: "الاعتماد", desc: "الدفع اليدوي بتراجعه الإدارة وبيظهر في «لفّاتي» بعد الموافقة. دفع PayPal موثّق تلقائيًا من غير انتظار." }, { n: "03", icon: "🎰", title: "لفّ واستلم جائزتك", desc: "دوس على قلب العجلة — السحب على الخادم بالاحتمالات المعلنة، والعجلة بتقف على جائزتك وبتنزل في رصيدك في نفس اللحظة." }].map(s => <article key={s.n} className="hl-card p-5"><div className="flex items-center justify-between"><span className="text-xs font-black tracking-widest hl-gold">STEP {s.n}</span><span className="text-3xl">{s.icon}</span></div><h3 className="mt-4 text-lg font-extrabold">{s.title}</h3><p className="mt-2 text-sm leading-7 text-slate-400">{s.desc}</p></article>)}
         </div>
       </section>
 
@@ -329,11 +363,7 @@ export default function LuckyPage() {
 
         <aside className="space-y-5">
           <div className="hl-card p-5"><div className="flex items-center gap-3"><Gift className="hl-gold" size={22} /><h2 className="text-lg font-black">جوائزي</h2></div>
-            {prizes.length ? <div className="mt-4 space-y-3">{prizes.slice(0, 8).map((p, i) => <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><div><p className="text-sm font-semibold">{p.label}</p>{p.date && <p className="mt-1 text-[11px] text-slate-500">{new Date(p.date).toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })}</p>}</div>{p.credited ? <span className="text-xs font-bold text-emerald-300">أُضيفت لرصيدك ✓</span> : p.code && !p.used ? <button type="button" disabled={busy} onClick={() => void redeem(p.code!)} className="rounded-lg bg-amber-200 px-3 py-2 text-xs font-black text-black">تفعيل الكود</button> : <span className="text-xs text-slate-500">{p.used ? "تم التفعيل" : ""}</span>}</div>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-500">لسه معندكش جوائز — أول لفة مستنياك.</p>}
-            <div className="mt-4 border-t border-white/10 pt-4">
-              <p className="text-sm font-semibold">عندك كود من طلبات سابقة؟</p>
-              <div className="mt-2 flex gap-2"><input value={manualCode} onChange={e => setManualCode(e.target.value)} placeholder="HOT-XXXXXX" dir="ltr" className="hl-field flex-1 text-left font-mono" /><button type="button" disabled={busy || !manualCode.trim()} onClick={() => void redeem(manualCode)} className="hl-cta shrink-0 rounded-xl px-4 py-2 text-sm font-black">تفعيل</button></div>
-            </div>
+            {prizes.length ? <div className="mt-4 space-y-3">{prizes.slice(0, 8).map((p, i) => <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><div><p className="text-sm font-semibold">{p.label}</p>{p.date && <p className="mt-1 text-[11px] text-slate-500">{new Date(p.date).toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })}</p>}</div>{p.credited ? <span className="text-xs font-bold text-emerald-300">أُضيفت لرصيدك ✓</span> : null}</div>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-500">لسه معندكش جوائز — أول لفة مستنياك.</p>}
           </div>
           <div className="hl-card p-5"><div className="flex items-center gap-3"><ShieldCheck className="hl-gold" size={22} /><h2 className="text-lg font-black">شروط مختصرة وواضحة</h2></div><ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300"><li>• اللعب للبالغين 18+ فقط.</li><li>• التذكرة = لفة واحدة؛ الجوائز توكنات رقمية تُضاف للرصيد، وليست نقودًا ولا تُستبدل نقدًا.</li><li>• أقل جائزة 25 توكن (نصف القيمة) — لا توجد نتيجة صفرية.</li><li>• السحب يتم على الخادم بالاحتمالات المعلنة ونتيجته نهائية.</li></ul><a href="/lucky-terms" className="mt-4 inline-block text-sm font-bold text-amber-200 underline underline-offset-4">قراءة الشروط والأحكام كاملة</a></div>
           <div className="hl-card p-5"><div className="flex items-center gap-3"><Users className="hl-gold" size={22} /><h2 className="text-lg font-black">آخر الجوائز المسجلة</h2></div>{winners.length ? <div className="mt-4 space-y-3">{winners.map((w, i) => <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><div><p className="text-sm font-semibold">{w.member}</p>{w.date && <p className="mt-1 text-[11px] text-slate-500">{new Date(w.date).toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })}</p>}</div><span className="text-left text-xs font-bold text-amber-200">{w.prize}</span></div>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-500">ستظهر الجوائز الحقيقية هنا بعد تسجيلها. لا تُعرض نتائج وهمية.</p>}</div>
