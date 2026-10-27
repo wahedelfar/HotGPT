@@ -162,7 +162,7 @@ export default async function handler(req: any, res: any) {
   if (!url || !key) return res.status(503).json({ error: "service_unavailable" });
   try {
     if (action === "status" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,base_tokens,prize_key,prize_label,prize_code,spun_at,token_code_used,reward_issued,hotlucky_daily_gifts(prize_code,prize_label,created_at)&order=created_at.desc&limit=500");
+      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,base_tokens,prize_key,prize_label,prize_code,spun_at,reward_issued,hotlucky_daily_gifts(prize_code,prize_label,created_at,issued_at)&order=created_at.desc&limit=500");
       const list = orders || [];
       const spinCredits = list.filter((o: any) => o.status === "approved" && !o.spun_at).length;
       const pendingTickets = list.filter((o: any) => o.status === "pending" || o.status === "awaiting_payment").length;
@@ -175,7 +175,7 @@ export default async function handler(req: any, res: any) {
           tokens,
           credited: isNewSpin,
           code: !isNewSpin && o.prize_code ? String(o.prize_code) : !isNewSpin && gift?.prize_code ? String(gift.prize_code) : undefined,
-          used: isNewSpin ? true : Boolean(o.token_code_used || o.reward_issued),
+          used: isNewSpin ? true : Boolean(o.reward_issued || gift?.issued_at),
           date: o.spun_at || gift?.created_at || null,
         };
       });
