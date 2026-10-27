@@ -454,6 +454,31 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
   );
 }
 
+export function LanguageFlag({ lang }: { lang: "ar" | "en" }) {
+  if (lang === "en") {
+    return (
+      <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true" style={{ borderRadius: 3, display: "block", flex: "0 0 auto" }}>
+        <rect width="20" height="14" fill="#ffffff" />
+        {[0, 2.15, 4.31, 6.46, 8.62, 10.77, 12.92].map(y => (
+          <rect key={y} y={y} width="20" height="1.08" fill="#B31942" />
+        ))}
+        <rect width="9.5" height="7.55" fill="#0A3161" />
+        {[1.6, 4.75, 7.9].map(cx => [1.7, 3.8, 5.9].map(cy => (
+          <circle key={cx + "-" + cy} cx={cx} cy={cy} r="0.62" fill="#ffffff" />
+        )))}
+      </svg>
+    );
+  }
+  return (
+    <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true" style={{ borderRadius: 3, display: "block", flex: "0 0 auto" }}>
+      <rect width="20" height="4.67" fill="#CE2B37" />
+      <rect y="4.67" width="20" height="4.67" fill="#ffffff" />
+      <rect y="9.33" width="20" height="4.67" fill="#000000" />
+      <path d="M10 5.1 L10.9 6.6 L13.2 5.9 L11.9 7.6 L12.6 9.4 L10.7 8.5 L10.7 9.9 L9.3 9.9 L9.3 8.5 L7.4 9.4 L8.1 7.6 L6.8 5.9 L9.1 6.6 Z" fill="#C09300" />
+    </svg>
+  );
+}
+
 function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
   const { language } = useLanguage();
   const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
@@ -465,8 +490,8 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
         <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
                   <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
           <span className="hotlucky-slim-copy">
-            <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — ادفع بعد موافقة الإدارة واستلم كود توكن عشوائي", "🎁 HotLucky — an approved payment unlocks a random token code")}</span>
-            <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — اكسب توكنات بكود عشوائي", "🎁 HotLucky — random token codes after approval")}</span>
+            <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — لفة بـ 50 جنيه: اكسب من 25 لـ 100 توكن", "🎁 HotLucky — spin for 50 EGP: win 25–100 tokens")}</span>
+            <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — لفّ واكسب توكنات", "🎁 HotLucky — spin & win tokens")}</span>
           </span>
           <a className="hotlucky-slim-cta" href="/hotlucky">{tr(language, "ادخل لصفحة الجوائز ›", "Prizes ›")}</a>
         </div>
@@ -1519,7 +1544,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               </>
             )}
             <button className="language-button" type="button" onClick={toggleLanguage} aria-label={tr(language, "التبديل إلى الإنجليزية", "Switch to Arabic")} title={tr(language, "English", "العربية")}>
-              <span aria-hidden="true">{language === "ar" ? "🇺🇸" : "🇸🇦"}</span>
+              <LanguageFlag lang={language === "ar" ? "en" : "ar"} />
             </button>
             {auth.isAuthenticated ? (              <div className="profile-menu-wrap">
                 <button

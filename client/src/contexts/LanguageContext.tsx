@@ -172,9 +172,34 @@ export function LocalizedText({ children }: { children: React.ReactNode }) {
   const { language } = useAppLanguage();
   return language === "en" ? <>{translateTree(children)}</> : <>{children}</>;
 }
+export function LanguageFlag({ lang }: { lang: "ar" | "en" }) {
+  if (lang === "en") {
+    return (
+      <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true" style={{ borderRadius: 3, display: "block", flex: "0 0 auto" }}>
+        <rect width="20" height="14" fill="#ffffff" />
+        {[0, 2.15, 4.31, 6.46, 8.62, 10.77, 12.92].map(y => (
+          <rect key={y} y={y} width="20" height="1.08" fill="#B31942" />
+        ))}
+        <rect width="9.5" height="7.55" fill="#0A3161" />
+        {[1.6, 4.75, 7.9].map(cx => [1.7, 3.8, 5.9].map(cy => (
+          <circle key={cx + "-" + cy} cx={cx} cy={cy} r="0.62" fill="#ffffff" />
+        )))}
+      </svg>
+    );
+  }
+  return (
+    <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true" style={{ borderRadius: 3, display: "block", flex: "0 0 auto" }}>
+      <rect width="20" height="4.67" fill="#CE2B37" />
+      <rect y="4.67" width="20" height="4.67" fill="#ffffff" />
+      <rect y="9.33" width="20" height="4.67" fill="#000000" />
+      <path d="M10 5.1 L10.9 6.6 L13.2 5.9 L11.9 7.6 L12.6 9.4 L10.7 8.5 L10.7 9.9 L9.3 9.9 L9.3 8.5 L7.4 9.4 L8.1 7.6 L6.8 5.9 L9.1 6.6 Z" fill="#C09300" />
+    </svg>
+  );
+}
+
 export function LanguageToggle() {
   const { language, toggleLanguage } = useAppLanguage();
   return <button type="button" onClick={toggleLanguage} aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"} title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"} className="fixed right-4 top-4 z-50 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#10151d] px-3 py-2 text-sm text-white shadow-lg">
-    <span aria-hidden="true">{language === "ar" ? "🇺🇸" : "🇸🇦"}</span><Languages size={16} /><span>{language === "ar" ? "English" : "العربية"}</span>
+    <LanguageFlag lang={language === "ar" ? "en" : "ar"} /><Languages size={16} /><span>{language === "ar" ? "English" : "العربية"}</span>
   </button>;
 }

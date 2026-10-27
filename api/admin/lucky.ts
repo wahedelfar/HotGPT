@@ -16,20 +16,29 @@ export default async function handler(req: any, res: any) {
   const action = String(req.query?.action || ""), id = String(req.query?.id || "");
   try {
     if (action === "list" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,status,proof_path,prize_key,prize_label,prize_code,reward_issued,consolation_awarded,created_at,hotlucky_daily_gifts(prize_code,prize_label,issued_at)&order=created_at.desc&limit=500");
+      const orders = await request("hotlucky_orders?select=id,email,user_id,payment_method,currency,amount_minor,base_tokens,spun_at,status,proof_path,prize_key,prize_label,prize_code,reward_issued,consolation_awarded,created_at,hotlucky_daily_gifts(prize_code,prize_label,issued_at)&order=created_at.desc&limit=500");
       const result = await Promise.all((orders || []).map(async (o: any) => {
         let proof_url: string | null = null;
-        if (o.proof_path) {
+        const paypal_auto = typeof o.proof_path === "string" && o.proof_path.startsWith("paypal:");
+        if (o.proof_path && !paypal_auto) {
           const signed = await fetch(supabaseUrl() + "/storage/v1/object/sign/hotgpt-payment-proofs/" + o.proof_path, { method: "POST", headers: { apikey: serviceKey(), authorization: "Bearer " + serviceKey(), "content-type": "application/json" }, body: JSON.stringify({ expiresIn: 300 }) });
           if (signed.ok) { const body = await signed.json(); proof_url = supabaseUrl() + "/storage/v1" + body.signedURL; }
         }
         const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : null;
-        return { ...o, prize_code: gift?.prize_code || o.prize_code, prize_label: gift?.prize_label || o.prize_label, reward_issued: Boolean(o.reward_issued || gift?.issued_at), proof_url, amount_label: o.currency === "USD" ? "$" + (o.amount_minor / 100) : (o.amount_minor / 100) + " جنيه" };
+        return { ...o, paypal_auto, prize_code: gift?.prize_code || o.prize_code, prize_label: gift?.prize_label || o.prize_label, reward_issued: Boolean(o.reward_issued || gift?.issued_at), proof_url, amount_label: o.currency === "USD" ? "$" + (o.amount_minor / 100) : (o.amount_minor / 100) + " جنيه" };
       }));
       return res.status(200).json({ orders: result });
     }
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "invalid_order_id" });
     if (action === "approve" && req.method === "POST") {
+      const found = await request("hotlucky_orders?id=eq." + id + "&select=id,base_tokens,status");
+      const order = found?.[0];
+      if (!order) return res.status(404).json({ error: "order_not_found" });
+      if (Number(order.base_tokens) === 50) {
+        const rows = await request("hotlucky_orders?id=eq." + id + "&status=eq.pending&select=id,status", { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: admin.email || "admin" }) });
+        if (!rows?.length) return res.status(409).json({ error: "already_processed" });
+        return res.status(200).json({ success: true, order: rows[0] });
+      }
       const result = await request("rpc/hotlucky_approve_order", { method: "POST", body: JSON.stringify({ p_order_id: id, p_admin: admin.email || "admin" }) });
       return res.status(200).json({ success: true, order: result });
     }

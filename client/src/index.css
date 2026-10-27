@@ -1241,3 +1241,40 @@ html[data-theme="blood"] .composer-mode-row > .composer-mode.darkweb-mode.active
 html[data-theme="dark"] .composer-mode-row > .composer-mode.darkweb-mode.active .darkweb-mode-label {
   color: #FBBF24 !important;
 }
+
+/* === Desktop welcome safe-layout fix (2026-10-27) ===
+   Root cause: .messages-scroll centered the welcome with align/justify
+   center. When the welcome block is taller than the visible area (large
+   or scaled desktop monitors), flex centering pushes its top above the
+   scroll origin and that part can never be scrolled into view — the
+   clipped wordmark. The older mobile fix only applied at <=860px, which
+   is why phones were fine while desktops stayed broken.
+   Fix: on desktop, top-anchor the scroll area and center the welcome
+   with auto margins instead — auto margins center when there is spare
+   height and collapse to zero (top-anchored, fully scrollable) when
+   there is not. Short desktop viewports also get a tighter hero/cards
+   budget so the whole welcome fits without scrolling. */
+@media (min-width: 861px) {
+  .messages-scroll:not(.has-messages) {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  .messages-scroll:not(.has-messages) > .welcome-state {
+    margin-block: auto;
+    margin-inline: auto;
+    flex: 0 0 auto;
+  }
+}
+@media (min-width: 861px) and (max-height: 880px) {
+  .messages-scroll:not(.has-messages) { padding-top: 22px; padding-bottom: 22px; }
+  .brand-welcome-orbit { margin-bottom: 12px; }
+  .hotgpt-welcome h1 { font-size: 44px; }
+  .hotgpt-welcome .welcome-copy { margin: 10px auto 24px; font-size: 16px; }
+  .hotgpt-starter-card { min-height: 128px; padding: 16px; }
+}
+@media (min-width: 861px) and (max-height: 700px) {
+  .brand-welcome-orbit, .brand-welcome-orbit .brand-mark, .brand-welcome-orbit .brand-logo-img { width: 56px !important; height: 56px !important; min-width: 56px; min-height: 56px; }
+  .hotgpt-welcome h1 { font-size: 38px; }
+  .hotgpt-welcome .welcome-copy { margin-bottom: 18px; }
+  .hotgpt-starter-card { min-height: 110px; padding: 13px; gap: 9px; }
+}
