@@ -1613,7 +1613,7 @@ export default function Home() {
     setRequestError(null);
     setImageMode(false);
     if (feature === "search") setWebSearchEnabled(value => !value);
-    else setDarkWebEnabled(value => !value);
+    else { setDarkWebEnabled(value => !value); setDarkLive(false); }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1974,17 +1974,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } setRequestError(null); setScanMode(true); setImageMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
-                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLive(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
                     <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>
                   </button>
-                  <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
-                    <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
-                  </button>
-                  {darkWebEnabled && (
-                    <button type="button" className={darkLive ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLive) { setDarkLive(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } setRequestError(null); setDarkLive(true); }} aria-pressed={darkLive} title={tr(language, "بحث حي في فهارس الدارك ويب — يُخصم 5 توكن فقط عند توفر نتائج حقيقية", "Live dark-web index search — 5 tokens, charged only when real results are found")} style={darkLive ? { color: "#FBBF24", borderColor: "#FBBF24", background: "rgba(251,191,36,.12)" } : { color: "#FBBF24" }}>
-                      <Radio size={16} /><span>{tr(language, "حي", "Live")}</span>
-                    </button>
-                  )}
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
                     setImageMode(false); setScanMode(false);
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
@@ -1993,6 +1985,14 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setRequestError(null); setSelectedModel("dadgpt-beast");
                   }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "الوحش PRO", "الوحش PRO")}>
                     <span>{tr(language, "الوحش", "Beast")}</span><span>PRO</span>
+                  </button>
+                </div>
+                <div className="composer-mode-row" role="group" aria-label={tr(language, "خدمات الدارك ويب", "Dark web services")} style={{ marginTop: 6 }}>
+                  <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
+                    <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
+                  </button>
+                  <button type="button" className={darkLive ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLive) { setDarkLive(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setDarkWebEnabled(true); setDarkLive(true); }} aria-pressed={darkLive} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLive ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
+                    <Radio size={16} /><span>{tr(language, "دارك لايف", "Dark Live")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
               </div>

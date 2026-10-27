@@ -357,6 +357,15 @@ export async function runUrlScan(rawInput: string): Promise<UrlScan> {
   const probeResults = await Promise.all(SENSITIVE_PROBES.map((p) => probePath(finalOrigin, p.path)));
   const robots = await probePath(finalOrigin, "/robots.txt");
   const securityTxt = await probePath(finalOrigin, "/.well-known/security.txt");
+  // SPA catch-all detection: single-page apps (Vercel/Netlify rewrites)
+  // answer EVERY path — including nonsense ones — with 200 + the app
+  // shell, which would make every probe look "accessible". A canary
+  // path that cannot exist exposes the fallback: any probe whose body
+  // is byte-identical to the canary's body IS the shell, not a file.
+  const canary = await probePath(finalOrigin, "/hotgpt-probe-8f4d2c-nonexistent");
+  const fallbackBody = canary.status === 200 && canary.body ? canary.body : null;
+  const robotsStatus = fallbackBody && robots.body === fallbackBody ? 404 : robots.status;
+  const securityStatus = fallbackBody && securityTxt.body === fallbackBody ? 404 : securityTxt.status;
 
   const headers = main.headers;
   const body = main.body || "";
@@ -411,6 +420,7 @@ export async function runUrlScan(rawInput: string): Promise<UrlScan> {
     if (result.status !== 200) return;
     const probe = SENSITIVE_PROBES[index];
     const verified = probe.verify ? probe.verify(result.body) : false;
+    if (!verified && fallbackBody !== null && result.body === fallbackBody) return; // SPA shell, not a real file
     if (verified) {
       verifiedExposures++;
       flags.push({ severity: "critical", title: `ملف حساس مكشوف فعليًا: ${result.path}`, evidence: `HTTP 200 ومحتوى مؤكد — بداية المحتوى: ${result.body.slice(0, 90).replace(/\s+/g, " ")}` });
@@ -458,9 +468,10 @@ export async function runUrlScan(rawInput: string): Promise<UrlScan> {
     dns: { a: aRecords.status === "fulfilled" ? aRecords.value.slice(0, 6) : [], mx: mxRecords.status === "fulfilled" ? mxRecords.value.slice(0, 6) : [], spf: spf || null, dmarc: dmarcRecord || null },
     rdap: rdap.status === "fulfilled" ? rdap.value : null,
     wayback: wayback.status === "fulfilled" ? wayback.value : null,
-    robotsTxt: robots.status === 200 ? "present" : robots.status === 404 ? "missing" : `status ${robots.status}`,
-    securityTxt: securityTxt.status === 200 ? "present" : "missing",
+    robotsTxt: robotsStatus === 200 ? "present" : robotsStatus === 404 ? "missing" : `status ${robotsStatus}`,
+    securityTxt: securityStatus === 200 ? "present" : "missing",
     probesChecked: SENSITIVE_PROBES.length,
+    scannedAt: new Date().toISOString(),
   };
 
   return { target, host, reachable: true, score, grade, flags, passed, details };
@@ -474,7 +485,12 @@ function dead(target: string, fatal: string): UrlScan {
 // fact collected above — the model narrates, it does not discover.
 export function scanFindingsText(scan: UrlScan): string {
   const d = scan.details as any;
+  let scanWhen = "";
+  try {
+    scanWhen = new Intl.DateTimeFormat("ar-EG", { timeZone: "Africa/Cairo", dateStyle: "full", timeStyle: "short" }).format(d.scannedAt ? new Date(d.scannedAt) : new Date());
+  } catch { scanWhen = d.scannedAt || ""; }
   const lines: string[] = [
+    `تاريخ ووقت الفحص: ${scanWhen} (توقيت القاهرة)`,
     `الهدف: ${scan.target}`,
     `الرابط النهائي بعد التحويلات: ${d.finalUrl} (HTTP ${d.httpStatus})`,
     `سلسلة التحويل: ${(d.redirectChain || []).map((hop: any) => `${hop.status}`).join(" ← ") || "بدون تحويل"}`,
@@ -490,11 +506,11 @@ export function scanFindingsText(scan: UrlScan): string {
     "",
     "== بيانات خام داعمة ==",
     `الخادم: ${d.server || "غير معلن"} · X-Powered-By: ${d.poweredBy || "غير معلن"} · WordPress: ${d.wordpress || "غير مكتشف"}`,
-    d.tls ? `شهادة TLS: المُصدر ${d.tls.issuer} · البروتوكول ${d.tls.protocol || "?"} · صالحة من ${d.tls.validFrom} إلى ${d.tls.validTo} (متبقي ${d.tls.daysLeft} يوم) · سلسلة الثقة سليمة: ${d.tls.authorized ? "نعم" : "لا"}` : "شهادة TLS: لا بيانات (الموقع قد لا يدعم HTTPS)",
+    d.tls ? `شهادة TLS: المُصدر ${d.tls.issuer} · البروتوكول ${d.tls.protocol || "?"} · صالحة من ${d.tls.validFrom} إلى ${d.tls.validTo} (متبقي ${d.tls.daysLeft} يوم) · سلسلة الثقة سليمة: ${d.tls.authorized ? "نعم" : "لا"} · تواريخ الشهادة كما هي مسجلة بتوقيت UTC` : "شهادة TLS: لا بيانات (الموقع قد لا يدعم HTTPS)",
     `النطاقات الفرعية من سجلات الشهادات (${(d.subdomains || []).length}): ${(d.subdomains || []).slice(0, 30).join("، ") || "لا شيء"}`,
     `DNS: A=${(d.dns?.a || []).join("، ") || "—"} · MX=${(d.dns?.mx || []).join("، ") || "—"}`,
     `أمان الإيميل: SPF=${d.dns?.spf ? "موجود" : "غائب"} · DMARC=${d.dns?.dmarc || "غائب"}`,
-    d.rdap ? `تسجيل الدومين: ${d.rdap.created || "غير معروف"} · المسجّل: ${d.rdap.registrar || "غير معروف"}` : "تسجيل الدومين: غير متاح",
+    d.rdap ? `تسجيل الدومين: ${d.rdap.created || "غير معروف"} (التاريخ كما هو مسجل بتوقيت UTC) · المسجّل: ${d.rdap.registrar || "غير معروف"}` : "تسجيل الدومين: غير متاح",
     d.wayback ? `أرشيف الإنترنت: أول لقطة ${d.wayback.earliest || "—"} · أحدث لقطة ${d.wayback.latest || "—"}` : "أرشيف الإنترنت: لا لقطات",
     `robots.txt: ${d.robotsTxt} · security.txt: ${d.securityTxt} · عدد المسارات الحساسة المفحوصة: ${d.probesChecked}`,
     `كوكيز مضبوطة في الرد: ${d.cookiesCount} · عناصر محتوى مختلط: ${d.mixedContentCount}`,
