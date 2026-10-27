@@ -27,16 +27,18 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [success, setSuccess] = useState(false);
+  const [emailConfirmationRequired, setEmailConfirmationRequired] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    setBusy(true); setNotice(""); setSuccess(false);
+    setBusy(true); setNotice(""); setSuccess(false); setEmailConfirmationRequired(false);
     try {
       if (mode === "signup") {
         const result = await signUp(email, password, name);
         if (result.confirmationRequired) {
           setSuccess(true);
-          setNotice("تم إنشاء الحساب. إذا طلب Supabase تأكيد البريد، افتح رسالة التأكيد؛ سيُستعاد تسجيل الدخول تلقائيًا عند الرجوع إلى الموقع.");
+          setNotice("تم إنشاء حسابك! 🎉 أرسلنا رابط تأكيد إلى بريدك الإلكتروني — افتح الرسالة واضغط الرابط لتفعيل حسابك والدخول مباشرة.");
           return;
         }
       } else {
@@ -45,9 +47,43 @@ export default function AuthPage() {
       try { sessionStorage.setItem("hotgpt-welcome-pending", "1"); } catch {}
       window.location.replace("/");
     } catch (error) {
-      setNotice(messageFor(error));
+      const errorCode = error instanceof Error ? error.message : String(error ?? "");
+      if (mode === "login" && /email not confirmed|email_not_confirmed/i.test(errorCode)) {
+        setEmailConfirmationRequired(true);
+        setNotice("حسابك لسه مش مفعّل — فعّل حسابك من رسالة التأكيد اللي وصلتك على بريدك الإلكتروني، وبعدها سجّل دخولك عادي.");
+      } else {
+        setNotice(messageFor(error));
+      }
     } finally {
       setBusy(false);
+    }
+  }
+
+
+  async function resendConfirmation() {
+    setResendingConfirmation(true);
+    try {
+      const config = window.__MANUS_CONFIG__;
+      const url = (config?.supabaseUrl || "").replace(/\\/+$/, "");
+      const key = config?.supabaseAnonKey || "";
+      if (!url || !key) throw new Error("supabase_public_config_missing");
+      const response = await fetch(`${url}/auth/v1/resend`, {
+        method: "POST",
+        headers: { apikey: key, "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "signup", email: email.trim().toLowerCase() }),
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(String(payload.msg || payload.message || payload.error_description || payload.error || "auth_request_failed"));
+      }
+      setSuccess(true);
+      setNotice("تم إرسال رسالة تأكيد جديدة — راجع بريدك الإلكتروني.");
+    } catch {
+      setSuccess(false);
+      setNotice("تعذر إعادة إرسال رسالة التأكيد. حاول مرة أخرى.");
+    } finally {
+      setResendingConfirmation(false);
     }
   }
 
@@ -70,8 +106,9 @@ export default function AuthPage() {
           <span className="relative mt-2 block"><LockKeyhole className="absolute right-3 top-3.5 text-slate-500" size={17} /><input type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={8} value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pr-10 pl-11 outline-none focus:border-cyan-300" placeholder="8 أحرف على الأقل" /><button type="button" onClick={() => setShowPassword(v => !v)} className="absolute left-3 top-3.5 text-slate-500" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>
         </label>
         {notice && <p role="status" className={`mt-4 rounded-xl border p-3 text-sm leading-6 ${success ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" : "border-red-400/20 bg-red-400/10 text-red-200"}`}>{notice}</p>}
+        {emailConfirmationRequired && <button type="button" onClick={resendConfirmation} disabled={resendingConfirmation} className="mt-3 w-full text-sm font-semibold text-cyan-300 hover:text-cyan-200 disabled:opacity-50">{resendingConfirmation ? "جارٍ إرسال رسالة التأكيد..." : "إعادة إرسال رسالة التأكيد"}</button>}
         <Button type="submit" disabled={busy} className="mt-6 w-full">{busy ? "جارٍ التنفيذ..." : mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}</Button>
-        <p className="mt-5 text-center text-sm text-slate-400">{mode === "login" ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setNotice(""); setSuccess(false); }} className="font-semibold text-cyan-300 hover:text-cyan-200">{mode === "login" ? "إنشاء حساب جديد" : "تسجيل الدخول"}</button></p>
+        <p className="mt-5 text-center text-sm text-slate-400">{mode === "login" ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setNotice(""); setSuccess(false); setEmailConfirmationRequired(false); }} className="font-semibold text-cyan-300 hover:text-cyan-200">{mode === "login" ? "إنشاء حساب جديد" : "تسجيل الدخول"}</button></p>
       </form>
     </div>
   </main></LocalizedText>;
