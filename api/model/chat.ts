@@ -80,14 +80,14 @@ const MODE_PROMPTS: Record<ChatMode, string> = {
 
 const SEARCH_PROMPT = "Search augmentation: live web results are attached to this conversation. Answer from those results first: synthesize them into a direct answer in the user's language, cite the sources you actually used inline, prefer primary and recent sources over summaries of summaries, and when sources conflict say so and give the better-supported version. If the results are thin or off-target, say in one line what was missing and answer from your knowledge with that caveat. Structure: the answer itself first, then the key supporting points, then the source list — never dump raw results or links without synthesis. Formatting rule: in Arabic answers never use markdown tables (they break on mobile RTL layouts) — present comparisons, positions, and timelines as labeled lists instead.";
 
-const SCAN_REPORT_PROMPT = "SCAN REPORT MODE — a paid professional deliverable. The user paid for a real security scan report of one website, and the server attached REAL collected evidence (headers, TLS certificate, DNS and email-security records, exposed-file probes, certificate-transparency subdomains, domain registration, archive history) plus a risk score and grade computed by the server. Write the complete report in the user's language (Arabic by default), based ONLY on that evidence. Rules: never invent findings, ports, pages, technologies or values that are not in the evidence; state the server-computed score and grade EXACTLY as given and never recompute or soften them; every finding must quote its evidence value. The evidence begins with the exact scan date and time (Africa/Cairo) — use it as the report's date; registration and certificate dates in the evidence are UTC records — quote them as recorded, never as the report date. Structure, in this order: (1) a title line naming the target and the scan date from the evidence; (2) «الخلاصة التنفيذية» — 3 to 4 lines a non-technical owner understands; (3) «درجة الأمان» — the exact score/grade plus one line on what the grade means; (4) «النتائج» — one block per finding, ordered critical first, formatted as: severity + title, then «الدليل» (the evidence), then «الأثر» (what an attacker can actually do with it), then «الإصلاح» (exact fix steps); (5) «نقاط سليمة» — the passed checks from the evidence; (6) «ما لم يتم اختباره» — state plainly and without apology: no port scanning, no login or authentication testing, no active exploitation, no load testing, and nothing behind authentication — this was an external, non-intrusive scan; (7) «الخطوات التالية» — a prioritized action checklist, most urgent first. In Arabic use per-finding blocks; a compact table is acceptable for «نقاط سليمة» only. Formatting rules: any code, commands, header values or file contents you show as examples go ONLY inside fenced code blocks (```), never inlined inside an Arabic sentence; never state a number, port, date or value that is not in the evidence. No marketing lines and no offer to continue; end with the checklist.";
+const SCAN_REPORT_PROMPT = "SCAN REPORT MODE — a paid professional deliverable. The user paid for a real security scan report of one website, and the server attached REAL collected evidence (headers, TLS certificate, DNS and email-security records, exposed-file probes, certificate-transparency subdomains, domain registration, archive history) plus a risk score and grade computed by the server. Write the complete report in the user's language (Arabic by default), based ONLY on that evidence. Rules: never invent findings, ports, pages, technologies or values that are not in the evidence; state the server-computed score and grade EXACTLY as given and never recompute or soften them; every finding must quote its evidence value. The evidence begins with the exact scan date and time (Africa/Cairo) — use it as the report's date; registration and certificate dates in the evidence are UTC records — quote them as recorded, never as the report date. Structure, in this order: (1) a title line naming the target and the scan date from the evidence; (2) «الخلاصة التنفيذية» — 3 to 4 lines a non-technical owner understands; (3) «درجة الأمان» — the exact score/grade plus one line on what the grade means; (4) «النتائج» — one block per finding, ordered critical first, formatted as: severity + title, then «الدليل» (the evidence), then «الأثر» (what an attacker can actually do with it), then «الإصلاح» (exact fix steps); (5) «نقاط سليمة» — the passed checks from the evidence; (6) «ما لم يتم اختباره» — state plainly and without apology: no port scanning, no login or authentication testing, no active exploitation, no load testing, and nothing behind authentication — this was an external, non-intrusive scan; (7) «الخطوات التالية» — a prioritized action checklist, most urgent first. In Arabic use per-finding blocks; a compact table is acceptable for «نقاط سليمة» only. Formatting rules: any code, commands, header values or file contents you show as examples go ONLY inside fenced code blocks (```), never inlined inside an Arabic sentence; never state a number, port, date or value that is not in the evidence. No marketing lines and no offer to continue; end with the checklist. Length discipline: keep the executive summary to at most 4 short lines, each finding block tight (evidence, impact and fix in a few lines each), «نقاط سليمة» as the compact table only with no prose around its rows, and the whole report within about 1,300 words — a complete report that ends with «الخطوات التالية» is worth more than a longer one that stops mid-section.";
 
 // Premium URL scan (user decision, 2026-10-27): a flat 20-token,
 // pay-per-report service. The scan is locked unless the balance covers
 // the full price, the 20 are consumed by ONE report, and a failed scan
 // or a failed report generation refunds in full — the report must be
 // worth its price (real evidence, server-computed score, exact fixes).
-const SEO_REPORT_PROMPT = "SEO AUDIT MODE — a paid professional deliverable. The user paid for a real SEO audit report of one website, and the server attached REAL collected evidence (page title and meta description with lengths, canonical, robots meta, viewport, language, Open Graph and Twitter tags, favicon, H1/H2/H3 structure, image alt coverage, internal/external link counts, structured-data types, visible word count, robots.txt, sitemap presence and URL count, server response time, HTML size, compression) plus an SEO score and grade computed by the server. Write the complete report in the user's language (Arabic by default), based ONLY on that evidence. Rules: never invent keyword search volumes, backlink counts, domain authority, rankings, traffic numbers, competitor data or values that are not in the evidence; state the server-computed score and grade EXACTLY as given and never recompute or soften them; every finding must quote its evidence value. The evidence begins with the exact audit date and time (Africa/Cairo) — use it as the report's date. Structure, in this order: (1) a title line naming the target and the audit date from the evidence; (2) «الخلاصة التنفيذية» — 3 to 4 lines a non-technical site owner understands: where the site stands and the single biggest opportunity; (3) «درجة SEO» — the exact score/grade plus one line on what the grade means; (4) «المشاكل والإصلاحات» — one block per finding, ordered critical first, formatted as: severity + title, then «الدليل» (the evidence), then «الأثر» (what it costs the site in search visibility, in plain terms), then «الإصلاح» (exact, concrete fix steps a developer or site owner can apply — include example values derived from the site's OWN evidence, such as a rewritten title or description built from its real H1/title, never generic filler); (5) «نقاط قوة» — the passed checks from the evidence; (6) «خطة نمو عملية» — a respectable, white-hat action plan in three horizons: «مكاسب سريعة (أسبوع)» quick wins from the findings, «تحسينات متوسطة (شهر)» content and internal-linking work grounded in the audited page's real topic and structure, and «نمو طويل الأجل (3 شهور)» content strategy, structured data expansion and authority building through genuinely useful content and legitimate outreach. Advice must be respectable and sustainable ONLY: never recommend buying links, keyword stuffing, cloaking, doorway pages, fake reviews, PBNs or any black-hat tactic; (7) «ما لم يتم فحصه» — state plainly and without apology: keyword search volumes and difficulty, backlink profile, actual Google rankings and traffic, competitor sites, Core Web Vitals field data, and every page beyond the homepage were NOT measured in this audit (they need paid data sources and deeper crawling) — never present guesses about them as findings; (8) «قائمة التنفيذ بالأولوية» — a final prioritized checklist, most impactful first. In Arabic use per-finding blocks and labeled lists; a compact two-column table (العنصر/الدليل) is welcome for «نقاط قوة» only. Formatting rules: any code, HTML tags or example values longer than a few words go ONLY inside fenced code blocks (```), never inlined inside an Arabic sentence; never state a number, duration, percentage or measurement that does not appear in the evidence — inventing a figure (for example a millisecond value) is a serious report defect. No marketing lines and no offer to continue; end with the checklist.";
+const SEO_REPORT_PROMPT = "SEO AUDIT MODE — a paid professional deliverable. The user paid for a real SEO audit report of one website, and the server attached REAL collected evidence (page title and meta description with lengths, canonical, robots meta, viewport, language, Open Graph and Twitter tags, favicon, H1/H2/H3 structure, image alt coverage, internal/external link counts, structured-data types, visible word count, robots.txt, sitemap presence and URL count, server response time, HTML size, compression) plus an SEO score and grade computed by the server. Write the complete report in the user's language (Arabic by default), based ONLY on that evidence. Rules: never invent keyword search volumes, backlink counts, domain authority, rankings, traffic numbers, competitor data or values that are not in the evidence; state the server-computed score and grade EXACTLY as given and never recompute or soften them; every finding must quote its evidence value. The evidence begins with the exact audit date and time (Africa/Cairo) — use it as the report's date. Structure, in this order: (1) a title line naming the target and the audit date from the evidence; (2) «الخلاصة التنفيذية» — 3 to 4 lines a non-technical site owner understands: where the site stands and the single biggest opportunity; (3) «درجة SEO» — the exact score/grade plus one line on what the grade means; (4) «المشاكل والإصلاحات» — one block per finding, ordered critical first, formatted as: severity + title, then «الدليل» (the evidence), then «الأثر» (what it costs the site in search visibility, in plain terms), then «الإصلاح» (exact, concrete fix steps a developer or site owner can apply — include example values derived from the site's OWN evidence, such as a rewritten title or description built from its real H1/title, never generic filler); (5) «نقاط قوة» — the passed checks from the evidence; (6) «خطة نمو عملية» — a respectable, white-hat action plan in three horizons: «مكاسب سريعة (أسبوع)» quick wins from the findings, «تحسينات متوسطة (شهر)» content and internal-linking work grounded in the audited page's real topic and structure, and «نمو طويل الأجل (3 شهور)» content strategy, structured data expansion and authority building through genuinely useful content and legitimate outreach. Advice must be respectable and sustainable ONLY: never recommend buying links, keyword stuffing, cloaking, doorway pages, fake reviews, PBNs or any black-hat tactic; (7) «ما لم يتم فحصه» — state plainly and without apology: keyword search volumes and difficulty, backlink profile, actual Google rankings and traffic, competitor sites, Core Web Vitals field data, and every page beyond the homepage were NOT measured in this audit (they need paid data sources and deeper crawling) — never present guesses about them as findings; (8) «قائمة التنفيذ بالأولوية» — a final prioritized checklist, most impactful first. In Arabic use per-finding blocks and labeled lists; a compact two-column table (العنصر/الدليل) is welcome for «نقاط قوة» only. Formatting rules: any code, HTML tags or example values longer than a few words go ONLY inside fenced code blocks (```), never inlined inside an Arabic sentence; never state a number, duration, percentage or measurement that does not appear in the evidence — inventing a figure (for example a millisecond value) is a serious report defect. No marketing lines and no offer to continue; end with the checklist. Length discipline: keep the executive summary to at most 4 short lines, every growth-plan item to a single line, «نقاط قوة» as the compact table only with no prose around its rows, and the whole report within about 1,300 words — a complete report that ends with «قائمة التنفيذ بالأولوية» is worth more than a longer one that stops mid-section.";
 
 const SCAN_COST = 20;
 // Premium SEO audit (user decision, 2026-10-27): the security scan's
@@ -356,40 +356,46 @@ async function handleUrlScan(req: any, res: any, body: any) {
       (process.env.OPENROUTER_SCAN_MODEL || "moonshotai/kimi-k2-0905").trim(),
       (process.env.OPENROUTER_SCAN_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
     ];
-    // The write-up is STREAMED and accumulated server-side (the client
-    // still gets one JSON at the end). The first field build waited for
-    // the whole non-streamed completion with 26s/18s caps — far too
-    // small for a multi-thousand-token report, so both models aborted
-    // mid-writing and every scan failed at the writing stage
-    // (field report, 2026-10-27). Streaming starts in seconds, and a
-    // stream cut off late is salvaged when it already carries a
-    // substantial report head (score + summary + top findings lead the
-    // structure) instead of failing the whole paid scan.
+    // A paid report must arrive COMPLETE or not at all. If a writing
+    // pass ends before the closing section (output cap, early stop or
+    // an aborted stream), the server asks the same model to continue
+    // from the exact cut point and appends the continuation — up to 3
+    // passes inside the existing deadline. A report counts as complete
+    // ONLY when it contains the closing checklist section; otherwise
+    // the handler fails and the charge is refunded in full. (Field
+    // incident, 2026-10-28: an SEO report ended mid-word inside the
+    // growth plan and was saved and charged as a success, because the
+    // old accumulation never checked completeness and accepted any
+    // 300+ characters the stream produced.)
+    const REPORT_CLOSING = "الخطوات التالية";
+    const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
     let report = "";
     const reportDeadline = Date.now() + 50000;
     for (const [index, model] of models.entries()) {
-      const budget = Math.min(index === 0 ? 40000 : 25000, reportDeadline - Date.now());
-      if (budget < 8000) break;
+      if (report) break;
       let collected = "";
-      let streamCompleted = false;
-      try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: system },
-              { role: "user", content: userContent },
-            ],
-            max_tokens: 4500,
-            temperature: 0.3,
-            stream: true,
-            ...(index === 0 ? { reasoning: { effort: "low" } } : {}),
-          }),
-          signal: AbortSignal.timeout(budget),
-        });
-        if (response.ok && response.body) {
+      let passMessages: any[] = [
+        { role: "system", content: system },
+        { role: "user", content: userContent },
+      ];
+      for (let pass = 0; pass < 3; pass++) {
+        const budget = Math.min(pass === 0 ? (index === 0 ? 40000 : 25000) : 20000, reportDeadline - Date.now());
+        if (budget < 8000) break;
+        try {
+          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+            body: JSON.stringify({
+              model,
+              messages: passMessages,
+              max_tokens: pass === 0 ? 6000 : 3000,
+              temperature: 0.3,
+              stream: true,
+              ...(index === 0 && pass === 0 ? { reasoning: { effort: "low" } } : {}),
+            }),
+            signal: AbortSignal.timeout(budget),
+          });
+          if (!response.ok || !response.body) break;
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
@@ -411,12 +417,17 @@ async function handleUrlScan(req: any, res: any, body: any) {
               } catch { /* partial SSE line — keep accumulating */ }
             }
           }
-          streamCompleted = true;
-        }
-      } catch { /* aborted or network error — salvage whatever streamed in */ }
-      const text = collected.trim();
-      if (streamCompleted && text.length >= 300) { report = text; break; }
-      if (!streamCompleted && text.length >= 1500) { report = text; break; }
+        } catch { /* aborted or network error — completeness is judged below */ }
+        const text = collected.trim();
+        if (text.length >= 300 && collected.includes(REPORT_CLOSING)) { report = text; break; }
+        if (text.length < 300) break; // nothing usable from this model — fall through to the backup model
+        passMessages = [
+          { role: "system", content: system },
+          { role: "user", content: userContent },
+          { role: "assistant", content: collected },
+          { role: "user", content: REPORT_CONTINUE },
+        ];
+      }
     }
     if (!report) throw new Error("scan_report_failed");
     await saveMessage(user.id, conversationId, "user", `🔍 فحص أمني للرابط: ${scan.target}`);
@@ -467,34 +478,46 @@ async function handleSeoAudit(req: any, res: any, body: any) {
       (process.env.OPENROUTER_SEO_MODEL || "moonshotai/kimi-k2-0905").trim(),
       (process.env.OPENROUTER_SEO_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
     ];
-    // Streamed server-side accumulation with salvage, exactly like the
-    // scan writer: a full SEO report with a growth plan is a
-    // multi-thousand-token write-up and must not die on a flat cap.
+    // A paid report must arrive COMPLETE or not at all. If a writing
+    // pass ends before the closing section (output cap, early stop or
+    // an aborted stream), the server asks the same model to continue
+    // from the exact cut point and appends the continuation — up to 3
+    // passes inside the existing deadline. A report counts as complete
+    // ONLY when it contains the closing checklist section; otherwise
+    // the handler fails and the charge is refunded in full. (Field
+    // incident, 2026-10-28: an SEO report ended mid-word inside the
+    // growth plan and was saved and charged as a success, because the
+    // old accumulation never checked completeness and accepted any
+    // 300+ characters the stream produced.)
+    const REPORT_CLOSING = "قائمة التنفيذ";
+    const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «قائمة التنفيذ بالأولوية» واختتم به.";
     let report = "";
     const reportDeadline = Date.now() + 50000;
     for (const [index, model] of models.entries()) {
-      const budget = Math.min(index === 0 ? 40000 : 25000, reportDeadline - Date.now());
-      if (budget < 8000) break;
+      if (report) break;
       let collected = "";
-      let streamCompleted = false;
-      try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: system },
-              { role: "user", content: userContent },
-            ],
-            max_tokens: 4500,
-            temperature: 0.3,
-            stream: true,
-            ...(index === 0 ? { reasoning: { effort: "low" } } : {}),
-          }),
-          signal: AbortSignal.timeout(budget),
-        });
-        if (response.ok && response.body) {
+      let passMessages: any[] = [
+        { role: "system", content: system },
+        { role: "user", content: userContent },
+      ];
+      for (let pass = 0; pass < 3; pass++) {
+        const budget = Math.min(pass === 0 ? (index === 0 ? 40000 : 25000) : 20000, reportDeadline - Date.now());
+        if (budget < 8000) break;
+        try {
+          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+            body: JSON.stringify({
+              model,
+              messages: passMessages,
+              max_tokens: pass === 0 ? 6000 : 3000,
+              temperature: 0.3,
+              stream: true,
+              ...(index === 0 && pass === 0 ? { reasoning: { effort: "low" } } : {}),
+            }),
+            signal: AbortSignal.timeout(budget),
+          });
+          if (!response.ok || !response.body) break;
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
@@ -516,12 +539,17 @@ async function handleSeoAudit(req: any, res: any, body: any) {
               } catch { /* partial SSE line — keep accumulating */ }
             }
           }
-          streamCompleted = true;
-        }
-      } catch { /* aborted or network error — salvage whatever streamed in */ }
-      const text = collected.trim();
-      if (streamCompleted && text.length >= 300) { report = text; break; }
-      if (!streamCompleted && text.length >= 1500) { report = text; break; }
+        } catch { /* aborted or network error — completeness is judged below */ }
+        const text = collected.trim();
+        if (text.length >= 300 && collected.includes(REPORT_CLOSING)) { report = text; break; }
+        if (text.length < 300) break; // nothing usable from this model — fall through to the backup model
+        passMessages = [
+          { role: "system", content: system },
+          { role: "user", content: userContent },
+          { role: "assistant", content: collected },
+          { role: "user", content: REPORT_CONTINUE },
+        ];
+      }
     }
     if (!report) throw new Error("seo_report_failed");
     await saveMessage(user.id, conversationId, "user", `📈 فحص SEO للرابط: ${audit.target}`);

@@ -291,3 +291,99 @@ export async function creditPurchasedTokens(userId: string, tokens: number, audi
   }
   return Array.isArray(updated) && updated[0] ? Number(updated[0].token_balance) : newBalance;
 }
+
+// --- PayPal webhook support (added with the paypal-webhook action in
+// api/billing.ts): event audit store, purchase matching and the token
+// clawback used when PayPal refunds or reverses a capture. All access
+// goes through the service-role REST adapter above.
+
+export async function recordPaypalWebhookEvent(input: {
+  eventId: string; eventType: string; resourceId: string | null; payload: unknown;
+}): Promise<boolean> {
+  // Insert-first idempotency: the unique event_id plus ignore-duplicates
+  // makes PayPal's at-least-once redeliveries return an empty array here.
+  const rows = await rest("paypal_webhook_events", {
+    method: "POST",
+    headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify({
+      event_id: input.eventId, event_type: input.eventType,
+      resource_id: input.resourceId, payload: input.payload,
+    }),
+  });
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+export async function updatePaypalWebhookEvent(eventId: string, patch: {
+  matchedUserId?: string | null; tokensDeducted?: number; note?: string;
+}) {
+  await rest(`paypal_webhook_events?event_id=eq.${encodeURIComponent(eventId)}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({
+      matched_user_id: patch.matchedUserId ?? null,
+      tokens_deducted: patch.tokensDeducted ?? 0,
+      note: patch.note ?? null,
+    }),
+  });
+}
+
+export async function findProcessedClawback(resourceId: string) {
+  const rows = await rest(`paypal_webhook_events?resource_id=eq.${encodeURIComponent(resourceId)}&tokens_deducted=gt.0&select=event_id,tokens_deducted&limit=1`);
+  return rows?.[0] || null;
+}
+
+export async function findPaypalPackPurchase(captureId: string) {
+  // Billing-pack purchases are audited in payment_requests by
+  // creditPurchasedTokens with transfer_reference "paypal:<captureId>:$<usd>".
+  const rows = await rest(`payment_requests?payment_method=eq.paypal&transfer_reference=like.${encodeURIComponent(`paypal:${captureId}:*`)}&select=id,user_id,package_tokens,transfer_reference&limit=1`);
+  const row = rows?.[0];
+  if (!row) return null;
+  const usd = Number(String(row.transfer_reference).split(":$")[1]);
+  return {
+    id: String(row.id), userId: String(row.user_id),
+    packageTokens: Number(row.package_tokens),
+    amountUsd: Number.isFinite(usd) ? usd : 0,
+  };
+}
+
+export async function clawbackTokens(userId: string, maxTokens: number): Promise<{ deducted: number; balance: number }> {
+  // Guarded debit in the house pattern: read, then PATCH only if the
+  // balance is still the value we read; retry a couple of times on a
+  // race. Never drives the balance negative — a buyer who already spent
+  // the tokens loses what is left, and the shortfall stays visible in
+  // the webhook event note for the admin.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const rows = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=token_balance&limit=1`);
+    if (!rows?.[0]) throw new Error("wallet_not_found");
+    const balance = Number(rows[0].token_balance);
+    const want = Math.min(balance, Math.max(0, Math.floor(maxTokens)));
+    if (want <= 0) return { deducted: 0, balance };
+    const updated = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&token_balance=eq.${balance}`, {
+      method: "PATCH", headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ token_balance: balance - want, updated_at: new Date().toISOString() }),
+    });
+    if (Array.isArray(updated) && updated.length > 0) {
+      return { deducted: want, balance: Number(updated[0].token_balance) };
+    }
+  }
+  throw new Error("clawback_race");
+}
+
+export async function findLuckySpinsByPaypalOrder(orderId: string) {
+  // HotLucky PayPal bundles store one row per spin with
+  // proof_path "paypal:<orderId>"; a completed spin carries
+  // prize_key "t<tokens>" and a spun_at timestamp.
+  const rows = await rest(`hotlucky_orders?proof_path=eq.${encodeURIComponent(`paypal:${orderId}`)}&select=id,user_id,prize_key,spun_at,status&limit=50`);
+  return (rows || []).map((row: any) => ({
+    id: String(row.id), userId: String(row.user_id),
+    prizeTokens: typeof row.prize_key === "string" && /^t\d+$/.test(row.prize_key) ? Number(row.prize_key.slice(1)) : 0,
+    spun: !!row.spun_at, status: String(row.status || ""),
+  }));
+}
+
+export async function voidLuckySpin(spinId: string) {
+  // Guarded: only a still-unspun, still-approved spin can be voided.
+  await rest(`hotlucky_orders?id=eq.${encodeURIComponent(spinId)}&status=eq.approved&spun_at=is.null`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ status: "voided" }),
+  });
+}

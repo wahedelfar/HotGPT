@@ -51,9 +51,172 @@ function paypalError(res: any, error: unknown) {
   return res.status(502).json({ error: "paypal_unavailable" });
 }
 
+
+// --- PayPal webhook (action "paypal-webhook"): PayPal POSTs capture
+// refunds, reversals and dispute events to this function's URL
+// (https://hotgpt.pro/api/billing?action=paypal-webhook). No member
+// session exists on these calls — authenticity comes from PayPal's
+// verify-webhook-signature API, checked before anything is stored or
+// processed. Purpose (Wahid, 2026-10-28): foreign buyers can dispute
+// or charge back AFTER receiving tokens; the webhook claws the tokens
+// back automatically and keeps a full audit trail in
+// paypal_webhook_events. Requires PAYPAL_WEBHOOK_ID in the environment
+// and the paypal_webhook_events table (rollout SQL).
+function paypalHeader(req: any, name: string) {
+  const value = req.headers?.[name];
+  return typeof value === "string" ? value : "";
+}
+function extractCaptureId(event: any): string {
+  const resource = event?.resource || {};
+  const related = resource?.supplementary_data?.related_ids || {};
+  if (typeof related.capture_id === "string" && related.capture_id) return related.capture_id;
+  if (event?.event_type === "PAYMENT.CAPTURE.REVERSED" || event?.event_type === "PAYMENT.CAPTURE.DENIED") {
+    return typeof resource.id === "string" ? resource.id : "";
+  }
+  if (Array.isArray(resource.links)) {
+    for (const link of resource.links) {
+      const match = String(link?.href || "").match(/\/captures\/([A-Z0-9]+)/i);
+      if (match) return match[1];
+    }
+  }
+  const disputed = resource?.disputed_transactions?.[0];
+  if (typeof disputed?.seller_transaction_id === "string") return disputed.seller_transaction_id;
+  return "";
+}
+function extractOrderId(event: any): string {
+  const related = event?.resource?.supplementary_data?.related_ids || {};
+  return typeof related.order_id === "string" ? related.order_id : "";
+}
+async function handlePaypalWebhook(req: any, res: any) {
+  if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID || "";
+  if (!webhookId) {
+    console.error("[PayPal Webhook] PAYPAL_WEBHOOK_ID is not configured");
+    return res.status(503).json({ error: "paypal_webhook_not_configured" });
+  }
+  let event: any = null;
+  try {
+    event = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
+  } catch { event = null; }
+  if (!event?.id || !event?.event_type) return res.status(400).json({ error: "invalid_event" });
+  // 1) Verify the transmission really came from PayPal.
+  let verified = false;
+  try {
+    const token = await paypalAccessToken();
+    const { ok, payload } = await paypalApi(token, "/v1/notifications/verify-webhook-signature", {
+      method: "POST",
+      body: JSON.stringify({
+        auth_algo: paypalHeader(req, "paypal-auth-algo"),
+        cert_url: paypalHeader(req, "paypal-cert-url"),
+        transmission_id: paypalHeader(req, "paypal-transmission-id"),
+        transmission_sig: paypalHeader(req, "paypal-transmission-sig"),
+        transmission_time: paypalHeader(req, "paypal-transmission-time"),
+        webhook_id: webhookId,
+        webhook_event: event,
+      }),
+    });
+    verified = ok && payload?.verification_status === "SUCCESS";
+  } catch (error) {
+    console.error("[PayPal Webhook] Verification call failed", error instanceof Error ? error.message : "unknown");
+    return res.status(500).json({ error: "verification_unavailable" });
+  }
+  if (!verified) {
+    console.error("[PayPal Webhook] Signature rejected for event", String(event.id));
+    return res.status(401).json({ error: "invalid_signature" });
+  }
+  // 2) Store first (idempotent on event id). If the store fails the
+  // rollout SQL has not run — answer 500 so PayPal retries later.
+  const captureId = extractCaptureId(event);
+  const orderId = extractOrderId(event);
+  const resourceId = captureId || (typeof event.resource?.id === "string" ? event.resource.id : null);
+  let inserted = false;
+  try {
+    inserted = await db.recordPaypalWebhookEvent({
+      eventId: String(event.id), eventType: String(event.event_type),
+      resourceId, payload: event,
+    });
+  } catch (error) {
+    console.error("[PayPal Webhook] Event store failed", error instanceof Error ? error.message : "unknown");
+    return res.status(500).json({ error: "webhook_store_failed" });
+  }
+  if (!inserted) return res.status(200).json({ received: true, duplicate: true });
+  // 3) Process. Failures here are logged and noted on the stored event;
+  // the endpoint still answers 200 so PayPal does not retry-storm —
+  // the stored payload is the audit and can be replayed by hand.
+  let note = "recorded_only";
+  let matchedUserId: string | null = null;
+  let tokensDeducted = 0;
+  try {
+    const type = String(event.event_type);
+    if (type === "PAYMENT.CAPTURE.REFUNDED" || type === "PAYMENT.CAPTURE.REVERSED" || type === "PAYMENT.CAPTURE.DENIED") {
+      if (!captureId) {
+        note = "clawback_skipped_no_capture_id";
+      } else if (await db.findProcessedClawback(captureId)) {
+        note = "clawback_skipped_already_processed";
+      } else {
+        const pack = await db.findPaypalPackPurchase(captureId);
+        if (pack) {
+          let due = pack.packageTokens;
+          if (type === "PAYMENT.CAPTURE.REFUNDED" && pack.amountUsd > 0) {
+            const refunded = Number(event?.resource?.amount?.value);
+            if (Number.isFinite(refunded) && refunded > 0 && refunded < pack.amountUsd) {
+              due = Math.floor(pack.packageTokens * (refunded / pack.amountUsd));
+            }
+          }
+          const result = await db.clawbackTokens(pack.userId, due);
+          matchedUserId = pack.userId;
+          tokensDeducted = result.deducted;
+          note = result.deducted >= due
+            ? `clawback_pack_full:${due}`
+            : `clawback_pack_partial:due=${due},deducted=${result.deducted},balance_left=${result.balance}`;
+        } else if (orderId) {
+          const spins = await db.findLuckySpinsByPaypalOrder(orderId);
+          if (spins.length > 0) {
+            matchedUserId = spins[0].userId;
+            const won = spins.reduce((sum, s) => sum + (s.spun ? s.prizeTokens : 0), 0);
+            let voided = 0;
+            for (const spin of spins) {
+              if (!spin.spun && spin.status === "approved") {
+                await db.voidLuckySpin(spin.id).catch(() => {});
+                voided++;
+              }
+            }
+            const result = won > 0
+              ? await db.clawbackTokens(matchedUserId, won)
+              : { deducted: 0, balance: 0 };
+            tokensDeducted = result.deducted;
+            note = `clawback_lucky:won=${won},deducted=${result.deducted},spins_voided=${voided}`;
+          } else {
+            note = "clawback_unmatched_purchase";
+          }
+        } else {
+          note = "clawback_unmatched_purchase";
+        }
+      }
+    } else if (type === "CUSTOMER.DISPUTE.CREATED") {
+      // Flag only — PayPal has not moved money yet, and the dispute can
+      // still be won with the audit trail (payment_requests + ledger).
+      const pack = captureId ? await db.findPaypalPackPurchase(captureId) : null;
+      matchedUserId = pack?.userId ?? null;
+      note = pack ? "dispute_opened_flagged" : "dispute_opened_unmatched";
+    } else if (type === "CUSTOMER.DISPUTE.RESOLVED") {
+      const pack = captureId ? await db.findPaypalPackPurchase(captureId) : null;
+      matchedUserId = pack?.userId ?? null;
+      const outcome = String(event?.resource?.dispute_outcome?.outcome_code || "unknown");
+      note = `dispute_resolved:${outcome}`;
+    }
+  } catch (error) {
+    console.error("[PayPal Webhook] Processing failed for event", String(event.id), error instanceof Error ? error.message : "unknown");
+    note = "processing_error";
+  }
+  await db.updatePaypalWebhookEvent(String(event.id), { matchedUserId, tokensDeducted, note }).catch(() => {});
+  return res.status(200).json({ received: true });
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = typeof req.query?.action === "string" ? req.query.action : "";
+  if (action === "paypal-webhook") return await handlePaypalWebhook(req, res);
   if (action === "auth") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
     const token = String(req.headers?.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
