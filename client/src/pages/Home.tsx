@@ -36,6 +36,7 @@ import {
   Crosshair,
   Radar,
   Radio,
+  TrendingUp,
   Image as ImageIcon,
   Lock,
   X,
@@ -134,11 +135,11 @@ function formatTime() {
 function BrandMark({ compact = false }: { compact?: boolean }) {
   const { language } = useLanguage();
   return (
-    <div className="brand-mark" aria-label={language === "ar" ? "بدون قيود" : "No Limits"}>
+    <div className="brand-mark" aria-label={language === "ar" ? "للمطورين والباحثين" : "For Developers & Researchers"}>
       <img
         className="brand-logo-img"
         src="/brand/logo.png"
-        alt={language === "ar" ? "بدون قيود" : "No Limits"}
+        alt={language === "ar" ? "للمطورين والباحثين" : "For Developers & Researchers"}
         draggable={false}
       />
       {!compact && <span className="brand-wordmark">Hot<span>GPT</span></span>}
@@ -342,7 +343,7 @@ function Sidebar({
           <p>
             {tr(language, "برمجة • اختبار اختراق • فحص ثغرات", "Programming • Pentesting • Vuln Scanning")}
             <br />
-            <strong>{tr(language, "بدون قيود", "NO LIMITS")}</strong>
+            <strong>{tr(language, "للمطورين والباحثين", "FOR DEVELOPERS & RESEARCHERS")}</strong>
           </p>
           <ArrowUp size={13} />
         </div>
@@ -596,21 +597,22 @@ export function LanguageFlag({ lang }: { lang: "ar" | "en" }) {
 }
 
 // Marketing line carried by every popup (Wahid's positioning, 2026-10-27):
-// HotGPT is the cheapest home for no-limits models.
+// HotGPT is the cheapest home for research & programming models.
 function CheapestLine() {
   const { language } = useLanguage();
   return (
     <p style={{ marginTop: 14, padding: "9px 12px", borderRadius: 10, border: "1px solid rgba(251,191,36,.35)", background: "rgba(251,191,36,.07)", color: "#FBBF24", fontSize: 12.5, fontWeight: 800, textAlign: "center", lineHeight: 1.8 }}>
-      ⚡ {tr(language, "أرخص موقع لنماذج ذكاء اصطناعي بدون قيود — القوة الكاملة، بسعر أقل.", "The cheapest no-limits AI anywhere — full power, lower price.")}
+      ⚡ {tr(language, "أرخص موقع لنماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة — القوة الكاملة، بسعر أقل.", "The cheapest AI with no limits on research & programming — full power, lower price.")}
     </p>
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
   onDarkLive: () => void;
+  onSeo: () => void;
 }) {
   const { language } = useLanguage();
   const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
@@ -633,7 +635,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive }: {
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
-      <p className="welcome-copy">{tr(language, "اسأل عن أي شيء… والإجابة كاملة.", "Ask anything. Get the full answer.")}<br />{tr(language, "أقوى نماذج ذكاء اصطناعي بدون قيود — برمجة وتحليل وأمن رقمي بعمق حقيقي، وبأرخص سعر في السوق.", "The strongest no-limits AI models — coding, analysis & digital security at real depth, for the lowest price anywhere.")}</p>
+      <p className="welcome-copy">{tr(language, "اسأل عن أي شيء… والإجابة كاملة.", "Ask anything. Get the full answer.")}<br />{tr(language, "أقوى نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة — تحليل وأمن رقمي بعمق حقيقي، وبأرخص سعر في السوق.", "The strongest AI models with no limits on research & programming — analysis & digital security at real depth, for the lowest price anywhere.")}</p>
       <div className="starter-grid hotgpt-starter-grid">
         {starters.map(starter => {
           const Icon = starter.icon;
@@ -667,13 +669,20 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive }: {
               <small>{tr(language, "خدمة مستقلة بمحرك خاص — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية", "A standalone service with its own engine — live dark-web index search with real results and links")}</small>
             </span>
           </button>
+          <button type="button" className="starter-card hotgpt-starter-card premium-card" onClick={onSeo}>
+            <span className="starter-icon hotgpt-starter-icon"><TrendingUp size={22} /></span>
+            <span className="starter-copy">
+              <strong>SEO_AUDIT {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
+              <small>{tr(language, "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 توكن للتقرير", "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 tokens per report")}</small>
+            </span>
+          </button>
         </div>
         {walletBalance < 20 && (
           <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
-            🔒 {tr(language, "تُفتح الخدمتان برصيد 20 توكن أو أكثر —", "Both services unlock at a balance of 20+ tokens —")}{" "}
+            🔒 {tr(language, "تُفتح الخدمات برصيد 20 توكن أو أكثر —", "The services unlock at a balance of 20+ tokens —")}{" "}
             <a href="/billing" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "اشحن رصيدك", "top up")}</a>{" "}
             {tr(language, "أو", "or")}{" "}
-            <a href="/hotlucky" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "جرّب حظك في HotLucky — جوائز من 25 توكن", "try HotLucky — prizes from 25 tokens")}</a>
+            <a href="/hotlucky" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "باقة HotLucky: بـ 50 جنيه خد من 25 لـ 100 رسالة", "HotLucky pack: 50 EGP gets you 25 to 100 messages")}</a>
           </p>
         )}
       </div>
@@ -932,8 +941,8 @@ export default function Home() {
     const twitterImage = document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]');
     if (twitterImage) twitterImage.content = new URL(brandAsset, window.location.origin).href;
     const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
-    if (ogTitle) ogTitle.content = language === "ar" ? "HotGPT — بدون قيود" : "HotGPT — No Limits";
-    const pageTitle = language === "ar" ? "HotGPT — بدون قيود" : "HotGPT — No Limits";
+    if (ogTitle) ogTitle.content = language === "ar" ? "HotGPT — للمطورين والباحثين" : "HotGPT — For Developers & Researchers";
+    const pageTitle = language === "ar" ? "HotGPT — للمطورين والباحثين" : "HotGPT — For Developers & Researchers";
     document.title = pageTitle;
   }, [language]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1019,6 +1028,7 @@ export default function Home() {
   // the URL; the send path branches like image mode) and the live
   // dark-web search add-on toggle for Dark mode.
   const [scanMode, setScanMode] = useState(false);
+  const [seoMode, setSeoMode] = useState(false);
   const [darkLiveMode, setDarkLiveMode] = useState(false);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
 
@@ -1338,7 +1348,7 @@ export default function Home() {
           const scanPayload = await scanResponse.json().catch(() => ({}));
           if (!scanResponse.ok || !scanPayload.content) {
             const scanErrors: Record<string, string> = {
-              insufficient_credits: tr(language, "فحص الروابط يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو جرّب حظك في HotLucky.", "URL scanning costs 20 tokens. Your balance is not enough; top up or try HotLucky."),
+              insufficient_credits: tr(language, "فحص الروابط يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "URL scanning costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
               invalid_url: tr(language, "الرابط غير صالح. اكتب رابطًا كاملًا مثل https://example.com — لم يُخصم الرصيد.", "That URL looks invalid. Enter a full URL like https://example.com — nothing was charged."),
               scan_target_not_public: tr(language, "لا يمكن فحص روابط داخلية أو محلية. جرّب موقعًا عامًا — لم يُخصم الرصيد.", "Internal or local addresses cannot be scanned. Try a public website — nothing was charged."),
               scan_target_unreachable: tr(language, "تعذر الوصول إلى هذا الموقع الآن. تأكد من الرابط وحاول مرة أخرى — لم يُخصم الرصيد.", "This website could not be reached. Check the URL and try again — nothing was charged."),
@@ -1356,6 +1366,38 @@ export default function Home() {
           setIsSending(false);
           setIsSearchingWeb(false);
           setScanMode(false);
+        }
+        return;
+      }
+
+      if (seoMode) {
+        // SEO audit (premium, 2026-10-27): the scan's twin — the draft
+        // is the target URL, the server charges a flat 20 tokens,
+        // collects real on-page/technical evidence, and returns the
+        // finished report with a growth plan; failures refund in full.
+        try {
+          const seoResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seoMode: true, url: trimmed, conversationId }) });
+          const seoPayload = await seoResponse.json().catch(() => ({}));
+          if (!seoResponse.ok || !seoPayload.content) {
+            const seoErrors: Record<string, string> = {
+              insufficient_credits: tr(language, "فحص SEO يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "SEO auditing costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              invalid_url: tr(language, "الرابط غير صالح. اكتب رابطًا كاملًا مثل https://example.com — لم يُخصم الرصيد.", "That URL looks invalid. Enter a full URL like https://example.com — nothing was charged."),
+              seo_target_not_public: tr(language, "لا يمكن فحص روابط داخلية أو محلية. جرّب موقعًا عامًا — لم يُخصم الرصيد.", "Internal or local addresses cannot be audited. Try a public website — nothing was charged."),
+              seo_target_unreachable: tr(language, "تعذر الوصول إلى هذا الموقع الآن. تأكد من الرابط وحاول مرة أخرى — لم يُخصم الرصيد.", "This website could not be reached. Check the URL and try again — nothing was charged."),
+              seo_failed: tr(language, "تعذر إتمام فحص SEO الآن. تم استرداد الرصيد بالكامل؛ حاول مرة أخرى.", "The SEO audit could not be completed. You were fully refunded; please try again."),
+              seo_not_configured: tr(language, "خدمة فحص SEO غير مُعدّة على الخادم بعد.", "The SEO audit service is not configured on the server yet."),
+              login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+            };
+            throw new Error(seoErrors[String(seoPayload.error || "")] || tr(language, "تعذر إتمام فحص SEO الآن. لم يُخصم الرصيد.", "The SEO audit failed. Nothing was charged."));
+          }
+          if (typeof seoPayload.tokenBalance === "number") setWalletBalance(seoPayload.tokenBalance);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(seoPayload.content), timestamp: formatTime() }]);
+        } catch (seoError) {
+          setRequestError(seoError instanceof Error ? seoError.message : tr(language, "تعذر إتمام فحص SEO الآن.", "The SEO audit failed."));
+        } finally {
+          setIsSending(false);
+          setIsSearchingWeb(false);
+          setSeoMode(false);
         }
         return;
       }
@@ -1613,6 +1655,8 @@ export default function Home() {
 
     setRequestError(null);
     setImageMode(false);
+    setScanMode(false);
+    setSeoMode(false);
     if (feature === "search") setWebSearchEnabled(value => !value);
     else { setDarkWebEnabled(value => !value); setDarkLiveMode(false); }
   };
@@ -1856,6 +1900,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setDraft(text);
                     setImageMode(false);
                     setScanMode(false);
+                    setSeoMode(false);
                     if (mode === "beast" && requireProFeature("beast")) {
                       setSelectedModel("dadgpt-beast");
                       setDarkWebEnabled(false);
@@ -1869,18 +1914,31 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onScan={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky."));
+                      setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
                       return;
                     }
                     setRequestError(null);
                     setScanMode(true);
+                    setSeoMode(false);
+                    setImageMode(false);
+                    setDraft("");
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
+                  onSeo={() => {
+                    if (walletBalance < 20) {
+                      setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
+                      return;
+                    }
+                    setRequestError(null);
+                    setSeoMode(true);
+                    setScanMode(false);
                     setImageMode(false);
                     setDraft("");
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onDarkLive={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky."));
+                      setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
                       return;
                     }
                     if (!requireProFeature("darkweb")) return;
@@ -1889,6 +1947,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setDarkLiveMode(true);
                     setImageMode(false);
                     setScanMode(false);
+                    setSeoMode(false);
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                 />
@@ -1951,7 +2010,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
@@ -1962,7 +2021,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 >
                   <Send size={17} />
                 </button>
-                {draft.trim().length >= 12 && (writingAssist ? (
+                {draft.trim().length >= 12 && !scanMode && !seoMode && (writingAssist ? (
                   <div className="attachment-cost-note">✨ {tr(language, "محسّن الطلب مفعّل — سيتم تنظيم طلبك قبل الإرسال.", "Prompt enhancer is on — your request will be organized before sending.")} <button type="button" onClick={() => setWritingAssist(false)} style={{ color: "#22d3ee", fontWeight: 700 }}>{tr(language, "إيقاف", "Turn off")}</button></div>
                 ) : (
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
@@ -1974,14 +2033,14 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
-                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } setRequestError(null); setScanMode(true); setImageMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
+                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
-                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setSeoMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
                     <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>
                   </button>
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
-                    setImageMode(false); setScanMode(false);
+                    setImageMode(false); setScanMode(false); setSeoMode(false);
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
                     if (!requireProFeature("beast")) return;
                     if (walletBalance < 3) { setRequestError(tr(language, "تحتاج إلى 3 توكينات على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 توكينات).", "At least 3 tokens are required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 tokens).")); return; }
@@ -1990,16 +2049,20 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     <span>{tr(language, "الوحش", "Beast")}</span><span>PRO</span>
                   </button>
                 </div>
-                <div className="composer-mode-row" role="group" aria-label={tr(language, "خدمات الدارك ويب", "Dark web services")} style={{ marginTop: 6 }}>
+                <div className="composer-mode-row" role="group" aria-label={tr(language, "خدمات إضافية", "Additional services")} style={{ marginTop: 6 }}>
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
-                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
+                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setSeoMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
                     <Radio size={16} /><span>{tr(language, "دارك لايف", "Dark Live")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
+                  </button>
+                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
+                    <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
               </div>
-              {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run.")}</div>}
+              {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص. الأداة للأغراض الدفاعية والبحثية فقط على المواقع التي تملكها أو مصرح لك بفحصها.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only, on sites you own or are authorized to scan.")}</div>}
+              {seoMode && <div className="attachment-cost-note">{tr(language, "📈 وضع فحص SEO: الصق رابط موقعك واضغط إرسال — تقرير SEO كامل بخطة نمو عملية من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "📈 SEO audit mode: paste your website URL and press send — a full SEO report with a practical growth plan from real collected data for 20 tokens, fully refunded if the audit cannot run.")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>

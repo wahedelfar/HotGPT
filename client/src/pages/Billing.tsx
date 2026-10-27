@@ -262,7 +262,7 @@ export default function BillingPage() {
         {message && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p>}
       </section>
       <footer className="mt-10 pb-4 text-center text-xs leading-6 text-slate-500">
-        <p className="text-sm font-black tracking-wide text-slate-300">{t("HotGPT — نماذج حرة بدون قيود · حرية الإنترنت", "HotGPT — free models, no limits · Internet freedom")}</p>
+        <p className="text-sm font-black tracking-wide text-slate-300">{t("HotGPT — نماذج حرة للمطورين والباحثين · حرية الإنترنت", "HotGPT — free models for developers & researchers · Internet freedom")}</p>
         <p className="mx-auto mt-2 max-w-2xl">{t("باستخدامك HotGPT وشرائك أي باقة، أنت وحدك المسؤول قانونيًا عن طلباتك وعن أي استخدام لمخرجات الخدمة، وليست المنصة. التفاصيل في", "By using HotGPT and buying any pack, you alone are legally responsible for your requests and for any use of the service's outputs — not the platform. Details in the")} <a className="text-cyan-300 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a>.</p>
       </footer>
     </div>

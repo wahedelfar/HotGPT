@@ -2,6 +2,7 @@
 import { inflateSync } from "node:zlib";
 import { searchDarkWeb, formatDarkResults, type DarkSearchResult } from "../../server/darkSearch.ts";
 import { runUrlScan, scanFindingsText } from "../../server/urlScan.ts";
+import { runSeoAudit, seoFindingsText } from "../../server/seoAudit.ts";
 
 function decodePdfLiteral(value: string): string {
   return value
@@ -86,7 +87,14 @@ const SCAN_REPORT_PROMPT = "SCAN REPORT MODE — a paid professional deliverable
 // the full price, the 20 are consumed by ONE report, and a failed scan
 // or a failed report generation refunds in full — the report must be
 // worth its price (real evidence, server-computed score, exact fixes).
+const SEO_REPORT_PROMPT = "SEO AUDIT MODE — a paid professional deliverable. The user paid for a real SEO audit report of one website, and the server attached REAL collected evidence (page title and meta description with lengths, canonical, robots meta, viewport, language, Open Graph and Twitter tags, favicon, H1/H2/H3 structure, image alt coverage, internal/external link counts, structured-data types, visible word count, robots.txt, sitemap presence and URL count, server response time, HTML size, compression) plus an SEO score and grade computed by the server. Write the complete report in the user's language (Arabic by default), based ONLY on that evidence. Rules: never invent keyword search volumes, backlink counts, domain authority, rankings, traffic numbers, competitor data or values that are not in the evidence; state the server-computed score and grade EXACTLY as given and never recompute or soften them; every finding must quote its evidence value. The evidence begins with the exact audit date and time (Africa/Cairo) — use it as the report's date. Structure, in this order: (1) a title line naming the target and the audit date from the evidence; (2) «الخلاصة التنفيذية» — 3 to 4 lines a non-technical site owner understands: where the site stands and the single biggest opportunity; (3) «درجة SEO» — the exact score/grade plus one line on what the grade means; (4) «المشاكل والإصلاحات» — one block per finding, ordered critical first, formatted as: severity + title, then «الدليل» (the evidence), then «الأثر» (what it costs the site in search visibility, in plain terms), then «الإصلاح» (exact, concrete fix steps a developer or site owner can apply — include example values derived from the site's OWN evidence, such as a rewritten title or description built from its real H1/title, never generic filler); (5) «نقاط قوة» — the passed checks from the evidence; (6) «خطة نمو عملية» — a respectable, white-hat action plan in three horizons: «مكاسب سريعة (أسبوع)» quick wins from the findings, «تحسينات متوسطة (شهر)» content and internal-linking work grounded in the audited page's real topic and structure, and «نمو طويل الأجل (3 شهور)» content strategy, structured data expansion and authority building through genuinely useful content and legitimate outreach. Advice must be respectable and sustainable ONLY: never recommend buying links, keyword stuffing, cloaking, doorway pages, fake reviews, PBNs or any black-hat tactic; (7) «ما لم يتم فحصه» — state plainly and without apology: keyword search volumes and difficulty, backlink profile, actual Google rankings and traffic, competitor sites, Core Web Vitals field data, and every page beyond the homepage were NOT measured in this audit (they need paid data sources and deeper crawling) — never present guesses about them as findings; (8) «قائمة التنفيذ بالأولوية» — a final prioritized checklist, most impactful first. In Arabic use per-finding blocks and labeled lists, not wide tables. No marketing lines and no offer to continue; end with the checklist.";
+
 const SCAN_COST = 20;
+// Premium SEO audit (user decision, 2026-10-27): the security scan's
+// twin in the «تقارير الروابط» family — same flat 20-token price,
+// same debit/refund discipline, its own collector (server/seoAudit.ts)
+// and its own writer model slot (OPENROUTER_SEO_MODEL).
+const SEO_COST = 20;
 const PREMIUM_MIN_BALANCE = 20;
 // Premium live dark-web search (Ahmia index): an add-on to Dark mode.
 // Usable only while the balance is at least PREMIUM_MIN_BALANCE; the
@@ -422,6 +430,111 @@ async function handleUrlScan(req: any, res: any, body: any) {
   }
 }
 
+// SEO audit handler: a faithful twin of handleUrlScan (auth → validate
+// → charge 20 → collect → write → persist → respond; any failure
+// refunds in full). It runs purely on server/seoAudit.ts + OpenRouter,
+// so it is dispatched before the primary-provider gate, next to scan.
+async function handleSeoAudit(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const rawUrl = String(body?.url || "").trim().slice(0, 500);
+  const conversationId = String(body?.conversationId || "");
+  if (!rawUrl || !/^[0-9a-f-]{36}$/i.test(conversationId)) { res.status(400).json({ error: "invalid_seo_request" }); return; }
+  const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  if (!orKey) { res.status(503).json({ error: "seo_not_configured" }); return; }
+  const walletBefore = await getWallet(user.id).catch(() => null);
+  if (!walletBefore || walletBefore.tokenBalance < SEO_COST) {
+    res.status(402).json({ error: "insufficient_credits", wallet: walletBefore });
+    return;
+  }
+  const debited = await debitWalletTokens(user.id, SEO_COST);
+  if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+  try {
+    const audit = await runSeoAudit(rawUrl);
+    if (!audit.reachable) {
+      await creditWalletTokens(user.id, SEO_COST);
+      const unreachable = audit.fatal === "target_not_public" ? "seo_target_not_public" : audit.fatal === "invalid_url" ? "invalid_url" : "seo_target_unreachable";
+      res.status(422).json({ error: unreachable });
+      return;
+    }
+    const system = [BASE_PROMPT, MODE_PROMPTS["Beast pro"], SEO_REPORT_PROMPT].filter(Boolean).join("\n\n");
+    const userContent = `افحص هذا الموقع من ناحية SEO واكتب التقرير الكامل الآن:\n\n${seoFindingsText(audit)}`;
+    // Dedicated report writer for this service (same decision pattern
+    // as the scan writer): Kimi K2 by default, overridable via
+    // OPENROUTER_SEO_MODEL without touching the chat or scan models.
+    // Backup stays the Qwen3 workhorse.
+    const models = [
+      (process.env.OPENROUTER_SEO_MODEL || "moonshotai/kimi-k2-0905").trim(),
+      (process.env.OPENROUTER_SEO_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
+    ];
+    // Streamed server-side accumulation with salvage, exactly like the
+    // scan writer: a full SEO report with a growth plan is a
+    // multi-thousand-token write-up and must not die on a flat cap.
+    let report = "";
+    const reportDeadline = Date.now() + 50000;
+    for (const [index, model] of models.entries()) {
+      const budget = Math.min(index === 0 ? 40000 : 25000, reportDeadline - Date.now());
+      if (budget < 8000) break;
+      let collected = "";
+      let streamCompleted = false;
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: userContent },
+            ],
+            max_tokens: 4500,
+            temperature: 0.3,
+            stream: true,
+            ...(index === 0 ? { reasoning: { effort: "low" } } : {}),
+          }),
+          signal: AbortSignal.timeout(budget),
+        });
+        if (response.ok && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed.startsWith("data:")) continue;
+              const data = trimmed.slice(5).trim();
+              if (!data || data === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed?.choices?.[0]?.delta?.content;
+                if (typeof delta === "string") collected += delta;
+              } catch { /* partial SSE line — keep accumulating */ }
+            }
+          }
+          streamCompleted = true;
+        }
+      } catch { /* aborted or network error — salvage whatever streamed in */ }
+      const text = collected.trim();
+      if (streamCompleted && text.length >= 300) { report = text; break; }
+      if (!streamCompleted && text.length >= 1500) { report = text; break; }
+    }
+    if (!report) throw new Error("seo_report_failed");
+    await saveMessage(user.id, conversationId, "user", `📈 فحص SEO للرابط: ${audit.target}`);
+    await saveMessage(user.id, conversationId, "assistant", report);
+    const wallet = await getWallet(user.id).catch(() => null);
+    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SEO_COST, score: audit.score, grade: audit.grade });
+  } catch (error) {
+    await creditWalletTokens(user.id, SEO_COST);
+    console.error("[SEO] SEO audit failed", error instanceof Error ? error.message : "unknown");
+    res.status(502).json({ error: "seo_failed" });
+  }
+}
+
 async function searchInternet(query: string, darkWebSearch = false): Promise<string> {
   const cleanQuery = query.trim().slice(0, 500);
   if (!cleanQuery) throw new Error("web_search_failed");
@@ -743,6 +856,7 @@ export default async function handler(req: any, res: any) {
   // providers, so it is handled before the provider gate below.
   if (body?.imageMode === true) return await handleImageGeneration(req, res, body);
   if (body?.scanMode === true) return await handleUrlScan(req, res, body);
+  if (body?.seoMode === true) return await handleSeoAudit(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
   // to OpenRouter when OPENROUTER_API_KEY is configured (see engine routing below).
   if (!hasPrimaryProvider) {
