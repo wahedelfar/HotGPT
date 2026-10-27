@@ -13,7 +13,6 @@ import {
   FileText,
   FolderOpen,
   Globe,
-  Wand,
   Menu,
   MessageSquare,
   Moon,
@@ -618,6 +617,42 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
   const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
   useEffect(() => { try { const until = Number(localStorage.getItem("hotlucky-banner-dismissed-until") || 0); setHotLuckyBannerVisible(Date.now() >= until); } catch { setHotLuckyBannerVisible(true); } }, []);
   const dismissHotLuckyBanner = () => { try { localStorage.setItem("hotlucky-banner-dismissed-until", String(Date.now() + 24 * 60 * 60 * 1000)); } catch {} setHotLuckyBannerVisible(false); };
+  // Unified welcome grid (Wahid, 2026-10-27): slightly smaller cards,
+  // free starters interleaved with Premium services — every row pairs
+  // one of each, Premium carries a badge (+ lock under 20 tokens).
+  const cardStyle: React.CSSProperties = { minHeight: 56, padding: "9px 11px" };
+  const premiumBadge = (
+    <span style={{ display: "inline-block", marginInlineStart: 6, padding: "1px 7px", borderRadius: 999, background: "rgba(251,191,36,.16)", border: "1px solid rgba(251,191,36,.55)", color: "#FBBF24", fontSize: 10, fontWeight: 800, verticalAlign: "2px" }}>⭐ {tr(language, "بريميوم", "Premium")}</span>
+  );
+  const starterCard = (starter: (typeof starters)[number], wide = false) => {
+    const Icon = starter.icon;
+    return (
+      <button type="button" className="starter-card hotgpt-starter-card" key={starter.label} style={wide ? { ...cardStyle, gridColumn: "1 / -1" } : cardStyle} onClick={() => onStarter(language === "ar" ? starter.prompt : starter.promptEn, starter.mode)}>
+        <span className="starter-icon hotgpt-starter-icon"><Icon size={19} /></span>
+        <span className="starter-copy">
+          <strong>{starter.label}</strong>
+          <small>{language === "ar" ? starter.description : starter.descriptionEn}</small>
+        </span>
+      </button>
+    );
+  };
+  const premiumCard = (kind: "scan" | "darklive" | "seo") => {
+    const data = {
+      scan: { Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 توكن للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 tokens per report", action: onScan },
+      darklive: { Icon: Radio, label: "DARK_LIVE", ar: "خدمة مستقلة بمحرك خاص — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية", en: "A standalone service with its own engine — live dark-web index search with real results and links", action: onDarkLive },
+      seo: { Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 توكن للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 tokens per report", action: onSeo },
+    }[kind];
+    const PIcon = data.Icon;
+    return (
+      <button type="button" className="starter-card hotgpt-starter-card premium-card" key={data.label} style={cardStyle} onClick={data.action}>
+        <span className="starter-icon hotgpt-starter-icon"><PIcon size={19} /></span>
+        <span className="starter-copy">
+          <strong>{data.label}{premiumBadge} {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
+          <small>{tr(language, data.ar, data.en)}</small>
+        </span>
+      </button>
+    );
+  };
   return (
     <div className="welcome-state hotgpt-welcome">
       {hotLuckyBannerVisible && (
@@ -636,56 +671,23 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
       <p className="welcome-copy">{tr(language, "اسأل عن أي شيء… والإجابة كاملة.", "Ask anything. Get the full answer.")}<br />{tr(language, "أقوى نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة — تحليل وأمن رقمي بعمق حقيقي، وبأرخص سعر في السوق.", "The strongest AI models with no limits on research & programming — analysis & digital security at real depth, for the lowest price anywhere.")}</p>
-      <div className="starter-grid hotgpt-starter-grid">
-        {starters.map(starter => {
-          const Icon = starter.icon;
-          return (
-            <button className="starter-card hotgpt-starter-card" key={starter.label} onClick={() => onStarter(language === "ar" ? starter.prompt : starter.promptEn, starter.mode)}>
-              <span className="starter-icon hotgpt-starter-icon"><Icon size={22} /></span>
-              <span className="starter-copy">
-                <strong>{starter.label}</strong>
-                <small>{language === "ar" ? starter.description : starter.descriptionEn}</small>
-              </span>
-            </button>
-          );
-        })}
+      <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
+        {starterCard(starters[0])}
+        {premiumCard("scan")}
+        {starterCard(starters[1])}
+        {premiumCard("darklive")}
+        {starterCard(starters[2])}
+        {premiumCard("seo")}
+        {starterCard(starters[3], true)}
       </div>
-      <div className="premium-services" style={{ marginTop: 22, width: "100%", maxWidth: 720 }}>
-        <p style={{ textAlign: "center", fontWeight: 900, letterSpacing: 1, color: "#FBBF24", fontSize: 12, margin: "0 0 10px" }}>
-          ⭐ {tr(language, "خدمات Premium", "Premium services")}
+      {walletBalance < 20 && (
+        <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
+          🔒 {tr(language, "الكروت اللي عليها ⭐ بريميوم تُفتح برصيد 20 توكن أو أكثر —", "Cards marked ⭐ Premium unlock at a balance of 20+ tokens —")}{" "}
+          <a href="/billing" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "اشحن رصيدك", "top up")}</a>{" "}
+          {tr(language, "أو", "or")}{" "}
+          <a href="/hotlucky" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "باقة HotLucky: بـ 50 جنيه خد من 25 لـ 100 رسالة", "HotLucky pack: 50 EGP gets you 25 to 100 messages")}</a>
         </p>
-        <div className="starter-grid hotgpt-starter-grid">
-          <button type="button" className="starter-card hotgpt-starter-card premium-card" onClick={onScan}>
-            <span className="starter-icon hotgpt-starter-icon"><Radar size={22} /></span>
-            <span className="starter-copy">
-              <strong>URL_SCAN {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
-              <small>{tr(language, "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 توكن للتقرير", "A real security scan of any website from its URL — a full vulnerability report · 20 tokens per report")}</small>
-            </span>
-          </button>
-          <button type="button" className="starter-card hotgpt-starter-card premium-card" onClick={onDarkLive}>
-            <span className="starter-icon hotgpt-starter-icon"><Radio size={22} /></span>
-            <span className="starter-copy">
-              <strong>DARK_LIVE {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
-              <small>{tr(language, "خدمة مستقلة بمحرك خاص — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية", "A standalone service with its own engine — live dark-web index search with real results and links")}</small>
-            </span>
-          </button>
-          <button type="button" className="starter-card hotgpt-starter-card premium-card" onClick={onSeo}>
-            <span className="starter-icon hotgpt-starter-icon"><TrendingUp size={22} /></span>
-            <span className="starter-copy">
-              <strong>SEO_AUDIT {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
-              <small>{tr(language, "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 توكن للتقرير", "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 tokens per report")}</small>
-            </span>
-          </button>
-        </div>
-        {walletBalance < 20 && (
-          <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
-            🔒 {tr(language, "تُفتح الخدمات برصيد 20 توكن أو أكثر —", "The services unlock at a balance of 20+ tokens —")}{" "}
-            <a href="/billing" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "اشحن رصيدك", "top up")}</a>{" "}
-            {tr(language, "أو", "or")}{" "}
-            <a href="/hotlucky" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "باقة HotLucky: بـ 50 جنيه خد من 25 لـ 100 رسالة", "HotLucky pack: 50 EGP gets you 25 to 100 messages")}</a>
-          </p>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -1066,6 +1068,16 @@ export default function Home() {
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [hasStartedStreaming, setHasStartedStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  // Staged progress for the premium URL reports (scan / SEO): the server
+  // builds the whole report before replying, so instead of a silent
+  // «يجهز الرد» the waiting bubble walks through the real phases.
+  const [reportWait, setReportWait] = useState<"scan" | "seo" | null>(null);
+  const [reportWaitSecs, setReportWaitSecs] = useState(0);
+  useEffect(() => {
+    if (!reportWait) { setReportWaitSecs(0); return; }
+    const timer = setInterval(() => setReportWaitSecs(secs => secs + 1), 1000);
+    return () => clearInterval(timer);
+  }, [reportWait]);
   const [attachment, setAttachment] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1343,6 +1355,7 @@ export default function Home() {
         // URL scan (premium, 2026-10-27): the draft is the target URL.
         // The server charges a flat 20 tokens, collects real evidence,
         // and returns the finished report; failures refund in full.
+        setReportWait("scan");
         try {
           const scanResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanMode: true, url: trimmed, conversationId }) });
           const scanPayload = await scanResponse.json().catch(() => ({}));
@@ -1363,6 +1376,7 @@ export default function Home() {
         } catch (scanError) {
           setRequestError(scanError instanceof Error ? scanError.message : tr(language, "تعذر إتمام الفحص الآن.", "The scan failed."));
         } finally {
+          setReportWait(null);
           setIsSending(false);
           setIsSearchingWeb(false);
           setScanMode(false);
@@ -1375,6 +1389,7 @@ export default function Home() {
         // is the target URL, the server charges a flat 20 tokens,
         // collects real on-page/technical evidence, and returns the
         // finished report with a growth plan; failures refund in full.
+        setReportWait("seo");
         try {
           const seoResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seoMode: true, url: trimmed, conversationId }) });
           const seoPayload = await seoResponse.json().catch(() => ({}));
@@ -1395,6 +1410,7 @@ export default function Home() {
         } catch (seoError) {
           setRequestError(seoError instanceof Error ? seoError.message : tr(language, "تعذر إتمام فحص SEO الآن.", "The SEO audit failed."));
         } finally {
+          setReportWait(null);
           setIsSending(false);
           setIsSearchingWeb(false);
           setSeoMode(false);
@@ -1971,13 +1987,13 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                         <i />
                         <i />
                       </span>
-                      <span>{isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
+                      <span>{reportWait ? (reportWaitSecs < 12 ? tr(language, reportWait === "seo" ? "جارٍ فحص الموقع وجمع بيانات SEO..." : "جارٍ فحص الموقع وجمع البيانات...", reportWait === "seo" ? "Auditing the site and collecting SEO data..." : "Scanning the site and collecting data...") : reportWaitSecs < 30 ? tr(language, "جارٍ تحليل النتائج...", "Analyzing the results...") : tr(language, "جارٍ كتابة التقرير...", "Writing the report...")) : isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
                     </div>
                   )}
                 </div>
               )}
             </div>
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الباقات المدفوعة")) && <a href="/billing" className="mt-2 inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الباقات المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
               <div
                 className={
@@ -2027,9 +2043,6 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
                 ))}
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
-                  <button type="button" className={writingAssist ? "composer-mode active" : "composer-mode"} onClick={() => setWritingAssist(value => !value)} aria-pressed={writingAssist} title={tr(language, "محسن الطلب", "Prompt enhancer")}>
-                    <Wand size={18} /><span className="sr-only">{tr(language, "مساعد الكتابة", "Writing assistant")}</span>
-                  </button>
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
@@ -2063,6 +2076,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               </div>
               {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص. الأداة للأغراض الدفاعية والبحثية فقط على المواقع التي تملكها أو مصرح لك بفحصها.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only, on sites you own or are authorized to scan.")}</div>}
               {seoMode && <div className="attachment-cost-note">{tr(language, "📈 وضع فحص SEO: الصق رابط موقعك واضغط إرسال — تقرير SEO كامل بخطة نمو عملية من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "📈 SEO audit mode: paste your website URL and press send — a full SEO report with a practical growth plan from real collected data for 20 tokens, fully refunded if the audit cannot run.")}</div>}
+              {(darkWebEnabled || darkLiveMode) && !scanMode && !seoMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>

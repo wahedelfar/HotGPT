@@ -458,6 +458,16 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
   }
   const hasSitemap = sitemapIsReal;
 
+  // Response-time stability (Wahid round, 2026-10-27): one slow fetch
+  // used to swing the score between runs (the same site scored 88 in
+  // one run and 92 in another). Measure a second time and score on
+  // the FASTER response — the site's capability, not a momentary hiccup.
+  let elapsedMs = main.elapsedMs;
+  try {
+    const second = await fetchWithValidation(main.finalUrl, 24 * 1024, 6000);
+    if (second.elapsedMs > 0) elapsedMs = Math.min(elapsedMs, second.elapsedMs);
+  } catch { /* timing re-measure is best-effort */ }
+
   // ------------------------------------------------------------ scoring
   const flags: SeoFlag[] = [];
   const passed: string[] = [];
@@ -572,13 +582,13 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
     deduct(4);
   } else passed.push(`محتوى نصي جيد في الصفحة: ~${analysis.wordCount} كلمة`);
 
-  if (main.elapsedMs > 3000) {
-    flags.push({ severity: "medium", title: "استجابة الخادم بطيئة", evidence: `زمن تحميل HTML من الخادم: ${main.elapsedMs}ms — البطء يضر الترتيب ونسبة البقاء` });
+  if (elapsedMs > 3000) {
+    flags.push({ severity: "medium", title: "استجابة الخادم بطيئة", evidence: `زمن تحميل HTML من الخادم: ${elapsedMs}ms (الأسرع من قياسين) — البطء يضر الترتيب ونسبة البقاء` });
     deduct(4);
-  } else if (main.elapsedMs > 1500) {
-    flags.push({ severity: "low", title: "استجابة الخادم أبطأ من المثالي", evidence: `زمن تحميل HTML من الخادم: ${main.elapsedMs}ms (المثالي أقل من 1500ms)` });
+  } else if (elapsedMs > 1500) {
+    flags.push({ severity: "low", title: "استجابة الخادم أبطأ من المثالي", evidence: `زمن تحميل HTML من الخادم: ${elapsedMs}ms (الأسرع من قياسين؛ المثالي أقل من 1500ms)` });
     deduct(2);
-  } else passed.push(`استجابة خادم سريعة: ${main.elapsedMs}ms لتحميل HTML`);
+  } else passed.push(`استجابة خادم سريعة: ${elapsedMs}ms لتحميل HTML (الأسرع من قياسين)`);
 
   const contentEncoding = main.headers["content-encoding"] || "";
   if (!contentEncoding && htmlBytes > 20 * 1024) {
@@ -599,7 +609,7 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
     httpStatus: main.status,
     redirectChain: main.chain,
     usesHttps,
-    elapsedMs: main.elapsedMs,
+    elapsedMs,
     htmlBytes,
     looksLikeHtml,
     contentEncoding: contentEncoding || null,
