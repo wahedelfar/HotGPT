@@ -9,9 +9,9 @@ import { requireMember } from "../server/_core/vercelAuth.ts";
 //   DIRECTLY to the wallet by the spin: 25 (38%) / 50 (39%) / 75 (13%) /
 //   100 (10%). There is no zero prize — the minimum returns half the
 //   stake. Expected value 48.75 tokens per 50-token stake.
-//   Legacy tickets (base_tokens = 100, sold before the restructure) keep
-//   their original promise: their spins still run through the legacy
-//   hotlucky_spin RPC and legacy prize codes still redeem.
+//   The pre-restructure pack system (base_tokens = 100, prize codes) was
+//   removed entirely on 2026-10-27 at the owner's request — the site had
+//   no other users, so nothing legacy remains in the member flow.
 
 const SPIN_PRICE_EGP_MINOR = 5000;
 const TICKET_BASE_TOKENS = 50;
@@ -162,43 +162,25 @@ export default async function handler(req: any, res: any) {
   if (!url || !key) return res.status(503).json({ error: "service_unavailable" });
   try {
     if (action === "status" && req.method === "GET") {
-      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,base_tokens,prize_key,prize_label,prize_code,spun_at,reward_issued,hotlucky_daily_gifts(prize_code,prize_label,created_at,issued_at)&order=created_at.desc&limit=500");
+      const orders = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&select=id,status,base_tokens,prize_key,prize_label,spun_at&order=created_at.desc&limit=500");
       const list = orders || [];
-      const spinCredits = list.filter((o: any) => o.status === "approved" && !o.spun_at).length;
+      const spinCredits = list.filter((o: any) => o.status === "approved" && !o.spun_at && Number(o.base_tokens) === TICKET_BASE_TOKENS).length;
       const pendingTickets = list.filter((o: any) => o.status === "pending" || o.status === "awaiting_payment").length;
-      const prizes = list.filter((o: any) => !!o.prize_label).map((o: any) => {
-        const gift = Array.isArray(o.hotlucky_daily_gifts) ? o.hotlucky_daily_gifts[0] : o.hotlucky_daily_gifts;
+      const prizes = list.filter((o: any) => !!o.prize_label && !!o.spun_at).map((o: any) => {
         const isNewSpin = typeof o.prize_key === "string" && /^t\d+$/.test(o.prize_key);
-        const tokens = isNewSpin ? Number(o.prize_key.slice(1)) : undefined;
         return {
           label: String(o.prize_label),
-          tokens,
+          tokens: isNewSpin ? Number(o.prize_key.slice(1)) : undefined,
           credited: isNewSpin,
-          code: !isNewSpin && o.prize_code ? String(o.prize_code) : !isNewSpin && gift?.prize_code ? String(gift.prize_code) : undefined,
-          used: isNewSpin ? true : Boolean(o.reward_issued || gift?.issued_at),
-          date: o.spun_at || gift?.created_at || null,
+          date: o.spun_at || null,
         };
       });
       return res.status(200).json({ spinCredits, pendingTickets, eligible: spinCredits > 0, email: member.email || "", prize: prizes[0] || null, prizes });
     }
-    if (action === "redeem" && req.method === "POST") {
-      const code = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
-      if (!/^HOT-[A-F0-9]{6}$/.test(code)) return res.status(400).json({ error: "invalid_token_code" });
-      const result = await request("rpc/hotlucky_redeem_token_code", {
-        method: "POST",
-        body: JSON.stringify({ p_user_id: member.id, p_email: String(member.email || "").toLowerCase(), p_code: code }),
-      });
-      return res.status(200).json(result);
-    }
     if (action === "spin" && req.method === "POST") {
-      const readyRows = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&status=eq.approved&spun_at=is.null&select=id,base_tokens&order=created_at.asc&limit=1");
+      const readyRows = await request("hotlucky_orders?user_id=eq." + encodeURIComponent(member.id) + "&status=eq.approved&spun_at=is.null&base_tokens=eq." + TICKET_BASE_TOKENS + "&select=id,base_tokens&order=created_at.asc&limit=1");
       const ticket = readyRows?.[0];
       if (!ticket) return res.status(409).json({ error: "spin_not_available" });
-      if (Number(ticket.base_tokens) !== TICKET_BASE_TOKENS) {
-        // Legacy ticket (sold before the restructure): keep its promise.
-        const result = await request("rpc/hotlucky_spin", { method: "POST", body: JSON.stringify({ p_user_id: member.id }) });
-        return res.status(200).json({ success: true, legacy: true, prize: { label: result.prize_label, code: result.prize_code, key: result.prize_key } });
-      }
       const tokens = drawPrizeTokens();
       const label = tokens + " توكن";
       const claimed = await request("hotlucky_orders?id=eq." + encodeURIComponent(ticket.id) + "&status=eq.approved&spun_at=is.null&select=id", {
@@ -323,8 +305,6 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("spin_not_available")) return res.status(409).json({ error: "spin_not_available" });
-    if (message.includes("token_code_used")) return res.status(409).json({ error: "token_code_used" });
-    if (message.includes("token_code_not_found")) return res.status(404).json({ error: "token_code_not_found" });
     console.error("[HotLucky]", message || "unknown");
     return res.status(503).json({ error: "hotlucky_unavailable" });
   }

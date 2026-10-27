@@ -340,9 +340,9 @@ function Sidebar({
             <Sparkles size={14} />
           </span>
           <p>
-            {tr(language, "مساحة هادئة", "A calmer space")}
+            {tr(language, "برمجة • اختبار اختراق • فحص ثغرات", "Programming • Pentesting • Vuln Scanning")}
             <br />
-            <strong>{tr(language, "لأفكار أكبر", "for bigger ideas")}</strong>
+            <strong>{tr(language, "بدون قيود", "NO LIMITS")}</strong>
           </p>
           <ArrowUp size={13} />
         </div>
@@ -664,7 +664,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive }: {
             <span className="starter-icon hotgpt-starter-icon"><Radio size={22} /></span>
             <span className="starter-copy">
               <strong>DARK_LIVE {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
-              <small>{tr(language, "بحث حي في فهارس الدارك ويب داخل وضع Dark — نتائج حقيقية بروابط فعلية", "Live search of dark-web indexes inside Dark mode — real results with real links")}</small>
+              <small>{tr(language, "خدمة مستقلة بمحرك خاص — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية", "A standalone service with its own engine — live dark-web index search with real results and links")}</small>
             </span>
           </button>
         </div>
@@ -1019,7 +1019,7 @@ export default function Home() {
   // the URL; the send path branches like image mode) and the live
   // dark-web search add-on toggle for Dark mode.
   const [scanMode, setScanMode] = useState(false);
-  const [darkLive, setDarkLive] = useState(false);
+  const [darkLiveMode, setDarkLiveMode] = useState(false);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
 
   // Generated images live only in this session (by design), and any history
@@ -1403,9 +1403,9 @@ export default function Home() {
           conversationId,
           stream: true,
           attachment: filePayload,
-          mode: darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default",
-          modes: { writingAssist, webSearch: webSearchEnabled, darkWeb: darkWebEnabled },
-          livePremium: darkWebEnabled && darkLive,
+          mode: darkLiveMode ? "darklive" : darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default",
+          modes: { writingAssist, webSearch: webSearchEnabled, darkWeb: darkWebEnabled || darkLiveMode },
+          livePremium: darkLiveMode,
           preferences: {
             style: localStorage.getItem("hotgpt-response-style") || "professional",
             instructions: (localStorage.getItem("hotgpt-custom-instructions") || "").slice(0, 2000),
@@ -1572,12 +1572,13 @@ export default function Home() {
     }
   };
   const continueMessage = async (target: ChatMessage) => {
-    if (isSending || !target.continuationAvailable || walletBalance < 5) return;
+    const contCost = darkLiveMode || darkWebEnabled || webSearchEnabled || selectedModel === "dadgpt-beast" ? 5 : 1;
+    if (isSending || !target.continuationAvailable || walletBalance < contCost) return;
     setIsSending(true); setRequestError(null); setHasStartedStreaming(true);
     setMessages(current => current.map(m => m.id === target.id ? { ...m, continuationDisabled: true, continuationLabel: tr(language, "جارٍ الإكمال...", "Continuing...") } : m));
     try {
-      const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ continueMessageId: target.id, stream: true, mode: darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default" }), signal: AbortSignal.timeout(120000) });
-      if (!response.ok) { const err = await response.json().catch(() => ({})); if (response.status === 402 || err.error === "insufficient_credits") { if (typeof err.user_credits === "number") setWalletBalance(err.user_credits); throw new Error(tr(language, "الرصيد غير كافٍ لإكمال الشرح؛ تحتاج إلى 5 توكن.", "Not enough credits to continue; 5 credits are required.")); } throw new Error(String(err.error || "تعذر إكمال الشرح.")); }
+      const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ continueMessageId: target.id, stream: true, mode: darkLiveMode ? "darklive" : darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default" }), signal: AbortSignal.timeout(120000) });
+      if (!response.ok) { const err = await response.json().catch(() => ({})); if (response.status === 402 || err.error === "insufficient_credits") { if (typeof err.user_credits === "number") setWalletBalance(err.user_credits); throw new Error(tr(language, `الرصيد غير كافٍ لإكمال الشرح؛ تحتاج إلى ${contCost} توكن.`, `Not enough credits to continue; ${contCost} credits are required.`)); } throw new Error(String(err.error || "تعذر إكمال الشرح.")); }
       let payload: any = {}, pending = "";
       if (response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
         const reader = response.body.getReader(), decoder = new TextDecoder();
@@ -1613,7 +1614,7 @@ export default function Home() {
     setRequestError(null);
     setImageMode(false);
     if (feature === "search") setWebSearchEnabled(value => !value);
-    else { setDarkWebEnabled(value => !value); setDarkLive(false); }
+    else { setDarkWebEnabled(value => !value); setDarkLiveMode(false); }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1858,9 +1859,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     if (mode === "beast" && requireProFeature("beast")) {
                       setSelectedModel("dadgpt-beast");
                       setDarkWebEnabled(false);
+                      setDarkLiveMode(false);
                     }
                     if (mode === "dark" && requireProFeature("darkweb")) {
                       setDarkWebEnabled(true);
+                      setDarkLiveMode(false);
                     }
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
@@ -1882,8 +1885,8 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     }
                     if (!requireProFeature("darkweb")) return;
                     setRequestError(null);
-                    setDarkWebEnabled(true);
-                    setDarkLive(true);
+                    setDarkWebEnabled(false);
+                    setDarkLiveMode(true);
                     setImageMode(false);
                     setScanMode(false);
                     setTimeout(() => textareaRef.current?.focus(), 0);
@@ -1898,7 +1901,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<5;return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined}/>;})}
+                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined}/>;})}
                   {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
@@ -1974,7 +1977,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } setRequestError(null); setScanMode(true); setImageMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
-                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLive(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
                     <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>
                   </button>
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
@@ -1991,7 +1994,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
-                  <button type="button" className={darkLive ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLive) { setDarkLive(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setDarkWebEnabled(true); setDarkLive(true); }} aria-pressed={darkLive} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLive ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
+                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
                     <Radio size={16} /><span>{tr(language, "دارك لايف", "Dark Live")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
