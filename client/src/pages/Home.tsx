@@ -33,6 +33,9 @@ import {
   Skull,
   Wifi,
   Cpu,
+  Crosshair,
+  Radar,
+  Radio,
   Image as ImageIcon,
   Lock,
   X,
@@ -66,11 +69,56 @@ type Conversation = {
   date: string;
 };
 
-const starters = [
-  { icon: Shield, label: "VULN_SCAN", description: "افحص الكود بحثًا عن الثغرات الأمنية", prompt: "راجع الكود الذي سأرسله بحثًا عن الثغرات الأمنية، واشرح المخاطر وطرق الإصلاح الدفاعية." },
-  { icon: Wifi, label: "NET_RECON", description: "تحليل الشبكات والأصول المصرح بفحصها", prompt: "ساعدني في إعداد خطة آمنة لجرد أصول شبكتي المصرح لي بإدارتها والتحقق من إعداداتها." },
-  { icon: Cpu, label: "CODE_LAB", description: "تحليل الكود والتعلم العملي", prompt: "ساعدني في تحليل الكود وتحسينه مع شرح الحل خطوة بخطوة." },
-  { icon: Lock, label: "CRYPTO_OPS", description: "التشفير والتجزئة وأفضل الممارسات", prompt: "اشرح لي أفضل الممارسات لتطبيق التشفير وتجزئة كلمات المرور بأمان." },
+// Welcome starter cards (redesigned 2026-10-27): each card loads a strong,
+// direct task brief AND switches the composer to the mode that executes
+// it best — the security cards run on الوحش PRO, the dark-web card opens
+// Dark mode. CRYPTO_OPS retired; crypto work lives inside CODE_LAB.
+type StarterMode = "beast" | "dark";
+const starters: Array<{
+  icon: typeof Shield;
+  label: string;
+  description: string;
+  descriptionEn: string;
+  prompt: string;
+  promptEn: string;
+  mode: StarterMode;
+}> = [
+  {
+    icon: Crosshair,
+    label: "VULN_HUNT",
+    description: "صيد الثغرات في الكود والأنظمة بعمق كامل",
+    descriptionEn: "Deep vulnerability hunting for code & systems",
+    prompt: "افحص بعمق كامل أي كود أو نظام أرسله لك: استخرج كل الثغرات، رتّبها حسب الخطورة، واشرح الاستغلال والإصلاح خطوة بخطوة ومن غير اختصار.",
+    promptEn: "Audit any code or system I send you at full depth: extract every vulnerability, rank by severity, and explain exploitation and fixes step by step, with nothing abridged.",
+    mode: "beast",
+  },
+  {
+    icon: Radar,
+    label: "NET_RECON",
+    description: "استطلاع واختبار اختراق الشبكات",
+    descriptionEn: "Network recon & penetration testing",
+    prompt: "خطط ونفّذ معي عملية استطلاع واختبار اختراق كاملة لشبكة: جمع معلومات، مسح منافذ وخدمات، تحليل ثغرات، وسيناريوهات هجوم ودفاع خطوة بخطوة.",
+    promptEn: "Plan and run a full network recon and penetration-testing operation with me: information gathering, port and service scanning, vulnerability analysis, and attack/defense scenarios step by step.",
+    mode: "beast",
+  },
+  {
+    icon: Terminal,
+    label: "CODE_LAB",
+    description: "برمجة بلا حدود — كود كامل شغال",
+    descriptionEn: "No-limits coding — full working code",
+    prompt: "اكتب وحلّل أي كود بأي لغة وأي مستوى تعقيد: سكربتات، أدوات، أتمتة، تشفير، وهندسة عكسية — كود كامل شغال مع شرح تنفيذي مباشر.",
+    promptEn: "Write and analyze any code in any language at any complexity: scripts, tools, automation, cryptography, and reverse engineering — complete working code with direct, practical explanations.",
+    mode: "beast",
+  },
+  {
+    icon: Skull,
+    label: "DARK_WEB",
+    description: "استخبارات الدارك ويب والتسريبات والأسواق",
+    descriptionEn: "Dark-web intel, leaks & markets",
+    prompt: "ادّيني الصورة الاستخباراتية الكاملة عن أي موضوع في الدارك ويب: أسواق ومنتديات وتسريبات وفاعلو تهديد، بمصادر وتحليل معمق.",
+    promptEn: "Give me the full intelligence picture on any dark-web topic: markets, forums, leaks, and threat actors, with sources and deep analysis.",
+    mode: "dark",
+  },
 ];
 
 const initialConversations: Conversation[] = [];
@@ -103,28 +151,63 @@ function Sidebar({
   activeId,
   onSelect,
   onDelete,
+  onDeleteAll,
   onNew,
   onSettings,
   onGuide,
   activeView,
   onClose,
   displayName,
+  email,
+  walletBalance,
+  onLogout,
 }: {
   conversations: Conversation[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onDeleteAll: () => void;
   onNew: () => void;
   onSettings: () => void;
   onGuide: () => void;
   activeView: string;
   onClose?: () => void;
   displayName: string;
+  email: string;
+  walletBalance: number;
+  onLogout: () => void;
 }) {
   const { language } = useLanguage();
   const [openConversationMenu, setOpenConversationMenu] = useState<string | null>(null);
+  const [historyMenuOpen, setHistoryMenuOpen] = useState(false);
+  const [sidebarProfileOpen, setSidebarProfileOpen] = useState(false);
   return (
     <aside className="sidebar">
+      <style>{`
+.sidebar{border-inline-end:1px solid rgba(255,255,255,.07)}
+.sidebar .new-chat-button{border-radius:12px!important;font-weight:800;letter-spacing:.2px;box-shadow:0 6px 18px rgba(220,38,38,.25)}
+.sidebar-search input{border-radius:10px!important}
+.sidebar .nav-item{border-radius:10px;padding:9px 12px;font-weight:600;transition:background .15s ease,color .15s ease}
+.sidebar .nav-item:hover{background:rgba(255,255,255,.06)}
+.sidebar .nav-item.active{background:rgba(220,38,38,.16);color:#fff;font-weight:800}
+.sidebar .list-heading{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;opacity:.75}
+.sidebar .tiny-button{border-radius:8px;transition:background .15s ease}
+.sidebar .tiny-button:hover{background:rgba(255,255,255,.08)}
+.sidebar .conversation-list{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.sidebar .conversation-list::-webkit-scrollbar{width:6px}
+.sidebar .conversation-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
+.sidebar .conversation-item{border-radius:10px;transition:background .15s ease}
+.sidebar .conversation-item:hover{background:rgba(255,255,255,.05)}
+.sidebar .conversation-item.selected{background:rgba(255,255,255,.09)}
+.sidebar .rewards-sidebar-link{display:flex;align-items:center;gap:8px;margin:10px 12px 0;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);color:#FBBF24;font-weight:800;text-decoration:none;transition:background .15s ease}
+.sidebar .rewards-sidebar-link:hover{background:rgba(251,191,36,.14)}
+.sidebar .sidebar-note{opacity:.8}
+.sidebar .profile-row{border-radius:12px;width:100%;transition:background .15s ease}
+.sidebar .profile-row:hover{background:rgba(255,255,255,.06)}
+.sidebar .profile-avatar{background:linear-gradient(135deg,#DC2626,#F59E0B)!important;color:#fff!important;font-weight:900}
+.sidebar-profile-wrap{position:relative;width:100%}
+.sidebar-profile-menu{top:auto!important;bottom:calc(100% + 8px);inset-inline:0;width:100%;min-width:0}
+      `}</style>
       <div className="sidebar-top">
         <div className="sidebar-brand-row">
           <BrandMark />
@@ -159,12 +242,6 @@ function Sidebar({
           <MessageSquare size={16} /> {tr(language, "المحادثات", "Chats")}
         </button>
         <button
-          className={activeView === "files" ? "nav-item active" : "nav-item"}
-          onClick={onGuide}
-        >
-          <FolderOpen size={16} /> {tr(language, "الملفات", "Files")}
-        </button>
-        <button
           className={activeView === "settings" ? "nav-item active" : "nav-item"}
           onClick={onSettings}
         >
@@ -175,10 +252,31 @@ function Sidebar({
       <div className="conversation-list-wrap">
         <div className="list-heading">
           <span>{tr(language, "الأخيرة", "Recent")}</span>
-          <button className="tiny-button" aria-label={tr(language, "خيارات السجل", "History options")}>
+          <button
+            type="button"
+            className="tiny-button"
+            aria-label={tr(language, "خيارات السجل", "History options")}
+            aria-expanded={historyMenuOpen}
+            onClick={() => setHistoryMenuOpen(value => !value)}
+          >
             <MoreHorizontal size={15} />
           </button>
         </div>
+        {historyMenuOpen && conversations.length > 0 && (
+          <button
+            type="button"
+            className="conversation-delete-action"
+            style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", background: "transparent", border: "none", cursor: "pointer", color: "#f87171", fontSize: 13, textAlign: "start" }}
+            onClick={() => {
+              setHistoryMenuOpen(false);
+              const confirmed = window.confirm(tr(language, "هل تريد مسح كل المحادثات نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.", "Delete ALL conversations permanently? This cannot be undone."));
+              if (confirmed) onDeleteAll();
+            }}
+          >
+            <Trash2 size={14} />
+            {tr(language, "مسح كل المحادثات", "Delete all conversations")}
+          </button>
+        )}
         <div className="conversation-list">
           {conversations.map(conversation => (
             <div className="conversation-row-wrap" key={conversation.id}>
@@ -248,14 +346,32 @@ function Sidebar({
           </p>
           <ArrowUp size={13} />
         </div>
-        <button className="profile-row">
-          <span className="profile-avatar">{displayName.trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}</span>
-          <span>
-            <strong>{displayName}</strong>
-            <small>{tr(language, "الحساب الشخصي", "Personal account")}</small>
-          </span>
-          <ChevronDown size={15} />
-        </button>
+        <div className="profile-menu-wrap sidebar-profile-wrap">
+          {sidebarProfileOpen && (
+            <>
+              <button className="profile-menu-backdrop" aria-label={tr(language, "إغلاق قائمة الحساب", "Close account menu")} onClick={() => setSidebarProfileOpen(false)} />
+              <div className="profile-menu sidebar-profile-menu" role="menu">
+                <div className="profile-menu-identity">
+                  <strong>{displayName}</strong>
+                  <span>{email}</span>
+                  <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
+                </div>
+                <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
+                <a role="menuitem" href="/rewards" className="profile-menu-item"><Sparkles size={19} /> <span>{tr(language, "صفحة الجوائز", "Rewards")}</span></a>
+                <button role="menuitem" className="profile-menu-item" onClick={() => { setSidebarProfileOpen(false); onSettings(); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
+                <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={onLogout}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
+              </div>
+            </>
+          )}
+          <button type="button" className="profile-row" aria-expanded={sidebarProfileOpen} aria-haspopup="menu" onClick={() => setSidebarProfileOpen(open => !open)}>
+            <span className="profile-avatar">{displayName.trim().charAt(0).toLocaleUpperCase("ar-EG") || "م"}</span>
+            <span>
+              <strong>{displayName}</strong>
+              <small>{email || tr(language, "الحساب الشخصي", "Personal account")}</small>
+            </span>
+            <ChevronDown size={15} style={{ transform: sidebarProfileOpen ? "rotate(180deg)" : undefined, transition: "transform .2s" }} />
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -479,7 +595,23 @@ export function LanguageFlag({ lang }: { lang: "ar" | "en" }) {
   );
 }
 
-function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
+// Marketing line carried by every popup (Wahid's positioning, 2026-10-27):
+// HotGPT is the cheapest home for no-limits models.
+function CheapestLine() {
+  const { language } = useLanguage();
+  return (
+    <p style={{ marginTop: 14, padding: "9px 12px", borderRadius: 10, border: "1px solid rgba(251,191,36,.35)", background: "rgba(251,191,36,.07)", color: "#FBBF24", fontSize: 12.5, fontWeight: 800, textAlign: "center", lineHeight: 1.8 }}>
+      ⚡ {tr(language, "أرخص موقع لنماذج ذكاء اصطناعي بدون قيود — القوة الكاملة، بسعر أقل.", "The cheapest no-limits AI anywhere — full power, lower price.")}
+    </p>
+  );
+}
+
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive }: {
+  onStarter: (text: string, mode: StarterMode) => void;
+  walletBalance: number;
+  onScan: () => void;
+  onDarkLive: () => void;
+}) {
   const { language } = useLanguage();
   const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
   useEffect(() => { try { const until = Number(localStorage.getItem("hotlucky-banner-dismissed-until") || 0); setHotLuckyBannerVisible(Date.now() >= until); } catch { setHotLuckyBannerVisible(true); } }, []);
@@ -501,20 +633,49 @@ function Welcome({ onStarter }: { onStarter: (text: string) => void }) {
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
-      <p className="welcome-copy">{tr(language, "ماذا يمكنني مساعدتك فيه اليوم؟", "What can I help you with today?")}<br />{tr(language, "مساعدك الذكي للبرمجة والتحليل والأمن الرقمي.", "Your AI assistant for coding, analysis, and digital security.")}</p>
+      <p className="welcome-copy">{tr(language, "اسأل عن أي شئ يخطر ببالك", "Ask anything. Get the full answer.")}<br />{tr(language, "أقوى نماذج ذكاء اصطناعي بدون قيود — برمجة وتحليل وأمن رقمي بعمق حقيقي، وبأرخص سعر في السوق.", "The strongest no-limits AI models — coding, analysis & digital security at real depth, for the lowest price anywhere.")}</p>
       <div className="starter-grid hotgpt-starter-grid">
         {starters.map(starter => {
           const Icon = starter.icon;
           return (
-            <button className="starter-card hotgpt-starter-card" key={starter.label} onClick={() => onStarter(language === "ar" ? starter.prompt : ({ VULN_SCAN: "Review the code I provide for security vulnerabilities, explain the risks, and recommend defensive fixes.", NET_RECON: "Help me safely inventory and verify the configuration of network assets I am authorized to manage.", CODE_LAB: "Help me analyze and improve code, explaining the solution step by step.", CRYPTO_OPS: "Explain best practices for implementing encryption and securely hashing passwords." } as Record<string, string>)[starter.label])}>
+            <button className="starter-card hotgpt-starter-card" key={starter.label} onClick={() => onStarter(language === "ar" ? starter.prompt : starter.promptEn, starter.mode)}>
               <span className="starter-icon hotgpt-starter-icon"><Icon size={22} /></span>
               <span className="starter-copy">
                 <strong>{starter.label}</strong>
-                <small>{language === "ar" ? starter.description : ({ VULN_SCAN: "Audit code for vulnerabilities and security flaws.", NET_RECON: "Map authorized networks and assets.", CODE_LAB: "Analyze code and learn hands-on.", CRYPTO_OPS: "Encryption, hashing, and best practices." } as Record<string, string>)[starter.label]}</small>
+                <small>{language === "ar" ? starter.description : starter.descriptionEn}</small>
               </span>
             </button>
           );
         })}
+      </div>
+      <div className="premium-services" style={{ marginTop: 22, width: "100%", maxWidth: 720 }}>
+        <p style={{ textAlign: "center", fontWeight: 900, letterSpacing: 1, color: "#FBBF24", fontSize: 12, margin: "0 0 10px" }}>
+          ⭐ {tr(language, "خدمات Premium", "Premium services")}
+        </p>
+        <div className="starter-grid hotgpt-starter-grid">
+          <button type="button" className="starter-card hotgpt-starter-card premium-card" onClick={onScan}>
+            <span className="starter-icon hotgpt-starter-icon"><Radar size={22} /></span>
+            <span className="starter-copy">
+              <strong>URL_SCAN {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
+              <small>{tr(language, "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 توكن للتقرير", "A real security scan of any website from its URL — a full vulnerability report · 20 tokens per report")}</small>
+            </span>
+          </button>
+          <button type="button" className="starter-card hotgpt-starter-card premium-card" onClick={onDarkLive}>
+            <span className="starter-icon hotgpt-starter-icon"><Radio size={22} /></span>
+            <span className="starter-copy">
+              <strong>DARK_LIVE {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
+              <small>{tr(language, "بحث حي في فهارس الدارك ويب داخل وضع Dark — نتائج حقيقية بروابط فعلية", "Live search of dark-web indexes inside Dark mode — real results with real links")}</small>
+            </span>
+          </button>
+        </div>
+        {walletBalance < 20 && (
+          <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
+            🔒 {tr(language, "تُفتح الخدمتان برصيد 20 توكن أو أكثر —", "Both services unlock at a balance of 20+ tokens —")}{" "}
+            <a href="/billing" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "اشحن رصيدك", "top up")}</a>{" "}
+            {tr(language, "أو", "or")}{" "}
+            <a href="/hotlucky" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "جرّب حظك في HotLucky — جوائز من 25 توكن", "try HotLucky — prizes from 25 tokens")}</a>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -854,6 +1015,11 @@ export default function Home() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [darkWebEnabled, setDarkWebEnabled] = useState(false);
   const [imageMode, setImageMode] = useState(false);
+  // Premium services (2026-10-27): URL scan mode (the composer draft is
+  // the URL; the send path branches like image mode) and the live
+  // dark-web search add-on toggle for Dark mode.
+  const [scanMode, setScanMode] = useState(false);
+  const [darkLive, setDarkLive] = useState(false);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
 
   // Generated images live only in this session (by design), and any history
@@ -1162,6 +1328,37 @@ export default function Home() {
         }
         return;
       }
+
+      if (scanMode) {
+        // URL scan (premium, 2026-10-27): the draft is the target URL.
+        // The server charges a flat 20 tokens, collects real evidence,
+        // and returns the finished report; failures refund in full.
+        try {
+          const scanResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanMode: true, url: trimmed, conversationId }) });
+          const scanPayload = await scanResponse.json().catch(() => ({}));
+          if (!scanResponse.ok || !scanPayload.content) {
+            const scanErrors: Record<string, string> = {
+              insufficient_credits: tr(language, "فحص الروابط يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو جرّب حظك في HotLucky.", "URL scanning costs 20 tokens. Your balance is not enough; top up or try HotLucky."),
+              invalid_url: tr(language, "الرابط غير صالح. اكتب رابطًا كاملًا مثل https://example.com — لم يُخصم الرصيد.", "That URL looks invalid. Enter a full URL like https://example.com — nothing was charged."),
+              scan_target_not_public: tr(language, "لا يمكن فحص روابط داخلية أو محلية. جرّب موقعًا عامًا — لم يُخصم الرصيد.", "Internal or local addresses cannot be scanned. Try a public website — nothing was charged."),
+              scan_target_unreachable: tr(language, "تعذر الوصول إلى هذا الموقع الآن. تأكد من الرابط وحاول مرة أخرى — لم يُخصم الرصيد.", "This website could not be reached. Check the URL and try again — nothing was charged."),
+              scan_failed: tr(language, "تعذر إتمام الفحص الآن. تم استرداد الرصيد بالكامل؛ حاول مرة أخرى.", "The scan could not be completed. You were fully refunded; please try again."),
+              scan_not_configured: tr(language, "خدمة الفحص غير مُعدّة على الخادم بعد.", "The scan service is not configured on the server yet."),
+              login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+            };
+            throw new Error(scanErrors[String(scanPayload.error || "")] || tr(language, "تعذر إتمام الفحص الآن. لم يُخصم الرصيد.", "The scan failed. Nothing was charged."));
+          }
+          if (typeof scanPayload.tokenBalance === "number") setWalletBalance(scanPayload.tokenBalance);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(scanPayload.content), timestamp: formatTime() }]);
+        } catch (scanError) {
+          setRequestError(scanError instanceof Error ? scanError.message : tr(language, "تعذر إتمام الفحص الآن.", "The scan failed."));
+        } finally {
+          setIsSending(false);
+          setIsSearchingWeb(false);
+          setScanMode(false);
+        }
+        return;
+      }
       setConversations(current => {
         const existing = current.some(item => item.id === conversationId);
         const next: Conversation = {
@@ -1208,6 +1405,7 @@ export default function Home() {
           attachment: filePayload,
           mode: darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default",
           modes: { writingAssist, webSearch: webSearchEnabled, darkWeb: darkWebEnabled },
+          livePremium: darkWebEnabled && darkLive,
           preferences: {
             style: localStorage.getItem("hotgpt-response-style") || "professional",
             instructions: (localStorage.getItem("hotgpt-custom-instructions") || "").slice(0, 2000),
@@ -1224,6 +1422,7 @@ export default function Home() {
         partial?: boolean;
         continuationAvailable?: boolean; messageId?: string; is_complete?: boolean; part_count?: number; last_finish_reason?: string | null;
         billing?: { cost: number; tier: string; labelAr: string; labelEn: string } | null;
+        liveSearch?: string;
       };
       let streamedAssistantId: string | null = null;
       if (response.ok && response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
@@ -1318,6 +1517,11 @@ export default function Home() {
         throw new Error(errors[payload.error ?? ""] ?? "تعذر الحصول على رد من النموذج. حاول مرة أخرى.");
       }
       if (typeof payload.wallet?.tokenBalance === "number") setWalletBalance(payload.wallet.tokenBalance);
+      if (payload.liveSearch === "unavailable") {
+        setRequestError(tr(language, "البحث الحي في الدارك ويب لم يُرجع نتائج لهذا الاستعلام — تمت الإجابة من المعرفة العامة ولم يُخصم رسم البحث الحي.", "Live dark-web search returned no results for this query — answered from general knowledge; the live fee was not charged."));
+      } else if (payload.liveSearch === "locked") {
+        setRequestError(tr(language, "البحث الحي في الدارك ويب يحتاج رصيد 20 توكن أو أكثر.", "Live dark-web search needs a balance of 20+ tokens."));
+      }
       if (typeof payload.wallet?.freeAnswersRemaining === "number") setFreeAnswersRemaining(Math.max(0, payload.wallet.freeAnswersRemaining));
       const finalAssistantContent = payload.content!;
       const serverMessageId = payload.messageId || streamedAssistantId || crypto.randomUUID();
@@ -1507,6 +1711,25 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               }
             })();
           }}
+          onDeleteAll={() => {
+            void (async () => {
+              try {
+                setRequestError(null);
+                const response = await authFetch("/api/conversations?all=1", { method: "DELETE" });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || !payload.success) throw new Error(payload.error || "conversations_delete_all_failed");
+                setConversations([]);
+                if (activeConversation) {
+                  setActiveConversation(null);
+                  setMessages([]);
+                  setDraft("");
+                  setActiveView("chat");
+                }
+              } catch {
+                setRequestError(tr(language, "تعذر مسح المحادثات. حاول مرة أخرى.", "Could not delete the conversations. Please try again."));
+              }
+            })();
+          }}
           onSettings={() => {
             setActiveView("settings");
             setSidebarOpen(false);
@@ -1518,6 +1741,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           activeView={activeView}
           onClose={() => setSidebarOpen(false)}
           displayName={auth.user?.name || auth.user?.email || "مستخدم HotGPT"}
+          email={auth.user?.email || ""}
+          walletBalance={walletBalance}
+          onLogout={handleLogout}
         />
       </div>
       <main className="main-shell">
@@ -1602,8 +1828,42 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   </div>
                 ) : (
                 <Welcome
-                  onStarter={text => {
+                  walletBalance={walletBalance}
+                  onStarter={(text, mode) => {
                     setDraft(text);
+                    setImageMode(false);
+                    setScanMode(false);
+                    if (mode === "beast" && requireProFeature("beast")) {
+                      setSelectedModel("dadgpt-beast");
+                      setDarkWebEnabled(false);
+                    }
+                    if (mode === "dark" && requireProFeature("darkweb")) {
+                      setDarkWebEnabled(true);
+                    }
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
+                  onScan={() => {
+                    if (walletBalance < 20) {
+                      setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky."));
+                      return;
+                    }
+                    setRequestError(null);
+                    setScanMode(true);
+                    setImageMode(false);
+                    setDraft("");
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
+                  onDarkLive={() => {
+                    if (walletBalance < 20) {
+                      setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky."));
+                      return;
+                    }
+                    if (!requireProFeature("darkweb")) return;
+                    setRequestError(null);
+                    setDarkWebEnabled(true);
+                    setDarkLive(true);
+                    setImageMode(false);
+                    setScanMode(false);
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                 />
@@ -1666,7 +1926,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
@@ -1689,23 +1949,32 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
-                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setWebSearchEnabled(false); setDarkWebEnabled(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
-                    <ImageIcon size={16} /><span>صورة</span>
+                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } setRequestError(null); setScanMode(true); setImageMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
+                    <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
+                  </button>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
+                    <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>
                   </button>
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
+                  {darkWebEnabled && (
+                    <button type="button" className={darkLive ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLive) { setDarkLive(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو جرّب حظك في HotLucky.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or try HotLucky.")); return; } setRequestError(null); setDarkLive(true); }} aria-pressed={darkLive} title={tr(language, "بحث حي في فهارس الدارك ويب — يُخصم 5 توكن فقط عند توفر نتائج حقيقية", "Live dark-web index search — 5 tokens, charged only when real results are found")} style={darkLive ? { color: "#FBBF24", borderColor: "#FBBF24", background: "rgba(251,191,36,.12)" } : { color: "#FBBF24" }}>
+                      <Radio size={16} /><span>{tr(language, "حي", "Live")}</span>
+                    </button>
+                  )}
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
-                    setImageMode(false);
+                    setImageMode(false); setScanMode(false);
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
                     if (!requireProFeature("beast")) return;
                     if (walletBalance < 3) { setRequestError(tr(language, "تحتاج إلى 3 توكينات على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 توكينات).", "At least 3 tokens are required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 tokens).")); return; }
                     setRequestError(null); setSelectedModel("dadgpt-beast");
                   }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "الوحش PRO", "الوحش PRO")}>
-                    <span>الوحش</span><span>PRO</span>
+                    <span>{tr(language, "الوحش", "Beast")}</span><span>PRO</span>
                   </button>
                 </div>
               </div>
+              {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run.")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>
@@ -1735,6 +2004,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <p style={{fontSize:17,lineHeight:1.9,color:"#f5f5f5"}}>كسبت <strong style={{color:"#f7cf65"}}>{hotLuckyPrize.label}</strong> من HotLucky</p>
             {(/Pro|Ultra/i.test(hotLuckyPrize.label) && hotLuckyPrize.date) && <p style={{fontSize:13,color:"#d5d5d5",marginTop:4}}>ينتهي في {new Date(new Date(hotLuckyPrize.date).getTime() + (/7 أيام|7 ايام/.test(hotLuckyPrize.label) ? 7 : 30) * 86400000).toLocaleDateString("ar-EG",{timeZone:"Africa/Cairo"})}</p>}
             <p style={{marginTop:14,padding:"12px",borderRadius:14,border:"1px solid rgba(247,207,101,.25)",background:"rgba(247,207,101,.06)",color:"#f7cf65",fontSize:15,fontWeight:800}}>رصيدك الآن: {walletBalance.toLocaleString("en-US")} توكن</p>
+            <CheapestLine />
             <div style={{display:"flex",gap:10,marginTop:20}}>
               <button type="button" onClick={() => { setShowWinModal(false); window.setTimeout(() => { document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(); document.querySelector(".composer")?.scrollIntoView({behavior:"smooth",block:"center"}); },100); }} style={{flex:1,borderRadius:12,padding:"12px 10px",background:"linear-gradient(90deg,#f7cf65,#e8ad28)",color:"#111",fontWeight:900}}>استخدم توكنزك الآن</button>
               <button type="button" onClick={() => { try { localStorage.setItem("hotlucky-win-acknowledged:" + (hotLuckyPrize.code || ""), "1"); } catch {} setShowWinModal(false); }} style={{borderRadius:12,padding:"12px 20px",background:"#292929",border:"1px solid #444",color:"#eee",fontWeight:800}}>شكراً</button>
@@ -1750,6 +2020,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
             <h2 id="visitor-modal-title">{tr(language, "أهلًا بك في HOT GPT", "Welcome to HOT GPT")}</h2>
             <p className="welcome-modal-lead">{tr(language, "سجّل الدخول أو أنشئ حسابًا للمتابعة.", "Log in or create an account to continue.")}</p>
+            <CheapestLine />
             <a href="/auth?mode=login" className="welcome-modal-cta">{tr(language, "تسجيل الدخول", "Log in")}</a>
             <a href="/auth?mode=signup" className="welcome-modal-cta visitor-signup-cta">{tr(language, "إنشاء حساب", "Create account")}</a>
           </section>
@@ -1763,7 +2034,8 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <div style={{fontSize:14,fontWeight:800,color:"#FBBF24",marginBottom:10}}>Free Internet</div>
             <h2 id="free-usage-title" style={{fontSize:21,fontWeight:900,color:"#FBBF24",margin:"0 0 12px"}}>{tr(language,"انتهى استخدامك المجاني","Free usage ended")}</h2>
             <p style={{fontSize:15,lineHeight:1.9,color:"#FFFFFF",margin:"0 0 22px"}}>{tr(language,"للأسف، استخدامك المجاني خلص. بس عندنا مكافآت وهدايا وباقات من أول 100 جنيه.","Sorry, your free usage has ended. But we have rewards, gifts and plans starting from just $2.")}</p>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <CheapestLine />
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:14}}>
               <a href="/rewards" style={{display:"block",borderRadius:11,padding:"13px 16px",background:"#FBBF24",color:"#1A0505",fontWeight:900,textDecoration:"none"}}>{tr(language,"صفحة الجوائز","Rewards")}</a>
               <a href="/billing" style={{display:"block",borderRadius:11,padding:"13px 16px",background:"#DC2626",color:"#FFFFFF",fontWeight:900,textDecoration:"none"}}>{tr(language,"صفحة الباقات","Plans")}</a>
             </div>
@@ -1778,6 +2050,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
             <h2 id="welcome-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
             {welcomeGiftJustGranted && <p className="welcome-modal-lead">{tr(language, "🎁 ليك 5 توكين هدية وصلت رصيدك — جرّب بيهم أي وضع عندنا، حتى الوحش PRO أو توليد صورة.", "🎁 5 gift tokens just landed in your balance — try any mode with them, even Alwahsh PRO or an image.")}</p>}
+            <CheapestLine />
             <div className="post-login-welcome-actions">
               <a href="/rewards" className="post-login-rewards-cta">{tr(language, "🎁 صفحة الجوائز", "🎁 Rewards")}</a>
               <a href="/billing" className="post-login-plans-cta">{tr(language, "💎 صفحة الباقات", "💎 Plans")}</a>

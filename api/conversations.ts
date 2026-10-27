@@ -79,6 +79,21 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === "DELETE") {
+      // Bulk delete (sidebar "delete all conversations"): every message
+      // and conversation owned by the caller. Scoped strictly to the
+      // authenticated user id, like every other branch in this handler.
+      if (req.query?.all === "1") {
+        await rest(`messages?user_id=eq.${encodeURIComponent(user.id)}`, {
+          method: "DELETE",
+          headers: { Prefer: "return=minimal" },
+        });
+        await rest(`conversations?user_id=eq.${encodeURIComponent(user.id)}`, {
+          method: "DELETE",
+          headers: { Prefer: "return=minimal" },
+        });
+        return res.status(200).json({ success: true, all: true });
+      }
+
       const id = typeof req.query?.id === "string" ? req.query.id : "";
       if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "invalid_conversation_id" });
 
