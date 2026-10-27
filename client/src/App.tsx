@@ -18,7 +18,7 @@ import LuckyTermsPage from "./pages/LuckyTerms";
 
 // ONE-LINE DOMAIN SWAP: when the paid domain is connected to Vercel, change
 // this origin (and the matching URLs in index.html, robots.txt, sitemap.xml).
-const SITE_ORIGIN = "https://hot-gpt-ai.vercel.app";
+const SITE_ORIGIN = "https://hotgpt.pro";
 
 const PAGE_META: Record<string, { title: string; description: string }> = {
   "/": {

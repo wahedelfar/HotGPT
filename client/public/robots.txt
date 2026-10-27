@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://hot-gpt-ai.vercel.app/sitemap.xml
+Sitemap: https://hotgpt.pro/sitemap.xml
