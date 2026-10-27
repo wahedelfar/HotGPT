@@ -20,6 +20,12 @@ function messageFor(error: unknown) {
 export default function AuthPage() {
   const { language } = useAppLanguage();
   const [mode, setMode] = useState<"login" | "signup">(() => new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login");
+  const [recoveryAccessToken] = useState(() => { const hash = new URLSearchParams(window.location.hash.replace(/^#/, "")); return hash.get("type") === "recovery" ? hash.get("access_token") || "" : ""; });
+  const [recoveryRefreshToken] = useState(() => { const hash = new URLSearchParams(window.location.hash.replace(/^#/, "")); return hash.get("type") === "recovery" ? hash.get("refresh_token") || "" : ""; });
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [recoveryMode] = useState(() => { const hash = new URLSearchParams(window.location.hash.replace(/^#/, "")); return hash.get("type") === "recovery" && Boolean(hash.get("access_token")); });
+  const [forgotPasswordBusy, setForgotPasswordBusy] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +36,54 @@ export default function AuthPage() {
   const [emailConfirmationRequired, setEmailConfirmationRequired] = useState(false);
   const [resendingConfirmation, setResendingConfirmation] = useState(false);
 
+  async function requestPasswordReset() {
+    if (!email.trim()) { setSuccess(false); setNotice("اكتب بريدك الإلكتروني أولًا، ثم اضغط «نسيت كلمة المرور؟» مرة أخرى."); return; }
+    setForgotPasswordBusy(true); setNotice(""); setSuccess(false);
+    try {
+      const config = window.__MANUS_CONFIG__;
+      const url = (config?.supabaseUrl || "").replace(/\/+$/, "");
+      const key = config?.supabaseAnonKey || "";
+      if (!url || !key) throw new Error("supabase_public_config_missing");
+      const response = await fetch(`${url}/auth/v1/recover`, {
+        method: "POST", headers: { apikey: key, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), redirect_to: window.location.origin + "/auth" }), cache: "no-store",
+      });
+      if (!response.ok) throw new Error("auth_request_failed");
+      setSuccess(true);
+      setNotice("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني — افتح الرسالة واضغط الرابط لتعيين كلمة مرور جديدة.");
+    } catch { setSuccess(false); setNotice("تعذر إكمال العملية. تحقق من البيانات وحاول مرة أخرى."); }
+    finally { setForgotPasswordBusy(false); }
+  }
+
+  async function submitPasswordRecovery(event: React.FormEvent) {
+    event.preventDefault(); setBusy(true); setNotice(""); setSuccess(false);
+    try {
+      if (newPassword !== confirmNewPassword) { setNotice("كلمتا المرور غير متطابقتين."); return; }
+      const config = window.__MANUS_CONFIG__;
+      const url = (config?.supabaseUrl || "").replace(/\/+$/, "");
+      const key = config?.supabaseAnonKey || "";
+      if (!url || !key || !recoveryAccessToken) throw new Error("auth_request_failed");
+      const response = await fetch(`${url}/auth/v1/user`, {
+        method: "PUT",
+        headers: { apikey: key, "Content-Type": "application/json", Authorization: `Bearer ${recoveryAccessToken}` },
+        body: JSON.stringify({ password: newPassword }), cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) { setNotice("كلمة المرور يجب أن تكون 8 أحرف على الأقل، وتحتوي على حرف كبير ورقم ورمز."); return; }
+      if (recoveryRefreshToken) {
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const expiresAt = Number(hash.get("expires_at") || (Math.floor(Date.now() / 1000) + Number(hash.get("expires_in") || 3600)));
+        localStorage.setItem("hotgpt.supabase.session", JSON.stringify({ access_token: recoveryAccessToken, refresh_token: recoveryRefreshToken, expires_at: expiresAt, token_type: hash.get("token_type") || "bearer", user: payload }));
+      }
+      setSuccess(true); setNotice("تم تعيين كلمة المرور الجديدة بنجاح.");
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      window.setTimeout(() => window.location.replace("/"), 1200);
+    } catch { setSuccess(false); setNotice("تعذر إكمال العملية. تحقق من البيانات وحاول مرة أخرى."); }
+    finally { setBusy(false); }
+  }
+
   async function submit(event: React.FormEvent) {
+    if (recoveryMode) { await submitPasswordRecovery(event); return; }
     event.preventDefault();
     setBusy(true); setNotice(""); setSuccess(false); setEmailConfirmationRequired(false);
     try {
@@ -96,19 +149,24 @@ export default function AuthPage() {
         <p className="mt-6 text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT ACCOUNT</p>
         <h1 className="mt-2 text-2xl font-bold">{mode === "login" ? "مرحبًا بعودتك" : "أنشئ حسابك"}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">سجّل الدخول لحفظ محادثاتك ومتابعة رصيدك من أي جهاز.</p>
-        {mode === "signup" && <label className="mt-6 block text-sm">الاسم
+        {!recoveryMode && mode === "signup" && <label className="mt-6 block text-sm">الاسم
           <span className="relative mt-2 block"><UserRound className="absolute right-3 top-3.5 text-slate-500" size={17} /><input autoComplete="name" required maxLength={80} value={name} onChange={e => setName(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pr-10 pl-3 outline-none focus:border-cyan-300" placeholder="اسمك" /></span>
         </label>}
-        <label className="mt-5 block text-sm">البريد الإلكتروني
+        {!recoveryMode && <label className="mt-5 block text-sm">البريد الإلكتروني
           <span className="relative mt-2 block"><Mail className="absolute right-3 top-3.5 text-slate-500" size={17} /><input type="email" autoComplete="email" required maxLength={320} value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pr-10 pl-3 outline-none focus:border-cyan-300" placeholder="name@example.com" /></span>
-        </label>
-        <label className="mt-5 block text-sm">كلمة المرور
+        </label>}
+        {!recoveryMode && <label className="mt-5 block text-sm">كلمة المرور
           <span className="relative mt-2 block"><LockKeyhole className="absolute right-3 top-3.5 text-slate-500" size={17} /><input type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={8} value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pr-10 pl-11 outline-none focus:border-cyan-300" placeholder="8 أحرف على الأقل" /><button type="button" onClick={() => setShowPassword(v => !v)} className="absolute left-3 top-3.5 text-slate-500" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span>
-        </label>
+        </label>}
+        {!recoveryMode && <button type="button" onClick={requestPasswordReset} disabled={forgotPasswordBusy} className="mt-2 text-sm text-cyan-300 hover:text-cyan-200 disabled:opacity-50">{forgotPasswordBusy ? "جارٍ التنفيذ..." : "نسيت كلمة المرور؟"}</button>}
+        {recoveryMode && <>
+          <label className="mt-5 block text-sm">كلمة المرور الجديدة<input type="password" autoComplete="new-password" required minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-3 outline-none focus:border-cyan-300" /></label>
+          <label className="mt-5 block text-sm">تأكيد كلمة المرور الجديدة<input type="password" autoComplete="new-password" required minLength={8} value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-3 outline-none focus:border-cyan-300" /></label>
+        </>}
         {notice && <p role="status" className={`mt-4 rounded-xl border p-3 text-sm leading-6 ${success ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200" : "border-red-400/20 bg-red-400/10 text-red-200"}`}>{notice}</p>}
         {emailConfirmationRequired && <button type="button" onClick={resendConfirmation} disabled={resendingConfirmation} className="mt-3 w-full text-sm font-semibold text-cyan-300 hover:text-cyan-200 disabled:opacity-50">{resendingConfirmation ? "جارٍ إرسال رسالة التأكيد..." : "إعادة إرسال رسالة التأكيد"}</button>}
-        <Button type="submit" disabled={busy} className="mt-6 w-full">{busy ? "جارٍ التنفيذ..." : mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}</Button>
-        <p className="mt-5 text-center text-sm text-slate-400">{mode === "login" ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setNotice(""); setSuccess(false); setEmailConfirmationRequired(false); }} className="font-semibold text-cyan-300 hover:text-cyan-200">{mode === "login" ? "إنشاء حساب جديد" : "تسجيل الدخول"}</button></p>
+        <Button type="submit" disabled={busy} className="mt-6 w-full">{busy ? "جارٍ التنفيذ..." : recoveryMode ? "إرسال" : mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}</Button>
+        {!recoveryMode && <p className="mt-5 text-center text-sm text-slate-400">{mode === "login" ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setNotice(""); setSuccess(false); setEmailConfirmationRequired(false); }} className="font-semibold text-cyan-300 hover:text-cyan-200">{mode === "login" ? "إنشاء حساب جديد" : "تسجيل الدخول"}</button></p>}
       </form>
     </div>
   </main></LocalizedText>;
