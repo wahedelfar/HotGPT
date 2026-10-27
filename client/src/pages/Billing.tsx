@@ -79,13 +79,39 @@ export default function BillingPage() {
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
       setMessage(t("ارفع صورة PNG أو JPG أو WebP فقط.", "Upload a PNG, JPG or WebP image only.")); return;
     }
-    if (file.size > 700_000) {
-      setMessage(t("حجم الصورة يجب ألا يتجاوز 700 كيلوبايت. قلّل حجم الصورة ثم أعد المحاولة.", "The image must not exceed 700 KB. Reduce its size and try again.")); return;
+    if (file.size > 15_000_000) {
+      setMessage(t("حجم الصورة أكبر من اللازم (الحد 15 ميجابايت).", "The image is too large (15 MB max).")); return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setScreenshotData(typeof reader.result === "string" ? reader.result : "");
-    reader.onerror = () => setMessage(t("تعذر قراءة الصورة. حاول بصورة أخرى.", "Could not read the image. Try another one."));
-    reader.readAsDataURL(file);
+    // Capacity guardrail (2026-10-27): proof screenshots are downscaled
+    // in the browser to ~200 KB before upload, so free-tier storage is
+    // not eaten by multi-MB phone screenshots. The server's 700 KB cap
+    // stays as the outer guard; the canvas output always fits it.
+    try {
+      const bitmap = await createImageBitmap(file);
+      const render = (maxDim: number, quality: number): string => {
+        const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("no-2d-context");
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", quality);
+      };
+      let dataUrl = render(1280, 0.82);
+      if (dataUrl.length > 280_000) dataUrl = render(1024, 0.68);
+      if (dataUrl.length > 900_000) throw new Error("still-too-large");
+      setScreenshotData(dataUrl);
+    } catch {
+      // Fallback: the original raw path with the 700 KB rule.
+      if (file.size > 700_000) {
+        setMessage(t("حجم الصورة يجب ألا يتجاوز 700 كيلوبايت. قلّل حجم الصورة ثم أعد المحاولة.", "The image must not exceed 700 KB. Reduce its size and try again.")); return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => setScreenshotData(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => setMessage(t("تعذر قراءة الصورة. حاول بصورة أخرى.", "Could not read the image. Try another one."));
+      reader.readAsDataURL(file);
+    }
   }
 
   async function submitPayment() {
@@ -228,7 +254,7 @@ export default function BillingPage() {
         {paymentMethod !== "paypal" && <div className="mt-7 border-t border-white/10 pt-6">
           <h3 className="text-lg font-bold">{t("إثبات الدفع", "Payment proof")}</h3>
           <p className="mt-2 text-sm text-slate-400">{t(`الباقة المختارة: ${packageTokens} توكين مقابل ${selected?.priceEgp ?? "—"} جنيه عبر ${paymentMethod === "vodafone_cash" ? "فودافون كاش" : "انستا باي"}.`, `Selected pack: ${packageTokens} tokens for ${selected?.priceEgp ?? "—"} EGP via ${paymentMethod === "vodafone_cash" ? "Vodafone Cash" : "InstaPay"}.`)}</p>
-          <label className="mt-4 block text-sm">{t("صورة التحويل (PNG/JPG/WebP، حتى 700KB)", "Transfer screenshot (PNG/JPG/WebP, up to 700 KB)")}<input className="mt-2 block w-full text-sm text-slate-300 file:me-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void handleScreenshot(event.target.files?.[0])} /></label>
+          <label className="mt-4 block text-sm">{t("صورة التحويل (PNG/JPG/WebP — تُصغَّر تلقائيًا قبل الرفع)", "Transfer screenshot (PNG/JPG/WebP — auto-resized before upload)")}<input className="mt-2 block w-full text-sm text-slate-300 file:me-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void handleScreenshot(event.target.files?.[0])} /></label>
           {screenshotData && <img src={screenshotData} alt={t("معاينة إثبات الدفع", "Payment proof preview")} className="mt-4 max-h-48 rounded-xl border border-white/10 object-contain" />}
           <Button className="mt-5 w-full" disabled={busy || !screenshotData} onClick={() => void submitPayment()}>{busy ? t("جارٍ إرسال الطلب...", "Sending your request...") : t("إرسال إثبات الدفع للمراجعة", "Send payment proof for review")}</Button>
           <p className="mt-3 text-xs leading-5 text-slate-500">{t("للتأكيد السريع يمكنك أيضًا إرسال صورة التحويل عبر", "For faster confirmation you can also send the transfer screenshot via")} <a className="text-cyan-300 underline" href="https://wa.me/201063537686" target="_blank" rel="noreferrer">WhatsApp</a>.</p>

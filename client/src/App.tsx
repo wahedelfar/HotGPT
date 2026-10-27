@@ -14,6 +14,10 @@ import LuckyPage from "./pages/Lucky";
 import ProfilePage from "./pages/Profile";
 import AdminLuckyPage from "./pages/AdminLucky";
 import LuckyTermsPage from "./pages/LuckyTerms";
+import TermsPage from "./pages/Terms";
+import PrivacyPage from "./pages/Privacy";
+import RefundPage from "./pages/Refund";
+import AgeGate from "./components/AgeGate";
 
 
 // ONE-LINE DOMAIN SWAP: when the paid domain is connected to Vercel, change
@@ -44,6 +48,18 @@ const PAGE_META: Record<string, { title: string; description: string }> = {
   "/profile": {
     title: "حسابي | HotGPT",
     description: "ملفك الشخصي ورصيد توكيناتك في HotGPT.",
+  },
+  "/terms": {
+    title: "الشروط والأحكام | HotGPT",
+    description: "شروط استخدام HotGPT: الحسابات، التوكنات، الدفع، الاستخدام المسؤول ومسؤولية الاستخدام.",
+  },
+  "/privacy": {
+    title: "سياسة الخصوصية | HotGPT",
+    description: "سياسة خصوصية HotGPT: ما البيانات التي تُجمع، وكيف تُستخدم، ومن يعالجها، وحقوقك.",
+  },
+  "/refund": {
+    title: "سياسة الاسترداد | HotGPT",
+    description: "سياسة استرداد HotGPT: متى تُرد قيمة الباقات والتذاكر، وكيف تطلب الاسترداد.",
   },
 };
 
@@ -97,6 +113,9 @@ function Router() {
       <Route path="/lucky.php" component={LuckyPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/lucky-terms" component={LuckyTermsPage} />
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/refund" component={RefundPage} />
       <Route path="/admin/lucky.php" component={AdminLuckyPage} />
       <Route path="/admin" component={AdminBillingPage} />
       <Route path="/admin/login" component={AdminBillingPage} />
@@ -115,6 +134,7 @@ export default function App() {
         <ThemeProvider defaultTheme="dark" switchable>
           <TooltipProvider>
             <Toaster />
+            <AgeGate />
             <Router />
           </TooltipProvider>
         </ThemeProvider>
