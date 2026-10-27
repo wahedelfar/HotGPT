@@ -51,7 +51,7 @@ export async function searchDarkWeb(query: string): Promise<DarkSearchResult[]> 
     const home = await fetch("https://ahmia.fi/", {
       headers: { "user-agent": BROWSER_UA },
       redirect: "follow",
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(6000),
     });
     if (!home.ok) return [];
     const getSetCookie = (home.headers as any).getSetCookie as (() => string[]) | undefined;
@@ -68,7 +68,7 @@ export async function searchDarkWeb(query: string): Promise<DarkSearchResult[]> 
     const response = await fetch(searchUrl, {
       headers: { "user-agent": BROWSER_UA, ...(cookieHeader ? { cookie: cookieHeader } : {}) },
       redirect: "follow",
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) return [];
     const html = await response.text();
