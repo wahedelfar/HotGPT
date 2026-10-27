@@ -64,7 +64,7 @@ export default function AuthPage() {
     setResendingConfirmation(true);
     try {
       const config = window.__MANUS_CONFIG__;
-      const url = (config?.supabaseUrl || "").replace(/\\/+$/, "");
+      const url = (config?.supabaseUrl || "").replace(/\/+$/, "");
       const key = config?.supabaseAnonKey || "";
       if (!url || !key) throw new Error("supabase_public_config_missing");
       const response = await fetch(`${url}/auth/v1/resend`, {
