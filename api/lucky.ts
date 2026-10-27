@@ -236,7 +236,7 @@ export default async function handler(req: any, res: any) {
         const orderId = String(payload.id);
         const rows = Array.from({ length: spins }, () => ({
           user_id: member.id, email: String(member.email || "").toLowerCase(), payment_method: "paypal",
-          amount_minor: 100, currency: "USD", base_tokens: TICKET_BASE_TOKENS,
+          amount_minor: Math.round(Number(total) * 100), currency: "USD", base_tokens: TICKET_BASE_TOKENS,
           proof_path: "paypal:" + orderId, status: "awaiting_payment",
         }));
         await request("hotlucky_orders", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(rows) });

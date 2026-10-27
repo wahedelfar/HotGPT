@@ -691,8 +691,8 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
   // Progressive persistence for continuations too: mirror the growing
   // merged text into the row every ~1200 new chars, so a hard kill
   // mid-continuation leaves the partial part instead of losing it.
-  let contSavedLength=0,contSaveInFlight=false;
-  const progressiveSave=()=>{ if(contSaveInFlight||generated.length-contSavedLength<1200)return; contSaveInFlight=true; contSavedLength=generated.length; const previous=String(row.content||""); const mergedPreview=balanceCodeFences(previous+(previous?"\n\n":"")+generated); updateAssistantMessage(user.id,messageId,{content:mergedPreview,part_count:partIndex,is_complete:false,last_finish_reason:"streaming"}).catch(()=>null).finally(()=>{contSaveInFlight=false;}); };
+  let contSavedLength=0,contSaveInFlight=false,contLastSaveAt=Date.now();
+  const progressiveSave=()=>{ const unsaved=generated.length-contSavedLength; if(contSaveInFlight||unsaved<=0||(unsaved<400&&Date.now()-contLastSaveAt<4000))return; contSaveInFlight=true; contSavedLength=generated.length; contLastSaveAt=Date.now(); const previous=String(row.content||""); const mergedPreview=balanceCodeFences(previous+(previous?"\n\n":"")+generated); updateAssistantMessage(user.id,messageId,{content:mergedPreview,part_count:partIndex,is_complete:false,last_finish_reason:"streaming"}).catch(()=>null).finally(()=>{contSaveInFlight=false;}); };
   try{
     if(useOR?!orKey:(!base||!key||!model))throw new Error("provider_not_configured");
     const endpoint=useOR?new URL("https://openrouter.ai/api/v1/chat/completions"):new URL(base+"/chat/completions");if(endpoint.protocol!=="https:")throw new Error("provider_https_required");
@@ -1184,19 +1184,24 @@ export default async function handler(req: any, res: any) {
     // function is killed at the platform ceiling mid-stream (or the
     // client fully reloads), the whole answer vanishes even though it
     // was charged. Mirror the streamed text into the staged row every
-    // ~1200 new chars (fire-and-forget); a cut-off stream then leaves
-    // the partial answer in history with its Continue button, and the
-    // final save still overwrites it on completion.
+    // ~400 new chars or ~4 seconds (fire-and-forget); a cut-off stream
+    // then leaves the partial answer in history with its Continue
+    // button, and the final save still overwrites it on completion.
+    // (Cadence tightened 2026-10-27 after a Dark Live field report:
+    // a hard kill at the 60s platform ceiling ate the last ~1200
+    // chars of an otherwise good answer.)
     let progressiveBuffer = "";
     let progressiveSavedLength = 0;
     let progressiveSaveInFlight = false;
+    let progressiveLastSaveAt = Date.now();
     const writeStreamEvent = (event: Record<string, unknown>) => {
-      if (event.type === "attempt") { progressiveBuffer = ""; progressiveSavedLength = 0; }
+      if (event.type === "attempt") { progressiveBuffer = ""; progressiveSavedLength = 0; progressiveLastSaveAt = Date.now(); }
       if (event.type === "delta" && typeof event.content === "string") {
         progressiveBuffer += event.content;
-        if (paidStagedRequest && stagedMessageId && !progressiveSaveInFlight && progressiveBuffer.length - progressiveSavedLength >= 1200) {
+        if (paidStagedRequest && stagedMessageId && !progressiveSaveInFlight && progressiveBuffer.length > progressiveSavedLength && (progressiveBuffer.length - progressiveSavedLength >= 400 || Date.now() - progressiveLastSaveAt >= 4000)) {
           progressiveSaveInFlight = true;
           progressiveSavedLength = progressiveBuffer.length;
+          progressiveLastSaveAt = Date.now();
           const snapshot = balanceCodeFences(progressiveBuffer);
           updateAssistantMessage(user.id, stagedMessageId, { content: snapshot, part_count: 1, is_complete: false, last_finish_reason: "streaming" })
             .catch(() => null)
@@ -1234,6 +1239,20 @@ export default async function handler(req: any, res: any) {
           writeStreamEvent({ type: "thinking" });
         }
       };
+      // OpenRouter attempts get a stall watchdog instead of a flat
+      // total-duration cap: a slow-but-flowing stream (Hermes 4 at
+      // ~100 chars/s) must not be killed for slowness — only for
+      // silence (no parsed activity) or a generous hard cap. (Field
+      // incident 2026-10-27: the flat 35s cap killed a healthy
+      // Hermes 4 stream at 3557 chars; the backup then died at the
+      // platform's 60s ceiling and the answer's tail was lost.)
+      const attemptController = provider.openRouter ? new AbortController() : null;
+      let attemptLastActivityAt = Date.now();
+      const attemptHardCapMs = provider.name === "backup" ? 20000 : 45000;
+      const attemptStallMs = provider.name === "backup" ? 12000 : 15000;
+      const attemptWatchdog = attemptController ? setInterval(() => {
+        if (Date.now() - attemptLastActivityAt > attemptStallMs || Date.now() - providerStartedAt > attemptHardCapMs) attemptController.abort();
+      }, 1000) : null;
       try {
         const upstream = await fetch(provider.endpoint, {
           method: "POST",
@@ -1258,7 +1277,7 @@ export default async function handler(req: any, res: any) {
           // inside the same request. A lone primary keeps the long budget
           // (55s streamed staged / 28s otherwise) because the Beast provider can
           // spend a long invisible reasoning phase before its first content delta.
-          signal: AbortSignal.timeout(provider.openRouter ? (provider.name === "backup" ? 20000 : 35000) : provider.name === "backup" ? 25000 : providers.length > 1 ? 30000 : streamToClient && paidStagedRequest ? 55000 : provider.name === "primary" ? 28000 : 24000),
+          signal: attemptController ? attemptController.signal : AbortSignal.timeout(provider.name === "backup" ? 25000 : providers.length > 1 ? 30000 : streamToClient && paidStagedRequest ? 55000 : provider.name === "primary" ? 28000 : 24000),
         });
         // Read the body once as text. Some compatible providers return SSE or
         // non-JSON error pages even when the status is 200; response.json()
@@ -1292,6 +1311,7 @@ export default async function handler(req: any, res: any) {
                   if (event?.error) { payload = event; continue; }
                   const choice = event?.choices?.[0];
                   noteReasoningActivity(choice?.delta?.reasoning_content ?? choice?.delta?.reasoning);
+                  attemptLastActivityAt = Date.now();
                   const piece = choice?.delta?.content ?? choice?.message?.content ?? choice?.text;
                   const textPiece = typeof piece === "string" ? piece
                     : Array.isArray(piece) ? piece.map((part: any) => typeof part?.text === "string" ? part.text : "").join("") : "";
@@ -1462,6 +1482,14 @@ export default async function handler(req: any, res: any) {
           : "provider_request_failed";
         console.warn("[Chat] Provider attempt failed", JSON.stringify({ requestId, provider: provider.name, reason: lastFailure, totalMs: Date.now() - providerStartedAt, firstDeltaMs: firstContentAt === null ? null : firstContentAt - providerStartedAt, contentType: attemptContentType, contentChars: attemptStreamedContent.length, reasoningChars: attemptReasoningChars }));
         if (provider.name === "primary") primaryFailed = true;
+        // A substantial partial from a long attempt means a fresh
+        // backup cannot finish inside the platform's 60s ceiling —
+        // stop and let the post-loop salvage present the partial as
+        // a continuable stage instead of dying mid-backup and
+        // losing it (field incident 2026-10-27, request 89691ca4).
+        if (attemptStreamedContent.trim().length >= 1500 && (Date.now() - providerStartedAt > 30000 || attemptStreamedContent.trim().length >= 6000)) break;
+      } finally {
+        if (attemptWatchdog) clearInterval(attemptWatchdog);
       }
     }
 
