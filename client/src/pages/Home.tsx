@@ -44,6 +44,7 @@ import { Streamdown } from "streamdown";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { authFetch } from "@/lib/auth";
+import { trackFunnelEvent } from "@/lib/analytics";
 
 type Language = "ar" | "en";
 const LanguageContext = createContext<{ language: Language; toggleLanguage: () => void }>({ language: "ar", toggleLanguage: () => {} });
@@ -86,28 +87,28 @@ const starters: Array<{
   {
     icon: Crosshair,
     label: "VULN_HUNT",
-    description: "صيد الثغرات في الكود والأنظمة بعمق كامل",
-    descriptionEn: "Deep vulnerability hunting for code & systems",
-    prompt: "افحص بعمق كامل أي كود أو نظام أرسله لك: استخرج كل الثغرات، رتّبها حسب الخطورة، واشرح الاستغلال والإصلاح خطوة بخطوة ومن غير اختصار.",
-    promptEn: "Audit any code or system I send you at full depth: extract every vulnerability, rank by severity, and explain exploitation and fixes step by step, with nothing abridged.",
+    description: "حلّل كودك واكتشف نقاط الضعف مع خطوات الإصلاح",
+    descriptionEn: "Find code weaknesses and get practical fixes",
+    prompt: "راجع الكود الذي سأرسله بحثًا عن ثغرات أمنية وأخطاء منطقية، رتّب النتائج حسب الخطورة، ثم أعطني إصلاحات عملية وكودًا مصححًا.",
+    promptEn: "Review the code I send for security weaknesses and logic bugs, rank the findings by severity, then give practical fixes and corrected code.",
     mode: "beast",
   },
   {
     icon: Radar,
     label: "NET_RECON",
-    description: "استطلاع واختبار اختراق الشبكات",
-    descriptionEn: "Network recon & penetration testing",
-    prompt: "خطط ونفّذ معي عملية استطلاع واختبار اختراق كاملة لشبكة: جمع معلومات، مسح منافذ وخدمات، تحليل ثغرات، وسيناريوهات هجوم ودفاع خطوة بخطوة.",
-    promptEn: "Plan and run a full network recon and penetration-testing operation with me: information gathering, port and service scanning, vulnerability analysis, and attack/defense scenarios step by step.",
+    description: "حلّل إعدادات موقعك وراجع أساسيات الحماية",
+    descriptionEn: "Review your site's security basics",
+    prompt: "أريد مراجعة دفاعية لإعدادات موقعي. أعطني قائمة تحقق لهيدرز الأمان وTLS وSPF وDMARC والملفات المكشوفة، مع طريقة إصلاح كل نقطة.",
+    promptEn: "Give me a defensive review checklist for my website: security headers, TLS, SPF, DMARC, and exposed files, with a practical fix for each item.",
     mode: "beast",
   },
   {
     icon: Terminal,
     label: "CODE_LAB",
-    description: "برمجة بلا حدود — كود كامل شغال",
-    descriptionEn: "No-limits coding — full working code",
-    prompt: "اكتب وحلّل أي كود بأي لغة وأي مستوى تعقيد: سكربتات، أدوات، أتمتة، تشفير، وهندسة عكسية — كود كامل شغال مع شرح تنفيذي مباشر.",
-    promptEn: "Write and analyze any code in any language at any complexity: scripts, tools, automation, cryptography, and reverse engineering — complete working code with direct, practical explanations.",
+    description: "حل أخطاء البرمجة واكتب كودًا قابلًا للتشغيل",
+    descriptionEn: "Fix bugs and write working code",
+    prompt: "سأرسل لك خطأ برمجيًا أو جزءًا من كود. اشرح سبب المشكلة، ثم اكتب الحل الكامل القابل للتشغيل وأضف اختبارًا بسيطًا للتأكد منه.",
+    promptEn: "I will send a programming error or code snippet. Explain the root cause, provide a complete working fix, and add a small test to verify it.",
     mode: "beast",
   },
   {
@@ -627,7 +628,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
   const starterCard = (starter: (typeof starters)[number], wide = false) => {
     const Icon = starter.icon;
     return (
-      <button type="button" className="starter-card hotgpt-starter-card" key={starter.label} style={wide ? { ...cardStyle, gridColumn: "1 / -1" } : cardStyle} onClick={() => onStarter(language === "ar" ? starter.prompt : starter.promptEn, starter.mode)}>
+      <button type="button" className="starter-card hotgpt-starter-card" key={starter.label} style={wide ? { ...cardStyle, gridColumn: "1 / -1" } : cardStyle} onClick={() => { trackFunnelEvent({ name: "starter_example_clicked", metadata: { label: starter.label } }); onStarter(language === "ar" ? starter.prompt : starter.promptEn, starter.mode); }}>
         <span className="starter-icon hotgpt-starter-icon"><Icon size={19} /></span>
         <span className="starter-copy">
           <strong>{starter.label}</strong>
@@ -670,7 +671,8 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
-      <p className="welcome-copy">{tr(language, "اسأل عن أي شيء… والإجابة كاملة.", "Ask anything. Get the full answer.")}<br />{tr(language, "أقوى نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة — تحليل وأمن رقمي بعمق حقيقي، وبأرخص سعر في السوق.", "The strongest AI models with no limits on research & programming — analysis & digital security at real depth, for the lowest price anywhere.")}</p>
+      <p className="welcome-copy">{tr(language, "حل مشكلة برمجية أو راجع أمان موقعك بنتيجة عملية.", "Solve a coding problem or review your site's security with a practical result.")}<br />{tr(language, "ابدأ مجانًا بـ5 توكنات، ثم أكمل بباقة البداية: 100 توكن مقابل 100 جنيه.", "Start with 5 free tokens, then continue with the Starter pack: 100 tokens for 100 EGP.")}</p>
+      <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 8, opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 مرحلة تحليل عميق — والدفع بصورة التحويل فقط.", "The pack covers roughly 100 regular messages or 20 deep-analysis stages — payment requires only a transfer screenshot.")} <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "ابدأ بباقة 100 توكن", "Start with 100 tokens")}</a></p>
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
         {starterCard(starters[0])}
         {premiumCard("scan")}

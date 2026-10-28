@@ -187,6 +187,14 @@ export async function listPaymentRequests() {
   }));
 }
 
+export async function recordFunnelEvent(input: { userId: string; name: string; path: string; metadata: Record<string, unknown> }) {
+  await rest("analytics_events", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ user_id: input.userId, event_name: input.name, path: input.path || null, metadata: input.metadata }),
+  });
+}
+
 export async function listUserPaymentRequests(userId: string) {
   const rows = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&select=id,payment_method,package_tokens,amount_egp,status,created_at,reviewed_at&order=created_at.desc&limit=20`);
   return (rows || []).map((row: any) => ({

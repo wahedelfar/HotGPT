@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth";
+import { trackFunnelEvent } from "@/lib/analytics";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type PackageOption = { tokens: number; priceEgp: number };
@@ -77,7 +78,7 @@ export default function BillingPage() {
       }
     } else setAccount(null);
   }
-  useEffect(() => { void load().catch(() => setMessage(t("تعذر تحميل بيانات الباقات. أعد المحاولة.", "Could not load the pack data. Please try again."))); }, []);
+  useEffect(() => { trackFunnelEvent({ name: "billing_view" }); void load().catch(() => setMessage(t("تعذر تحميل بيانات الباقات. أعد المحاولة.", "Could not load the pack data. Please try again."))); }, []);
 
   const packages = config?.packages ?? [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }];
   const selected = packages.find(item => item.tokens === packageTokens);
@@ -126,6 +127,7 @@ export default function BillingPage() {
     if (paymentMethod === "paypal") { setMessage(t("الدفع بـ PayPal يتم من زرار PayPal مباشرة — وتُضاف التوكينات تلقائيًا فور تأكيد الدفع.", "PayPal payment happens through the PayPal button itself — tokens are added automatically as soon as the payment is confirmed.")); return; }
     if (!selected || !screenshotData) { setMessage(t("اختر الباقة وارفع صورة إثبات الدفع أولًا.", "Choose a pack and upload your payment proof first.")); return; }
     setBusy(true); setMessage("");
+    trackFunnelEvent({ name: "manual_payment_submit_started", metadata: { packageTokens, paymentMethod } });
     try {
       const response = await authFetch("/api/billing?action=payment", {
         method: "POST",
@@ -143,6 +145,7 @@ export default function BillingPage() {
         throw new Error(t("تعذر إرسال طلب الدفع. تحقق من اتصالك وحاول مرة أخرى.", "Could not send the payment request. Check your connection and try again."));
       }
       setMessage(t("تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة.", "Your payment proof was sent for review. Tokens are added after admin approval."));
+      trackFunnelEvent({ name: "manual_payment_proof_submitted", metadata: { packageTokens, paymentMethod } });
       setScreenshotData("");
       void load().catch(() => {});
     } catch (error) {
@@ -229,7 +232,7 @@ export default function BillingPage() {
           const label = item.tokens === 100 ? t("باقة البداية", "Starter") : item.tokens === 500 ? t("الأساسية", "Basic") : item.tokens === 800 ? t("الأكثر طلبًا", "Most popular") : t("الأكبر", "Largest");
           const isPopular = item.tokens === 800;
           return (
-          <button key={item.tokens} onClick={() => setPackageTokens(item.tokens)} className={`relative rounded-2xl border p-6 text-start transition ${packageTokens === item.tokens ? "border-amber-400 bg-amber-400/10" : isPopular ? "border-amber-300/60 bg-amber-300/[.06] hover:border-amber-300" : "border-white/10 bg-white/[.03] hover:border-amber-400/50"}`}>
+          <button key={item.tokens} onClick={() => { setPackageTokens(item.tokens); trackFunnelEvent({ name: "package_selected", metadata: { packageTokens: item.tokens, priceEgp: item.priceEgp } }); }} className={`relative rounded-2xl border p-6 text-start transition ${packageTokens === item.tokens ? "border-amber-400 bg-amber-400/10" : isPopular ? "border-amber-300/60 bg-amber-300/[.06] hover:border-amber-300" : "border-white/10 bg-white/[.03] hover:border-amber-400/50"}`}>
             {isPopular && <span className="absolute -top-3 start-4 rounded-full bg-amber-400 px-3 py-0.5 text-[11px] font-black text-black shadow">{t("الأكثر طلبًا ⭐", "Most popular ⭐")}</span>}
             <div className="text-sm text-slate-400">{label}</div>
             <div className="mt-3 text-3xl font-bold">{item.tokens.toLocaleString("en-US")} <span className="text-base font-normal text-amber-400">{t("توكين", "tokens")}</span></div>
@@ -256,12 +259,12 @@ export default function BillingPage() {
         {paymentMethod === "vodafone_cash" && <div className="mt-5">
           <a href={config?.vodafoneCashUrl ?? "https://vf.eg/vfcash?id=mt&qrId=G0gO2O"} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#e60000] px-5 py-3.5 text-center font-black text-white transition hover:brightness-110">{t("ادفع الآن — يفتح تطبيق فودافون كاش ↗", "Pay now — opens the Vodafone Cash app ↗")}</a>
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] px-4 py-3 text-sm"><span className="text-slate-400">{t("أو حوّل يدويًا إلى الرقم:", "Or transfer manually to:")}</span><strong dir="ltr" className="text-base tracking-wide">{config?.vodafoneCashNumber ?? "01063537686"}</strong><button type="button" onClick={() => void copyValue("vf", config?.vodafoneCashNumber ?? "01063537686")} className="rounded-lg border border-white/15 px-3 py-1 text-xs hover:bg-white/10">{copiedKey === "vf" ? t("تم النسخ ✓", "Copied ✓") : t("نسخ الرقم", "Copy number")}</button></div>
-          <p className="mt-3 text-xs leading-5 text-slate-500">{t(`حوّل قيمة الباقة المختارة بالظبط (${selected?.priceEgp ?? "—"} جنيه) ثم ارفع صورة الإثبات بالأسفل.`, `Transfer the exact price of the selected pack (${selected?.priceEgp ?? "—"} EGP), then upload the proof image below.`)}</p>
+          <p className="mt-3 text-xs leading-5 text-slate-500">{t(`حوّل قيمة الباقة المختارة بالظبط (${selected?.priceEgp ?? "—"} جنيه) ثم ارفع صورة الإثبات بالأسفل. المراجعة عادة خلال 5–15 دقيقة أثناء ساعات العمل.`, `Transfer the exact price of the selected pack (${selected?.priceEgp ?? "—"} EGP), then upload the proof image below. Review usually takes 5–15 minutes during working hours.`)}</p>
         </div>}
         {paymentMethod === "instapay" && <div className="mt-5">
           <a href={config?.instapayUrl ?? "https://ipn.eg/S/wahedelfar1/instapay/5hwGuZ"} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#1d4ed8] px-5 py-3.5 text-center font-black text-white transition hover:brightness-110">{t("ادفع الآن — يفتح تطبيق انستا باي ↗", "Pay now — opens the InstaPay app ↗")}</a>
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] px-4 py-3 text-sm"><span className="text-slate-400">{t("أو حوّل يدويًا إلى العنوان:", "Or transfer manually to:")}</span><strong dir="ltr" className="text-base tracking-wide">{config?.instapayAddress ?? "wahedelfar1@instapay"}</strong><button type="button" onClick={() => void copyValue("ip", config?.instapayAddress ?? "wahedelfar1@instapay")} className="rounded-lg border border-white/15 px-3 py-1 text-xs hover:bg-white/10">{copiedKey === "ip" ? t("تم النسخ ✓", "Copied ✓") : t("نسخ العنوان", "Copy address")}</button></div>
-          <p className="mt-3 text-xs leading-5 text-slate-500">{t(`حوّل قيمة الباقة المختارة بالظبط (${selected?.priceEgp ?? "—"} جنيه) ثم ارفع صورة الإثبات بالأسفل.`, `Transfer the exact price of the selected pack (${selected?.priceEgp ?? "—"} EGP), then upload the proof image below.`)}</p>
+          <p className="mt-3 text-xs leading-5 text-slate-500">{t(`حوّل قيمة الباقة المختارة بالظبط (${selected?.priceEgp ?? "—"} جنيه) ثم ارفع صورة الإثبات بالأسفل. المراجعة عادة خلال 5–15 دقيقة أثناء ساعات العمل.`, `Transfer the exact price of the selected pack (${selected?.priceEgp ?? "—"} EGP), then upload the proof image below. Review usually takes 5–15 minutes during working hours.`)}</p>
         </div>}
         {paymentMethod === "paypal" && <div className="mt-5">
           <p className="text-sm leading-6 text-slate-300">{t("الباقة المختارة:", "Selected pack:")} <strong>{t(`${packageTokens.toLocaleString("en-US")} توكين مقابل ما يعادل $${selectedUsd?.priceUsd ?? "—"} بسعر صرف اليوم`, `${packageTokens.toLocaleString("en-US")} tokens for the equivalent of $${selectedUsd?.priceUsd ?? "—"} at today's exchange rate`)}</strong> — {t("تُضاف التوكينات إلى رصيدك", "tokens are added to your balance")} <strong className="text-amber-400">{t("تلقائيًا وفورًا", "automatically and instantly")}</strong> {t("بعد تأكيد PayPal للدفع، من غير إثبات ولا انتظار مراجعة.", "once PayPal confirms the payment — no proof upload, no review wait.")}</p>
