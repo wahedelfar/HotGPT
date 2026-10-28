@@ -302,7 +302,7 @@ export default function LuckyPage() {
         <a href="/" className="text-sm text-amber-100/80 hover:text-white">{t("← العودة إلى HotGPT", "← Back to HotGPT")}</a>
         <span className="flex items-center gap-3">
           <a href="/lucky-terms" className="text-sm text-amber-200 underline underline-offset-4">{t("الشروط والأحكام", "Terms & Conditions")}</a>
-          <LanguageToggle />
+          <LanguageToggle inline />
         </span>
       </nav>
 
