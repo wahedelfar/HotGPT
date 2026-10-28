@@ -266,6 +266,16 @@ export default async function handler(req: any, res: any) {
       return res.status(503).json({ error: "billing_unavailable" });
     }
   }
+  if (action === "requests") {
+    if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const user = await requireMember(req, res);
+    if (!user) return;
+    try { return res.status(200).json({ requests: await db.listUserPaymentRequests(user.id) }); }
+    catch (error) {
+      console.error("[Billing] User payment requests failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "payment_requests_unavailable" });
+    }
+  }
   if (action === "payment") {
     if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
     const user = await requireMember(req, res);

@@ -4,6 +4,7 @@ import { authFetch } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type PackageOption = { tokens: number; priceEgp: number };
+type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null };
 type BillingConfig = {
   vodafoneCashNumber: string;
   vodafoneCashUrl?: string;
@@ -56,6 +57,7 @@ export default function BillingPage() {
   const [account, setAccount] = useState<{ email: string; tokenBalance: number; welcomeGiftGranted?: boolean } | null>(null);
   const [packageTokens, setPackageTokens] = useState(500);
   const [paymentMethod, setPaymentMethod] = useState<"vodafone_cash" | "instapay" | "paypal">("vodafone_cash");
+  const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [screenshotData, setScreenshotData] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,8 +68,14 @@ export default function BillingPage() {
       authFetch("/api/billing?action=me", { cache: "no-store" }),
     ]);
     if (configResponse.ok) setConfig(await configResponse.json());
-    if (accountResponse.ok) setAccount(await accountResponse.json());
-    else setAccount(null);
+    if (accountResponse.ok) {
+      setAccount(await accountResponse.json());
+      const requestResponse = await authFetch("/api/billing?action=requests", { cache: "no-store" });
+      if (requestResponse.ok) {
+        const payload = await requestResponse.json().catch(() => ({}));
+        setRequests(Array.isArray(payload.requests) ? payload.requests : []);
+      }
+    } else setAccount(null);
   }
   useEffect(() => { void load().catch(() => setMessage(t("تعذر تحميل بيانات الباقات. أعد المحاولة.", "Could not load the pack data. Please try again."))); }, []);
 
@@ -136,6 +144,7 @@ export default function BillingPage() {
       }
       setMessage(t("تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة.", "Your payment proof was sent for review. Tokens are added after admin approval."));
       setScreenshotData("");
+      void load().catch(() => {});
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t("حدث خطأ غير متوقع.", "An unexpected error occurred."));
     } finally { setBusy(false); }
@@ -144,6 +153,9 @@ export default function BillingPage() {
 
   const selectedUsd = (config?.packagesUsd ?? []).find(item => item.tokens === packageTokens);
   const [copiedKey, setCopiedKey] = useState("");
+  const statusLabel = (status: string) => ({ pending: t("قيد المراجعة", "Under review"), approved: t("تم الاعتماد", "Approved"), rejected: t("مرفوض", "Rejected") }[status] ?? t("غير معروف", "Unknown"));
+  const methodLabel = (method: PaymentRequest["paymentMethod"]) => method === "vodafone_cash" ? t("فودافون كاش", "Vodafone Cash") : method === "instapay" ? t("إنستا باي", "InstaPay") : "PayPal";
+  const formatRequestDate = (value: string) => { try { return new Intl.DateTimeFormat(language === "ar" ? "ar-EG" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); } catch { return value; } };
   async function copyValue(key: string, value: string) {
     try { await navigator.clipboard.writeText(value); setCopiedKey(key); setTimeout(() => setCopiedKey(""), 2000); } catch {}
   }
@@ -265,6 +277,10 @@ export default function BillingPage() {
         </div>}
         {message && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p>}
       </section>
+      {account && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.2em] text-amber-400">PAYMENT ACTIVITY</p><h2 className="mt-2 text-xl font-bold">{t("طلبات الدفع الأخيرة", "Recent payment requests")}</h2></div><button type="button" onClick={() => void load().catch(() => {})} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">{t("تحديث الحالة", "Refresh status")}</button></div>
+        {requests.length === 0 ? <p className="mt-4 text-sm text-slate-500">{t("لا توجد طلبات دفع سابقة.", "No previous payment requests.")}</p> : <div className="mt-4 space-y-3">{requests.map(request => <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-4"><div><div className="font-bold">{request.packageTokens.toLocaleString("en-US")} {t("توكين", "tokens")} · {request.amountEgp} {t("جنيه", "EGP")}</div><div className="mt-1 text-xs text-slate-500">{methodLabel(request.paymentMethod)} · #{request.id.slice(0, 8)} · {formatRequestDate(request.createdAt)}</div></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${request.status === "approved" ? "bg-emerald-400/15 text-emerald-300" : request.status === "rejected" ? "bg-red-400/15 text-red-300" : "bg-amber-400/15 text-amber-200"}`}>{statusLabel(request.status)}</span></div>)}</div>}
+      </section>}
       <footer className="mt-10 pb-4 text-center text-xs leading-6 text-slate-500">
         <p className="text-sm font-black tracking-wide text-slate-300">{t("HotGPT — نماذج حرة للمطورين والباحثين · حرية الإنترنت", "HotGPT — free models for developers & researchers · Internet freedom")}</p>
         <p className="mx-auto mt-2 max-w-2xl">{t("باستخدامك HotGPT وشرائك أي باقة، أنت وحدك المسؤول قانونيًا عن طلباتك وعن أي استخدام لمخرجات الخدمة، وليست المنصة. التفاصيل في", "By using HotGPT and buying any pack, you alone are legally responsible for your requests and for any use of the service's outputs — not the platform. Details in the")} <a className="text-amber-400 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a>.</p>

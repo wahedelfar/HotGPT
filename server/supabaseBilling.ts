@@ -187,6 +187,15 @@ export async function listPaymentRequests() {
   }));
 }
 
+export async function listUserPaymentRequests(userId: string) {
+  const rows = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&select=id,payment_method,package_tokens,amount_egp,status,created_at,reviewed_at&order=created_at.desc&limit=20`);
+  return (rows || []).map((row: any) => ({
+    id: String(row.id), paymentMethod: row.payment_method,
+    packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp),
+    status: String(row.status), createdAt: row.created_at, reviewedAt: row.reviewed_at,
+  }));
+}
+
 export async function listConversations(userId: string) {
   const rows = await rest(`conversations?user_id=eq.${encodeURIComponent(userId)}&select=id,title,created_at,updated_at,messages(content,created_at)&order=updated_at.desc&limit=100&messages.order=created_at.desc&messages.limit=1`);
   return (rows || []).map((row: any) => ({
