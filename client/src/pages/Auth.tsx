@@ -77,7 +77,18 @@ export default function AuthPage() {
         body: JSON.stringify({ password: newPassword }), cache: "no-store",
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) { setNotice("كلمة المرور يجب أن تكون 8 أحرف على الأقل، وتحتوي على حرف كبير ورقم ورمز."); return; }
+      if (!response.ok) {
+        const errCode = String(payload.code || payload.error_code || "");
+        const errMsg = String(payload.msg || payload.error_description || payload.message || "");
+        if (errCode === "same_password" || /different from the old/i.test(errMsg)) {
+          setNotice("كلمة المرور الجديدة هي نفس كلمة المرور الحالية — اختر كلمة مرور مختلفة عن الحالية.");
+        } else if (errCode === "weak_password") {
+          setNotice("كلمة المرور يجب أن تكون 8 أحرف على الأقل، وتحتوي على حرف كبير ورقم ورمز.");
+        } else {
+          setNotice(errMsg || "تعذّر إكمال العملية. تحقق من البيانات وحاول مرة أخرى.");
+        }
+        return;
+      }
       if (recoveryRefreshToken) {
         const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         const expiresAt = Number(hash.get("expires_at") || (Math.floor(Date.now() / 1000) + Number(hash.get("expires_in") || 3600)));

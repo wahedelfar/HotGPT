@@ -52,6 +52,7 @@ const dictionary: Record<string, string> = {
   "إرسال": "Submit",
   "كلمتا المرور غير متطابقتين.": "The two passwords do not match.",
   "كلمة المرور يجب أن تكون 8 أحرف على الأقل، وتحتوي على حرف كبير ورقم ورمز.": "Password must be at least 8 characters and include an uppercase letter, a number and a symbol.",
+  "كلمة المرور الجديدة هي نفس كلمة المرور الحالية — اختر كلمة مرور مختلفة عن الحالية.": "Your new password is the same as your current one — choose a different password.",
   "تم تعيين كلمة المرور الجديدة بنجاح.": "Your new password has been set.",
   "تعذر إكمال العملية. تحقق من البيانات وحاول مرة أخرى.": "Could not complete the request. Check your details and try again.",
   "إعدادات Supabase العامة غير متاحة في هذه النسخة.": "Public Supabase configuration is unavailable in this build.",
