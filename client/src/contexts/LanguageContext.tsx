@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Languages } from "lucide-react";
 
 export type AppLanguage = "ar" | "en";
 type LanguageContextValue = { language: AppLanguage; toggleLanguage: () => void };
@@ -211,9 +210,9 @@ export function LanguageFlag({ lang }: { lang: "ar" | "en" }) {
   );
 }
 
-export function LanguageToggle() {
+export function LanguageToggle({ inline = false }: { inline?: boolean }) {
   const { language, toggleLanguage } = useAppLanguage();
-  return <button type="button" onClick={toggleLanguage} aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"} title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"} className="fixed right-4 top-4 z-50 inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#10151d] px-3 py-2 text-sm text-white shadow-lg">
-    <LanguageFlag lang={language === "ar" ? "en" : "ar"} /><Languages size={16} /><span>{language === "ar" ? "English" : "العربية"}</span>
+  return <button type="button" onClick={toggleLanguage} aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"} title={language === "ar" ? "Switch to English" : "التبديل إلى العربية"} className={(inline ? "" : "fixed right-4 top-4 z-50 ") + "inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#10151d] text-white shadow-lg"}>
+    <LanguageFlag lang={language === "ar" ? "en" : "ar"} />
   </button>;
 }
