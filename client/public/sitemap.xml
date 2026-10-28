@@ -5,5 +5,9 @@
   <url><loc>https://hotgpt.pro/billing</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://hotgpt.pro/rewards</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://hotgpt.pro/lucky-terms</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://hotgpt.pro/faq</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://hotgpt.pro/terms</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://hotgpt.pro/privacy</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://hotgpt.pro/refund</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://hotgpt.pro/auth</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>
 </urlset>
