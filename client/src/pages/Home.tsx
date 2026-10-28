@@ -1887,7 +1887,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             ) : (
               <button type="button" className="topbar-avatar profile-menu-trigger cached-profile-trigger"
                 aria-label={tr(language, "الحساب", "Account")} title={tr(language, "الحساب", "Account")}
-                onClick={() => { window.location.href = "/auth?mode=login"; }}>W</button>
+                onClick={() => { window.location.href = "/auth?mode=login"; }}>H</button>
             )}
           </div>
         </header>
