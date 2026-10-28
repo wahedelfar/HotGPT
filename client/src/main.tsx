@@ -13,6 +13,17 @@ if (receivedAuthSession && window.location.pathname === "/auth") {
   window.history.replaceState({}, document.title, "/");
 }
 
+// Password-recovery links can land on the site root instead of /auth
+// (in practice Supabase sends them to the Site URL). The set-new-password
+// form lives on /auth, so move any recovery landing there before React
+// starts, keeping the hash intact for Auth.tsx to read.
+try {
+  const bootHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  if (bootHash.get("type") === "recovery" && bootHash.get("access_token") && window.location.pathname !== "/auth") {
+    window.history.replaceState({}, document.title, "/auth" + window.location.hash);
+  }
+} catch {}
+
 // Email links that fail verification (expired or already used) return to the
 // site root with an error in the URL hash. Send those visitors to the auth
 // page with a flag so Auth.tsx can explain what happened instead of silence.
