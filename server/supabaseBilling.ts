@@ -136,17 +136,29 @@ export async function submitPaymentRequest(input: {
     headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": `image/${match[1]}`, "x-upsert": "false" },
     body: bytes,
   });
-  if (!upload.ok) throw new Error("proof_upload_failed");
-  const rows = await rest("payment_requests?select=id,status", {
-    method: "POST",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({
-      user_id: input.userId, email: input.email.toLowerCase(), payment_method: input.paymentMethod,
-      package_tokens: input.packageTokens, amount_egp: input.amountEgp,
-      transfer_reference: input.transferReference?.trim() || null, proof_path: path, status: "pending",
-    }),
-  });
-  return rows?.[0] || (() => { throw new Error("payment_insert_failed"); })();
+  if (!upload.ok) {
+    const detail = await upload.text().catch(() => "");
+    console.error("[Billing] Proof upload failed", upload.status, detail.slice(0, 300));
+    throw new Error("proof_upload_failed");
+  }
+  try {
+    const rows = await rest("payment_requests?select=id,status", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        user_id: input.userId, email: input.email.toLowerCase(), payment_method: input.paymentMethod,
+        package_tokens: input.packageTokens, amount_egp: input.amountEgp,
+        transfer_reference: input.transferReference?.trim() || null, proof_path: path, status: "pending",
+      }),
+    });
+    return rows?.[0] || (() => { throw new Error("payment_insert_failed"); })();
+  } catch (error) {
+    await fetch(`${url}/storage/v1/object/hotgpt-payment-proofs/${path}`, {
+      method: "DELETE", headers: { apikey: key, authorization: `Bearer ${key}` },
+    }).catch(cleanupError => console.error("[Billing] Orphan proof cleanup failed", cleanupError instanceof Error ? cleanupError.message : "unknown"));
+    if (error instanceof Error && error.message === "payment_insert_failed") throw error;
+    throw new Error("payment_insert_failed");
+  }
 }
 
 export async function listWalletUsers() {

@@ -297,8 +297,10 @@ export default async function handler(req: any, res: any) {
       });
       return res.status(201).json({ success: true, requestId: request.id, status: request.status });
     } catch (error) {
-      console.error("[Billing] Payment submission failed", error instanceof Error ? error.message : "unknown");
-      return res.status(503).json({ error: "payment_submission_failed" });
+      const code = error instanceof Error ? error.message : "unknown";
+      console.error("[Billing] Payment submission failed", code);
+      const known = ["invalid_screenshot", "screenshot_too_large", "proof_upload_failed", "payment_insert_failed", "supabase_server_not_configured"];
+      return res.status(code === "invalid_screenshot" || code === "screenshot_too_large" ? 400 : 503).json({ error: known.includes(code) ? code : "payment_submission_failed" });
     }
   }
   if (action === "paypal-create") {
