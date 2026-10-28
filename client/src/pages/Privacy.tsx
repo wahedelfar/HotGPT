@@ -90,7 +90,8 @@ export default function PrivacyPage() {
           <footer className="mt-8 text-center text-xs text-slate-500">
             <a className="text-amber-200 underline" href="/terms">{t("الشروط والأحكام", "Terms of Service")}</a>{" · "}
             <a className="text-amber-200 underline" href="/refund">{t("سياسة الاسترداد", "Refund Policy")}</a>{" · "}
-            <a className="text-amber-200 underline" href="/lucky-terms">{t("شروط HotLucky", "HotLucky Terms")}</a>
+            <a className="text-amber-200 underline" href="/lucky-terms">{t("شروط HotLucky", "HotLucky Terms")}</a>{" · "}
+            <a className="text-amber-200 underline" href="/faq">{t("الأسئلة الشائعة", "FAQ")}</a>
           </footer>
         </div>
       </main>
