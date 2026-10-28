@@ -45,6 +45,10 @@ export function consumeAuthRedirect(): boolean {
   const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
   if (!hash) return false;
   const params = new URLSearchParams(hash);
+  // Password-recovery links carry the same tokens but must NOT be
+  // consumed as a login session: Auth.tsx owns type=recovery hashes
+  // and shows the set-new-password form instead.
+  if (params.get("type") === "recovery") return false;
   const accessToken = params.get("access_token");
   const refreshToken = params.get("refresh_token");
   if (!accessToken || !refreshToken) return false;

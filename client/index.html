@@ -23,6 +23,19 @@
       html[data-theme="blood"] { --bg: #2B0000; --card: #400000; --text: #FFFFFF; --accent: #FF1E2E; }
       html[data-theme="dark"] body, html[data-theme="blood"] body { background: var(--bg); color: var(--text); }
       html[data-theme="blood"] header { background: #2B0000; color: #FFFFFF; }
+      /* Branded splash: styles ONLY the static pre-JS section inside #root
+         (the SEO content Google reads). React replaces it on mount. All
+         text stays fully visible - this is presentation, not hiding. */
+      .hs-splash { text-align: center; }
+      .hs-logo { width: 84px; height: auto; display: block; margin: 4px auto 2px; animation: hsPulse 1.6s ease-in-out infinite; }
+      .hs-splash h1 { font-size: 27px; margin: 8px 0 12px; }
+      .hs-bar { width: 180px; height: 3px; background: rgba(251,191,36,.18); border-radius: 99px; margin: 0 auto 20px; overflow: hidden; position: relative; }
+      .hs-bar i { position: absolute; top: 0; bottom: 0; width: 40%; left: -40%; background: #FBBF24; border-radius: 99px; animation: hsSlide 1.15s ease-in-out infinite; }
+      .hs-splash p { color: rgba(255,255,255,.78); font-size: 15px; margin: 0 0 12px; }
+      .hs-splash nav { margin-top: 18px; border-top: 1px solid rgba(251,191,36,.25); padding-top: 14px; }
+      .hs-splash nav a { color: #FBBF24; text-decoration: none; margin: 0 6px; font-size: 14px; }
+      @keyframes hsPulse { 0%,100% { transform: scale(1); opacity: .92; } 50% { transform: scale(1.05); opacity: 1; } }
+      @keyframes hsSlide { 0% { left: -40%; } 100% { left: 100%; } }
     </style>
     <meta name="theme-color" content="#2B0000" />
     <meta name="description" content="HotGPT — ذكاء اصطناعي للمطورين والباحثين: برمجة وتحليل عميق وأمن رقمي وبحث ويب مباشر وتوليد صور، بأسعار ثابتة معروفة وهدية ترحيب 5 توكينات." />
@@ -69,8 +82,10 @@
   </head>
   <body>
     <div id="root">
-<section dir="rtl" style="max-width:760px;margin:0 auto;padding:32px 20px;line-height:1.9">
+<section class="hs-splash" dir="rtl" style="max-width:760px;margin:0 auto;padding:32px 20px;line-height:1.9">
+<img class="hs-logo" src="/brand/logo.png" alt="HotGPT" />
 <h1 style="color:#FBBF24">HotGPT — ذكاء اصطناعي للمطورين والباحثين</h1>
+<div class="hs-bar"><i></i></div>
 <p>HotGPT مساحة عمل ذكاء اصطناعي عربية للمطورين والباحثين في البرمجة والأمن الرقمي. اسأل عن أي شيء في البرمجة والتحليل واختبار الاختراق، واحصل على إجابات كاملة بعمق حقيقي: كود جاهز للتشغيل، شرح خطوة بخطوة، وتحليل أمني منظم، من غير اختصار ومن غير حدود على البحث والبرمجة.</p>
 <p>يضم HotGPT أوضاعًا متخصصة: مساعد كتابة ينظم طلبك قبل إرساله، وبحث PRO حي بمصادر موثقة، والوحش PRO للتحليل العميق والمهام الصعبة، ووضع الدارك ويب لاستخبارات التهديدات مع بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية. وتشمل الخدمات الاحترافية فحص أمان أي موقع من رابطه بتقرير ثغرات كامل، وفحص SEO شامل مع خطة نمو عملية، وتوليد صور عالية الجودة، وكل خدمة بسعر ثابت معروف قبل أن تبدأ.</p>
 <p>التسعير بسيط وشفاف: الرسالة العادية بتوكن واحد، وتحليل الملف بثلاثة توكينات، والبحث والصورة بخمسة، وتقارير الفحص الاحترافية بعشرين توكنًا مع استرداد كامل إذا تعذر التنفيذ. يبدأ كل حساب جديد بهدية ترحيب قدرها خمسة توكينات، ويمكن الشحن عبر فودافون كاش أو إنستا باي أو PayPal، أو عبر باقة HotLucky التي تمنح من 25 إلى 100 رسالة مقابل 50 جنيهًا.</p>

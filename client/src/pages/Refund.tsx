@@ -1,9 +1,9 @@
 import { LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 import { RotateCcw } from "lucide-react";
 
-// Refund Policy — DRAFT for owner approval (2026-10-27). Figures
-// marked as proposals (14-day window, 3-business-day review) need the
-// owner's explicit confirmation before this page is published.
+// Refund Policy — figures approved by the owner on 2026-10-28:
+// 7-day window for unused credited balance; refund requests are
+// reviewed within 2 business days.
 
 type Section = { h: [string, string]; p: [string, string] };
 const SECTIONS: Section[] = [
@@ -24,8 +24,8 @@ const SECTIONS: Section[] = [
   {
     h: ["٣. رصيد مُسلَّم ولم يُستخدم", "3. Delivered but unused balance"],
     p: [
-      "إذا أُضيف رصيد باقة إلى حسابك ولم يُنفق منه شيء، يمكنك طلب استرداد قيمته إلى وسيلة الدفع نفسها خلال ١٤ يومًا من الشراء. عند الاسترداد يُخصم الرصيد غير المستخدم بالكامل من الحساب.",
-      "If a purchased pack was credited to your account and none of it was spent, you may request a refund to the same payment method within 14 days of purchase. On refund, the unused balance is removed from the account in full.",
+      "إذا أُضيف رصيد باقة إلى حسابك ولم يُنفق منه شيء، يمكنك طلب استرداد قيمته إلى وسيلة الدفع نفسها خلال ٧ أيام من الشراء. عند الاسترداد يُخصم الرصيد غير المستخدم بالكامل من الحساب.",
+      "If a purchased pack was credited to your account and none of it was spent, you may request a refund to the same payment method within 7 days of purchase. On refund, the unused balance is removed from the account in full.",
     ],
   },
   {
@@ -52,8 +52,8 @@ const SECTIONS: Section[] = [
   {
     h: ["٧. طريقة الطلب", "7. How to request"],
     p: [
-      "راسل hotgpt.pro@gmail.com من بريد حسابك مع تفاصيل العملية (الوسيلة والمبلغ والتوقيت وصورة الإثبات عند الحاجة). تُراجع الطلبات خلال ٣ أيام عمل كحد أقصى، ويُخطرك فريقنا بالنتيجة وسببها إن رُفض الطلب.",
-      "Email hotgpt.pro@gmail.com from your account email with the transaction details (method, amount, time, and the proof image if needed). Requests are reviewed within 3 business days at most, and you will be notified of the outcome — and the reason, if a request is declined.",
+      "راسل hotgpt.pro@gmail.com من بريد حسابك مع تفاصيل العملية (الوسيلة والمبلغ والتوقيت وصورة الإثبات عند الحاجة). تُراجع الطلبات خلال ٢ أيام عمل كحد أقصى، ويُخطرك فريقنا بالنتيجة وسببها إن رُفض الطلب.",
+      "Email hotgpt.pro@gmail.com from your account email with the transaction details (method, amount, time, and the proof image if needed). Requests are reviewed within 2 business days at most, and you will be notified of the outcome — and the reason, if a request is declined.",
     ],
   },
 ];
