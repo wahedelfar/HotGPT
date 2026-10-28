@@ -18,6 +18,7 @@ import TermsPage from "./pages/Terms";
 import PrivacyPage from "./pages/Privacy";
 import RefundPage from "./pages/Refund";
 import AgeGate from "./components/AgeGate";
+import InstallAppButton from "@/components/InstallAppButton";
 
 
 // ONE-LINE DOMAIN SWAP: when the paid domain is connected to Vercel, change
@@ -136,6 +137,7 @@ export default function App() {
             <Toaster />
             <AgeGate />
             <Router />
+            <InstallAppButton />
           </TooltipProvider>
         </ThemeProvider>
       </LanguageProvider>
