@@ -17,6 +17,7 @@ import LuckyTermsPage from "./pages/LuckyTerms";
 import TermsPage from "./pages/Terms";
 import PrivacyPage from "./pages/Privacy";
 import RefundPage from "./pages/Refund";
+import FaqPage from "./pages/Faq";
 import AgeGate from "./components/AgeGate";
 import InstallAppButton from "@/components/InstallAppButton";
 
@@ -61,6 +62,10 @@ const PAGE_META: Record<string, { title: string; description: string }> = {
   "/refund": {
     title: "سياسة الاسترداد | HotGPT",
     description: "سياسة استرداد HotGPT: متى تُرد قيمة الباقات والتذاكر، وكيف تطلب الاسترداد.",
+  },
+  "/faq": {
+    title: "الأسئلة الشائعة | HotGPT",
+    description: "إجابات مباشرة عن أسئلة الأمن السيبراني واختبار الاختراق وفحص الثغرات والبرمجة، وعن خدمات HotGPT وأسعاره.",
   },
 };
 
@@ -117,6 +122,7 @@ function Router() {
       <Route path="/terms" component={TermsPage} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/refund" component={RefundPage} />
+      <Route path="/faq" component={FaqPage} />
       <Route path="/admin/lucky.php" component={AdminLuckyPage} />
       <Route path="/admin" component={AdminBillingPage} />
       <Route path="/admin/login" component={AdminBillingPage} />
