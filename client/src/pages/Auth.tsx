@@ -31,7 +31,15 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(() => {
+    try {
+      if (sessionStorage.getItem("hotgpt-auth-link-notice") === "expired") {
+        sessionStorage.removeItem("hotgpt-auth-link-notice");
+        return "الرابط اللي فتحته انتهى أو استُخدم من قبل. لو كنت بتفعّل حسابك جرّب تسجيل الدخول عادي، ولو كنت بتعيّن كلمة مرور جديدة اطلب رابطًا جديدًا من «نسيت كلمة المرور؟».";
+      }
+    } catch {}
+    return "";
+  });
   const [success, setSuccess] = useState(false);
   const [emailConfirmationRequired, setEmailConfirmationRequired] = useState(false);
   const [resendingConfirmation, setResendingConfirmation] = useState(false);

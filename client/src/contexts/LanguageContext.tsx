@@ -42,6 +42,7 @@ const dictionary: Record<string, string> = {
   "تم إنشاء حسابك! 🎉 أرسلنا رابط تأكيد إلى بريدك الإلكتروني — افتح الرسالة واضغط الرابط لتفعيل حسابك والدخول مباشرة.": "Account created! 🎉 We sent a confirmation link to your email — open the message and tap the link to activate your account and sign in instantly.",
   "حسابك لسه مش مفعّل — فعّل حسابك من رسالة التأكيد اللي وصلتك على بريدك الإلكتروني، وبعدها سجّل دخولك عادي.": "Your account isn't activated yet — please confirm your email using the confirmation message we sent you, then sign in.",
   "إعادة إرسال رسالة التأكيد": "Resend confirmation email",
+  "الرابط اللي فتحته انتهى أو استُخدم من قبل. لو كنت بتفعّل حسابك جرّب تسجيل الدخول عادي، ولو كنت بتعيّن كلمة مرور جديدة اطلب رابطًا جديدًا من «نسيت كلمة المرور؟».": "The link you opened has expired or was already used. If you were activating your account, just sign in; if you were resetting your password, request a new one from the Forgot your password link.",
   "تم إرسال رسالة تأكيد جديدة — راجع بريدك الإلكتروني.": "A new confirmation email has been sent — check your inbox.",
   "نسيت كلمة المرور؟": "Forgot your password?",
   "اكتب بريدك الإلكتروني أولًا، ثم اضغط «نسيت كلمة المرور؟» مرة أخرى.": "Enter your email first, then tap Forgot your password again.",
