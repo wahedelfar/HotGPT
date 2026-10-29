@@ -671,11 +671,14 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
-      <p className="welcome-copy">{tr(language, "نحلّ مشاكل البرمجة، ونراجع أمان موقعك ونقوّيه — بنتائج عملية من أول طلب.", "We solve coding problems and review and harden your site's security — with practical results from the very first request.")}<br />{tr(language, "ابدأ مجانًا بـ5 توكنات، ثم أكمل بباقة البداية: 100 توكن مقابل 100 جنيه.", "Start with 5 free tokens, then continue with the Starter pack: 100 tokens for 100 EGP.")}</p>
-      <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 8, opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 مرحلة تحليل عميق — والدفع بصورة التحويل فقط.", "The pack covers roughly 100 regular messages or 20 deep-analysis stages — payment requires only a transfer screenshot.")}</p>
-      <div style={{ textAlign: "center", marginTop: 14 }}>
+      <div style={{ maxWidth: 580, margin: "16px auto 0", textAlign: "center", fontFamily: "'IBM Plex Sans Arabic', 'Space Grotesk', sans-serif" }}>
+        <p style={{ margin: 0, fontWeight: 800, fontSize: "clamp(17px, 2.4vw, 21px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>نحلّ مشاكل <span style={{ color: "#FBBF24" }}>البرمجة</span>، ونراجع <span style={{ color: "#FBBF24" }}>أمان موقعك</span> ونقوّيه — بنتائج وتوصيات عملية من أول طلب.</> : <>We solve <span style={{ color: "#FBBF24" }}>coding problems</span>, and review and harden <span style={{ color: "#FBBF24" }}>your site's security</span> — with practical results and recommendations from the very first request.</>}</p>
+        <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "clamp(17px, 2.4vw, 21px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>ابدأ مجانًا بـ<span style={{ color: "#FBBF24" }}>5 توكنات</span>، ثم أكمل بباقة البداية: <span style={{ color: "#FBBF24" }}>100 توكن مقابل 100 جنيه</span>.</> : <>Start free with <span style={{ color: "#FBBF24" }}>5 tokens</span>, then continue with the Starter pack: <span style={{ color: "#FBBF24" }}>100 tokens for 100 EGP</span>.</>}</p>
+      </div>
+      <div style={{ textAlign: "center", marginTop: 18 }}>
         <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "ابدأ بباقة 100 توكن", "Start with the 100-token pack")}</a>
       </div>
+      <p style={{ textAlign: "center", fontSize: 12.5, margin: "12px 0 26px", opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 مرحلة تحليل عميق — والدفع بفودافون كاش وإنستاباي، بصورة التحويل فقط.", "The pack covers roughly 100 regular messages or 20 deep-analysis stages — pay by Vodafone Cash or InstaPay, with just a transfer screenshot.")}</p>
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
         {starterCard(starters[0])}
         {premiumCard("scan")}
