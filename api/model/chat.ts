@@ -475,7 +475,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     return;
   }
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
-  if (!orKey) { res.status(503).json({ error: "seo_not_configured" }); return; }
+  if (!orKey && !(process.env.APINEX_API_KEY || "").trim()) { res.status(503).json({ error: "seo_not_configured" }); return; }
   const walletBefore = await getWallet(user.id).catch(() => null);
   if (!walletBefore || walletBefore.tokenBalance < SEO_COST) {
     res.status(402).json({ error: "insufficient_credits", wallet: walletBefore });
@@ -503,9 +503,20 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     // as the scan writer): Kimi K2 by default, overridable via
     // OPENROUTER_SEO_MODEL without touching the chat or scan models.
     // Backup stays the Qwen3 workhorse.
-    const models = [
-      (process.env.OPENROUTER_SEO_MODEL || "moonshotai/kimi-k2-0905").trim(),
-      (process.env.OPENROUTER_SEO_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
+    // APInex writer first when its key is configured (owner decision,
+    // 2026-10-29): probe-measured the same day at ~700+ chars/s with
+    // full report-spec compliance, against ~90-100 chars/s for the
+    // OpenRouter writers, so the 60-second function ceiling stops
+    // deciding whether a paid report completes. The OpenRouter pair
+    // stays as fallbacks in its current order; without APINEX_API_KEY
+    // the chain is exactly the previous one.
+    const seoApinexKey = (process.env.APINEX_API_KEY || "").trim();
+    const writers: Array<{ model: string; endpoint: string; key: string; apiNex?: boolean }> = [
+      ...(seoApinexKey ? [{ model: (process.env.APINEX_SEO_MODEL || "free/qwen-3.8-max").trim(), endpoint: "https://api.apinex.bond/v1/chat/completions", key: seoApinexKey, apiNex: true }] : []),
+      ...(orKey ? [
+        { model: (process.env.OPENROUTER_SEO_MODEL || "moonshotai/kimi-k2-0905").trim(), endpoint: "https://openrouter.ai/api/v1/chat/completions", key: orKey },
+        { model: (process.env.OPENROUTER_SEO_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(), endpoint: "https://openrouter.ai/api/v1/chat/completions", key: orKey },
+      ] : []),
     ];
     // A paid report must arrive COMPLETE or not at all. If a writing
     // pass ends before the closing section (output cap, early stop or
@@ -528,7 +539,8 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     let lastCollectedChars = 0;
     let bestCollectedReport = "";
     const reportDeadline = seoRequestDeadline - 3000; // reserve time to persist and return the report
-    for (const [index, model] of models.entries()) {
+    for (const [index, writer] of writers.entries()) {
+      const model = writer.model;
       if (report) break;
       let collected = "";
       let passMessages: any[] = [
@@ -542,16 +554,16 @@ async function handleSeoAudit(req: any, res: any, body: any) {
         console.info("[SEO] Report generation pass", JSON.stringify({ model, modelIndex: index, pass, budgetMs: budget, elapsedMs: Date.now() - seoRequestStartedAt }));
         const passSignal = AbortSignal.timeout(budget);
         try {
-          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          const response = await fetch(writer.endpoint, {
             method: "POST",
-            headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+            headers: { "content-type": "application/json", authorization: `Bearer ${writer.key}`, ...(writer.apiNex ? {} : { "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" }) },
             body: JSON.stringify({
               model,
               messages: passMessages,
               max_tokens: pass === 0 ? 6000 : 3000,
               temperature: 0.3,
               stream: true,
-              ...(index === 0 && pass === 0 ? { reasoning: { effort: "low" } } : {}),
+              ...(index === 0 && pass === 0 && !writer.apiNex ? { reasoning: { effort: "low" } } : {}),
             }),
             signal: passSignal,
           });
@@ -635,7 +647,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
         elapsedMs: Date.now() - seoRequestStartedAt,
         deadlineRemainingMs: seoRequestDeadline - Date.now(),
         collectedChars: lastCollectedChars,
-        modelsTried: models.length,
+        modelsTried: writers.length,
       }));
       throw new Error("seo_report_failed");
     }
