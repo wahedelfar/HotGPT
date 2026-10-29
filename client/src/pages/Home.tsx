@@ -976,12 +976,11 @@ export default function Home() {
       } catch {}
       return;
     }
+    // Visitors land on the homepage directly — no registration popup on open.
+    // The auth gate modal opens only when a visitor tries to use a tool
+    // (see the workspace gate effect below).
     setShowWelcomeModal(false);
-    try {
-      if (sessionStorage.getItem("hotgpt-visitor-popup-dismissed") !== "1") setShowAuthGateModal(true);
-    } catch {
-      setShowAuthGateModal(true);
-    }
+    setShowAuthGateModal(false);
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   // Gate interactive workspace features for visitors. Public auth links remain accessible.
