@@ -383,15 +383,22 @@ async function googleSiteSearch(query: string): Promise<{ checked: boolean; resu
 }
 
 async function collectIndexingData(host: string, metaRobots: string, robotsBlocksAll: boolean, robotsTxt: string, sitemap: string) {
-  const primary = await googleSiteSearch("site:" + host);
   const base = host.replace(/^www\./, "").split(".")[0];
   const tlds = ["com", "ai", "net", "org"].filter((tld) => !host.endsWith("." + tld));
+  const candidates = tlds.slice(0, 3).map((tld) => base + "." + tld).filter((candidate) => candidate !== host);
+  // These lookups are independent. Run them concurrently so optional Google
+  // checks cannot consume 30+ seconds of the paid audit's 60-second budget.
+  const [primary, ...similarResults] = await Promise.all([
+    googleSiteSearch("site:" + host),
+    ...candidates.map((candidate) => googleSiteSearch("site:" + candidate)),
+  ]);
   let similarDomain: { domain: string; resultCount: number } | null = null;
-  for (const tld of tlds.slice(0, 3)) {
-    const candidate = base + "." + tld;
-    if (candidate === host) continue;
-    const found = await googleSiteSearch("site:" + candidate);
-    if (found.checked && found.resultCount > 0) { similarDomain = { domain: candidate, resultCount: found.resultCount }; break; }
+  for (let i = 0; i < similarResults.length; i++) {
+    const found = similarResults[i];
+    if (found.checked && found.resultCount > 0) {
+      similarDomain = { domain: candidates[i], resultCount: found.resultCount };
+      break;
+    }
   }
   const reasons: string[] = [];
   if (/noindex/i.test(metaRobots)) reasons.push("وسم meta robots يحتوي على noindex");
