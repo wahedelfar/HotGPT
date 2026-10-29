@@ -1,3 +1,4 @@
+import { publicPlatformScript } from "../server/_core/publicConfig.ts";
 import { requireMember } from "../server/_core/vercelAuth.ts";
 import * as db from "../server/supabaseBilling.ts";
 import { usdForEgp } from "../server/fxRate.ts";
@@ -216,6 +217,11 @@ async function handlePaypalWebhook(req: any, res: any) {
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = typeof req.query?.action === "string" ? req.query.action : "";
+  if (action === "platform-config") {
+    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.status(200).send(publicPlatformScript());
+  }
   if (action === "paypal-webhook") return await handlePaypalWebhook(req, res);
   if (action === "auth") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }

@@ -95,6 +95,7 @@ const SCAN_COST = 20;
 // same debit/refund discipline, its own collector (server/seoAudit.ts)
 // and its own writer model slot (OPENROUTER_SEO_MODEL).
 const SEO_COST = 20;
+const SEO_REPORT_PROMPT_ADDON = "إضافة خاصة بتقرير SEO — تُطبّق بعد كل التعليمات السابقة ولا تستبدلها:\nأضف الأقسام التالية بعد «درجة SEO» وقبل قائمة التنفيذ النهائية:\n\n«الفهرسة والظهور في جوجل»\n- استخدم indexingData فقط لتحديد حالة الفهرسة، ولا تعتبر الدرجة التقنية دليلًا على الفهرسة.\n- إذا كان indexingData.isIndexed = false، أدرج حرفيًا: «تحذير: الدرجة التقنية لا تعني الظهور في جوجل. موقعك غير مفهرس حالياً.»\n- اشرح السبب فقط إذا كان مدعومًا من indexingData.evidenceBasedReasons أو بيانات الفهرسة نفسها. لا تخمّن أسبابًا مثل حداثة الموقع أو SafeSearch أو حظر Googlebot أو تشابه النطاق دون دليل صريح.\n- إذا كان indexingData.isIndexed = true، اكتب فقط: «مفهرس في جوجل» في بيان الحالة، دون تحذير عدم الفهرسة.\n- إذا كانت indexingData.isIndexed = null أو searchCheckCompleted = false، صرّح بأن التحقق من Google تعذّر ولم تجزم بأن الموقع غير مفهرس.\n- اذكر حالة robots.txt و sitemap.xml كما وردتا في indexingData، ولا تستنتج أن وجودهما يعني أن الموقع مفهرس.\n\n«الكلمات المفتاحية والمنافسين»\n- حلّل نية البحث المحتملة ضمن المجال اعتمادًا على محتوى الموقع والأدلة المتاحة، وميّز مجموعات: brand، unfiltered، adults، roleplay، alternatives.\n- اقترح 5 كلمات مفتاحية أساسية و5 ثانوية، مع فكرة مقال مقترحة لكل كلمة.\n- هذه اقتراحات نوعية وليست بيانات حجم بحث أو منافسة مقاسة. لا تدّعِ أنك فحصت مواقع منافسين فعلية ما لم تتضمن الأدلة ذلك.\n\n«خطة النمو 90 يوم»\n- 0–14 يومًا: ربط Google Search Console وBing Webmaster Tools، إصلاح robots.txt وsitemap، واستخدام meta rating=adult على صفحات المحتوى المخصص للبالغين فقط.\n- 15–45 يومًا: نشر 8–12 مقالًا تعليميًا، وإضافة FAQPage وAPI Documentation حيث ينطبق ذلك فعلًا.\n- 46–90 يومًا: إنشاء صفحات فريدة لكل نية بحث ومراجعة Search Console أسبوعيًا.\n\n«ما لم يتم فحصه»\n- أدرج حرفيًا: «الأرقام الدقيقة للزيارات والباك لينكات تحتاج Google Search Console.»\n- كل رقم أو قياس واقعي في التقرير يجب أن يأتي من technicalData أو indexingData أو الأدلة الأصلية المرفقة. الأرقام المحددة أعلاه ضمن خطة النمو (مثل 8–12 مقالًا و90 يومًا) أهداف تخطيطية مطلوبة وليست قياسات للموقع. لا تخترع أرقام زيارات أو باك لينكات أو أحجام بحث.";
 const PREMIUM_MIN_BALANCE = 20;
 // Premium live dark-web search (Ahmia index): an add-on to Dark mode.
 // Usable only while the balance is at least PREMIUM_MIN_BALANCE; the
@@ -468,7 +469,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
       res.status(422).json({ error: unreachable });
       return;
     }
-    const system = [BASE_PROMPT, MODE_PROMPTS["Beast pro"], SEO_REPORT_PROMPT].filter(Boolean).join("\n\n");
+    const system = [BASE_PROMPT, MODE_PROMPTS["Beast pro"], SEO_REPORT_PROMPT, SEO_REPORT_PROMPT_ADDON].filter(Boolean).join("\n\n");
     const userContent = `افحص هذا الموقع من ناحية SEO واكتب التقرير الكامل الآن:\n\n${seoFindingsText(audit)}`;
     // Dedicated report writer for this service (same decision pattern
     // as the scan writer): Kimi K2 by default, overridable via
