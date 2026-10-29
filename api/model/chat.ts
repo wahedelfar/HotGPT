@@ -371,6 +371,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
     const REPORT_CLOSING = "الخطوات التالية";
     const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
     let report = "";
+    let lastCollectedChars = 0;
     const reportDeadline = seoRequestDeadline - 3000; // reserve time to persist and return the paid report
     for (const [index, model] of models.entries()) {
       if (report) break;
@@ -587,6 +588,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
             }
           }
         } catch { /* aborted or network error — completeness is judged below */ }
+        lastCollectedChars = collected.length;
         const text = collected.trim();
         if (text.length >= 300 && collected.includes(REPORT_CLOSING)) { report = text; break; }
         if (text.length < 300) break; // nothing usable from this model — fall through to the backup model
@@ -602,7 +604,8 @@ async function handleSeoAudit(req: any, res: any, body: any) {
       console.error("[SEO] Complete report unavailable", JSON.stringify({
         elapsedMs: Date.now() - seoRequestStartedAt,
         deadlineRemainingMs: seoRequestDeadline - Date.now(),
-        collectedChars: models.map((model) => ({ model, chars: 0 })),
+        collectedChars: lastCollectedChars,
+        modelsTried: models.length,
       }));
       throw new Error("seo_report_failed");
     }
