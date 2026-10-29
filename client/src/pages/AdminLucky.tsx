@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { LanguageToggle } from "@/contexts/LanguageContext";
 
 // AdminLucky — aligned with the spin-game restructure (2026-10-27).
 // New tickets (base_tokens = 50): one ticket = one spin; approving grants
@@ -65,7 +66,7 @@ export default function AdminLuckyPage() {
   const spinsLog = useMemo(() => orders.filter(o => !!o.spun_at).slice(0, 30), [orders]);
   const isNewTicket = (o: Order) => Number(o.base_tokens) === 50;
 
-  return <main dir="rtl" className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-7xl">
+  return <main dir="rtl" className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-7xl"><LanguageToggle />
     <a href="/" className="text-sm text-cyan-300">العودة إلى HotGPT</a>
     <div className="mt-6 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-black">إدارة HotLucky 🎰</h1><a href="/admin" className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5">إدارة الأعضاء والتوكينات ←</a></div>
     <p className="mt-2 text-sm text-slate-400">التذكرة الجديدة = لفة واحدة (50 جنيه). الاعتماد يمنح اللفة، والجائزة بتتحدد بسحب الخادم وتتضاف للرصيد لحظة اللف. طلبات الباقة القديمة (100) شغالة بقواعدها الأصلية.</p>

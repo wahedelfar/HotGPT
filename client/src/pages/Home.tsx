@@ -411,7 +411,7 @@ function Sidebar({
       <a href="/rewards" className="rewards-sidebar-link">🎁 <span>{tr(language, "صفحة الجوائز", "Rewards")}</span></a>
       {referralLink && (
         <div className="referral-sidebar-card">
-          <div className="referral-sidebar-title">🤝 {tr(language, "ادعوا أصدقائك واكسب", "Invite friends & earn")}</div>
+          <div className="referral-sidebar-title">🤝 {tr(language, "إدع صديق واكسب", "Invite a friend & earn")}</div>
           <div className="referral-sidebar-row">
             <code>{referralLink}</code>
             <button type="button" className="referral-chip" onClick={() => void copyReferralLink()} aria-label={tr(language, "نسخ رابط الإحالة", "Copy invite link")} title={referralCopied ? tr(language, "اتنسخ", "Copied") : tr(language, "نسخ", "Copy")}>{referralCopied ? <Check size={14} /> : <Copy size={14} />}</button>
@@ -445,7 +445,7 @@ function Sidebar({
                 </div>
                 <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
                 <a role="menuitem" href="/rewards" className="profile-menu-item"><Sparkles size={19} /> <span>{tr(language, "صفحة الجوائز", "Rewards")}</span></a>
-                <a role="menuitem" href="/rewards" className="profile-menu-item"><Users size={19} /> <span>{tr(language, "ادعوا أصدقائك واكسب", "Invite friends & earn")}</span></a>
+                <a role="menuitem" href="/rewards" className="profile-menu-item"><Users size={19} /> <span>{tr(language, "إدع صديق واكسب", "Invite a friend & earn")}</span></a>
                 <button role="menuitem" className="profile-menu-item" onClick={() => { setSidebarProfileOpen(false); onSettings(); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
                 <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={onLogout}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
               </div>
@@ -2239,6 +2239,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       </div>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
+                      <a role="menuitem" href="/rewards" className="profile-menu-item"><Users size={19} /> <span>{tr(language, "إدع صديق واكسب", "Invite a friend & earn")}</span></a>
                       <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
                       <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={handleLogout}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
                     </div>

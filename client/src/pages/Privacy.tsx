@@ -1,4 +1,4 @@
-import { LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 import { Eye } from "lucide-react";
 
 // Privacy Policy — DRAFT for owner approval (2026-10-27). Statements
@@ -73,7 +73,10 @@ export default function PrivacyPage() {
     <LocalizedText>
       <main dir={language === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#090909] px-4 py-8 text-white sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <a href="/" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white">{t("← العودة إلى HotGPT", "← Back to HotGPT")}</a>
+          <div className="flex items-center justify-between gap-3">
+            <a href="/" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white">{t("← العودة إلى HotGPT", "← Back to HotGPT")}</a>
+            <LanguageToggle inline />
+          </div>
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <div className="flex items-center gap-3 text-amber-200"><Eye size={26} /><span className="text-xs font-bold tracking-widest">HOTGPT · PRIVACY</span></div>
             <h1 className="mt-4 text-3xl font-black sm:text-4xl">{t("سياسة الخصوصية", "Privacy Policy")}</h1>

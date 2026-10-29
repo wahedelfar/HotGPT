@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type FAQItem = { qAr: string; qEn: string; aAr: string; aEn: string };
 
@@ -151,9 +151,12 @@ export default function FaqPage() {
     <LocalizedText>
       <main dir={language === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#090909] px-4 py-8 text-white sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <a href="/" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white">
-            {language === "ar" ? "← العودة إلى HotGPT" : "← Back to HotGPT"}
-          </a>
+          <div className="flex items-center justify-between gap-3">
+            <a href="/" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white">
+              {language === "ar" ? "← العودة إلى HotGPT" : "← Back to HotGPT"}
+            </a>
+            <LanguageToggle inline />
+          </div>
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <h1 className="text-3xl font-black sm:text-4xl">{language === "ar" ? "الأسئلة الشائعة" : "Frequently Asked Questions"}</h1>
             <p className="mt-4 text-sm leading-7 text-slate-300">
