@@ -216,7 +216,7 @@ export default function BillingPage() {
         {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{account.tokenBalance} {t("توكين", "tokens")}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{t("🎁 أُضيفت هدية الترحيب (5 توكينات) إلى رصيدك", "🎁 The welcome gift (5 tokens) was added to your balance")}</div>}</div>}
       </div>
       <section className="mt-8 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
-        <h2 className="text-xl font-bold">{t("عائلة HotGPT — أسعار الأفعال", "The HotGPT family — action prices")}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold">{t("عائلة HotGPT — أسعار الأفعال", "The HotGPT family — action prices")}</h2><a href="/models" className="rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("اعرف نماذجنا", "Meet our models")}</a></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-xl border border-amber-400/20 bg-black/30 p-4"><div className="font-bold">{t("HotGPT — الافتراضي اليومي", "HotGPT — the everyday default")}</div><p className="mt-1 text-sm text-slate-400">{t("رسالة:", "Message:")} <strong className="text-amber-400">{t("1 توكين", "1 token")}</strong> · {t("تحليل ملف مرفق:", "Attached-file analysis:")} <strong className="text-amber-400">{t("3 توكينات", "3 tokens")}</strong></p></div>
           <div className="rounded-xl border border-amber-400/20 bg-black/30 p-4"><div className="font-bold">{t("HotGPT الوحش PRO", "HotGPT Alwahsh PRO")}</div><p className="mt-1 text-sm text-slate-400">{t("للتحليل العميق والبرمجة والأمن الرقمي:", "For deep analysis, programming and digital security:")} <strong className="text-amber-400">{t("5 توكينات للمرحلة", "5 tokens per stage")}</strong>{t("، وأكمل بقية التقرير بمرحلة ثانية بنفس السعر.", ", and continue the rest of the report with a second stage at the same price.")}</p></div>
@@ -243,10 +243,20 @@ export default function BillingPage() {
             <div className="mt-2 text-xl font-semibold">{item.priceEgp} {t("جنيه", "EGP")}{usd && <span className="text-sm font-normal text-slate-400"> · {t(`أو ما يعادل $${usd.priceUsd} بـ PayPal`, `or the equivalent of $${usd.priceUsd} via PayPal`)}</span>}</div>
             <div className="mt-2 text-xs text-slate-400">{t(`التوكين ≈ ${perToken.toFixed(2)} جنيه`, `≈ ${perToken.toFixed(2)} EGP per token`)}{saving > 0 ? t(` · أوفر ${saving}% من السعر الأساسي (1 جنيه)`, ` · save ${saving}% vs the base rate (1 EGP)`) : t(" · بالسعر الأساسي", " · at the base rate")}</div>
             <div className="mt-3 text-xs leading-5 text-slate-400">{t(`تكفي تقريبًا: ${item.tokens.toLocaleString("en-US")} رسالة افتراضية · أو ${Math.floor(item.tokens / 5)} مرحلة وحش/Dark · أو ${Math.floor(item.tokens / 5)} صورة`, `Covers roughly: ${item.tokens.toLocaleString("en-US")} default messages · or ${Math.floor(item.tokens / 5)} Beast/Dark stages · or ${Math.floor(item.tokens / 5)} images`)}</div>
+            {item.tokens === 500 && <div className="mt-3 rounded-lg bg-amber-400/15 px-3 py-2 text-xs font-bold text-amber-300">{t("الأفضل للمطورين الذين يستخدمون الموقع أسبوعيًا", "Best for developers who use the site weekly")}</div>}
           </button>
           );
         })}
       </div>
+      <section className="mt-8 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
+        <h2 className="text-xl font-bold">{t("مقارنة سريعة — أي باقة تناسبك؟", "Quick comparison — which pack fits you?")}</h2>
+        <div className="mt-4 divide-y divide-white/5">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">100 {t("توكن", "tokens")} — 100 {t("جنيه", "EGP")}</span><span className="text-sm text-slate-400">{t("للتجربة", "For trying it out")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">500 {t("توكن", "tokens")} — 300 {t("جنيه", "EGP")}</span><span className="text-sm font-bold text-amber-300">{t("الأكثر توفيرًا", "Best value")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">800 {t("توكن", "tokens")} — 500 {t("جنيه", "EGP")}</span><span className="text-sm text-slate-400">{t("للمستخدم النشط", "For the active user")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">1000 {t("توكن", "tokens")} — 700 {t("جنيه", "EGP")}</span><span className="text-sm text-slate-400">{t("للاستخدام المستمر", "For continuous use")}</span></div>
+        </div>
+      </section>
       <section className="mt-8 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
         <h2 className="text-xl font-bold">{t("طريقة الدفع", "Payment method")}</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">

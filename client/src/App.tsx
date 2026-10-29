@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import AuthPage from "./pages/Auth";
 import BillingPage from "./pages/Billing";
+import ModelsPage from "./pages/Models";
 import AdminBillingPage from "./pages/AdminBilling";
 import LuckyPage from "./pages/Lucky";
 import ProfilePage from "./pages/Profile";
@@ -34,6 +35,10 @@ const PAGE_META: Record<string, { title: string; description: string }> = {
   "/billing": {
     title: "باقات HotGPT — توكينات للمطورين والباحثين",
     description: "باقات توكينات HotGPT تبدأ من 100 جنيه أو 2 دولار عبر PayPal: رسائل وبحث وصور وتحليل عميق بأسعار ثابتة معروفة مسبقًا، ودفع فودافون كاش وانستا باي وPayPal.",
+  },
+  "/models": {
+    title: "نماذج HotGPT — تعرّف على عائلة النماذج | HotGPT",
+    description: "تعرّف على نماذج HotGPT: الافتراضي اليومي، الوحش PRO، Dark وDark Live، بحث الويب المباشر، توليد الصور، محترف SEO ومحترف فحص الأمان — كل نموذج بسعر ثابت بالتوكين تعرفه قبل ما تبدأ.",
   },
   "/rewards": {
     title: "HotLucky — 100 توكين بـ 100 جنيه | HotGPT",
@@ -114,6 +119,7 @@ function Router() {
       <Route path="/chat/:id" component={Home} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/billing" component={BillingPage} />
+      <Route path="/models" component={ModelsPage} />
       <Route path="/rewards" component={LuckyPage} />
       <Route path="/hotlucky" component={LuckyPage} />
       <Route path="/lucky.php" component={LuckyPage} />

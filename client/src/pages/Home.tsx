@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import {
   ArrowUp,
   Coins,
+  Bot,
+  HelpCircle,
   LogOut,
   Crown,
   CreditCard,
@@ -248,6 +250,15 @@ function Sidebar({
         >
           <Settings size={16} /> {tr(language, "الإعدادات", "Settings")}
         </button>
+        <a className="nav-item" href="/models" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
+          <Bot size={16} /> {tr(language, "النماذج", "Models")}
+        </a>
+        <a className="nav-item" href="/billing" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
+          <CreditCard size={16} /> {tr(language, "الباقات", "Packs")}
+        </a>
+        <a className="nav-item" href="/faq" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
+          <HelpCircle size={16} /> {tr(language, "الأسئلة الشائعة", "FAQ")}
+        </a>
       </nav>
 
       <div className="conversation-list-wrap">
@@ -1005,6 +1016,14 @@ export default function Home() {
     const gateClick = (event: Event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
+      // Public pages stay open to visitors (sidebar links, packs CTA, rewards):
+      // only workspace tools and account actions are gated.
+      const anchor = target.closest('a[href^="/"]');
+      if (anchor) {
+        const href = anchor.getAttribute("href") || "";
+        const publicPaths = ["/billing", "/models", "/rewards", "/hotlucky", "/faq", "/terms", "/privacy", "/refund", "/lucky-terms"];
+        if (publicPaths.some(path => href === path || href.startsWith(path + "?") || href.startsWith(path + "#"))) return;
+      }
       const protectedControl = target.closest(protectedSelector);
       if (!protectedControl) return;
       event.preventDefault();
