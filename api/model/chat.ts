@@ -361,9 +361,13 @@ async function handleUrlScan(req: any, res: any, body: any) {
     // pass ends before the closing section (output cap, early stop or
     // an aborted stream), the server asks the same model to continue
     // from the exact cut point and appends the continuation — up to 3
-    // passes inside the existing deadline. A report counts as complete
-    // ONLY when it contains the closing checklist section; otherwise
-    // the handler fails and the charge is refunded in full. (Field
+    // passes inside the existing deadline. Acceptance follows the
+    // field-proven v2 rules aligned 2026-10-29 (same fix as the SEO
+    // writer): the closing section is the fast path, a pass that ends
+    // naturally with >=300 chars is accepted, and the longest
+    // >=1500-char partial is salvaged and shipped instead of failing a
+    // paying user over a missing closing line; the handler fails and
+    // refunds only when nothing substantial was produced. (Field
     // incident, 2026-10-28: an SEO report ended mid-word inside the
     // growth plan and was saved and charged as a success, because the
     // old accumulation never checked completeness and accepted any
@@ -371,6 +375,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
     const REPORT_CLOSING = "الخطوات التالية";
     const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
     let report = "";
+    let bestScanReport = "";
     const reportDeadline = Date.now() + 50000;
     for (const [index, model] of models.entries()) {
       if (report) break;
@@ -382,6 +387,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
       for (let pass = 0; pass < 3; pass++) {
         const budget = Math.min(pass === 0 ? (index === 0 ? 40000 : 25000) : 20000, reportDeadline - Date.now());
         if (budget < 8000) break;
+        const passSignal = AbortSignal.timeout(budget);
         try {
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -394,7 +400,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
               stream: true,
               ...(index === 0 && pass === 0 ? { reasoning: { effort: "low" } } : {}),
             }),
-            signal: AbortSignal.timeout(budget),
+            signal: passSignal,
           });
           if (!response.ok || !response.body) break;
           const reader = response.body.getReader();
@@ -426,7 +432,8 @@ async function handleUrlScan(req: any, res: any, body: any) {
           if (buffer.trim()) consumeSseLine(buffer);
         } catch { /* aborted or network error — completeness is judged below */ }
         const text = collected.trim();
-        if (text.length >= 300 && text.endsWith(REPORT_CLOSING)) { report = text; break; }
+        if (text.length > bestScanReport.length) bestScanReport = text;
+        if (text.length >= 300 && (text.endsWith(REPORT_CLOSING) || !passSignal.aborted)) { report = text; break; }
         if (text.length < 300) break; // nothing usable from this model — fall through to the backup model
         passMessages = [
           { role: "system", content: system },
@@ -435,6 +442,10 @@ async function handleUrlScan(req: any, res: any, body: any) {
           { role: "user", content: REPORT_CONTINUE },
         ];
       }
+    }
+    if (!report && bestScanReport.length >= 1500) {
+      report = bestScanReport;
+      console.warn("[Scan] Salvaged longest partial report (v2 floor)", JSON.stringify({ chars: bestScanReport.length }));
     }
     if (!report) throw new Error("scan_report_failed");
     await saveMessage(user.id, conversationId, "user", `🔍 فحص أمني للرابط: ${scan.target}`);
