@@ -80,12 +80,16 @@ async function authRequest(path: string, body: Record<string, unknown>, accessTo
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message = String(payload.msg || payload.message || payload.error_description || payload.error || "");
-    if (/already registered|already exists/i.test(message)) throw new Error("email_already_registered");
-    if (/invalid login credentials/i.test(message)) throw new Error("invalid_credentials");
-    if (/password.*(weak|short|least)/i.test(message)) throw new Error("password_too_weak");
-    if (/rate limit|too many requests/i.test(message)) throw new Error("auth_rate_limited");
-    throw new Error(message || "auth_request_failed");
+    const rawMessage = String(payload.msg || payload.message || payload.error_description || payload.error || "");
+    let message = rawMessage || "auth_request_failed";
+    if (/already registered|already exists/i.test(rawMessage)) message = "email_already_registered";
+    else if (/invalid login credentials/i.test(rawMessage)) message = "invalid_credentials";
+    else if (/password.*(weak|short|least)/i.test(rawMessage)) message = "password_too_weak";
+    else if (/rate limit|too many requests/i.test(rawMessage)) message = "auth_rate_limited";
+    const failure = new Error(message) as Error & { status?: number; code?: string };
+    failure.status = response.status;
+    failure.code = String(payload.error_code || payload.error || "");
+    throw failure;
   }
   return payload;
 }
@@ -120,18 +124,54 @@ export async function signOut() {
   }
 }
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshSession(): Promise<string | null> {
+  // Refresh tokens rotate on every use, so parallel refreshes presenting
+  // the same token can trip reuse detection and revoke the whole session
+  // family. All refresh work funnels through the single in-flight promise
+  // in getAccessToken, and every attempt re-reads the stored session first
+  // in case another tab already refreshed it.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(resolve => setTimeout(resolve, attempt * 900));
+    const session = readSession();
+    if (!session) return null;
+    if (session.expires_at > Math.floor(Date.now() / 1000) + 60) return session.access_token;
+    try {
+      const payload = await authRequest("token?grant_type=refresh_token", { refresh_token: session.refresh_token });
+      const next = saveSession(payload);
+      return next?.access_token ?? null;
+    } catch (cause) {
+      const status = Number((cause as { status?: unknown })?.status || 0);
+      const code = String((cause as { code?: unknown })?.code || "");
+      const message = cause instanceof Error ? cause.message : "";
+      const definitive = status === 400 && /refresh_token|invalid_grant/i.test(`${code} ${message}`);
+      if (definitive) {
+        // The refresh token itself is dead (expired, revoked or reused):
+        // the session really is over.
+        clearSession();
+        return null;
+      }
+      // Anything else (network hiccup, 5xx, rate limit) is transient:
+      // the loop retries, and the session is never cleared over it.
+    }
+  }
+  // Refresh could not complete right now (e.g. offline). The stored
+  // session is kept, so a later call can still succeed instead of
+  // forcing a logout.
+  return null;
+}
+
 export async function getAccessToken(): Promise<string | null> {
   const session = readSession();
   if (!session) return null;
   if (session.expires_at > Math.floor(Date.now() / 1000) + 60) return session.access_token;
-  try {
-    const payload = await authRequest("token?grant_type=refresh_token", { refresh_token: session.refresh_token });
-    const next = saveSession(payload);
-    return next?.access_token ?? null;
-  } catch {
-    clearSession();
-    return null;
+  if (!refreshInFlight) {
+    refreshInFlight = refreshSession()
+      .catch(() => null)
+      .finally(() => { refreshInFlight = null; });
   }
+  return refreshInFlight;
 }
 
 export async function getCurrentUser(): Promise<HotGPTUser | null> {
