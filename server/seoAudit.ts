@@ -497,7 +497,7 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
   // the FASTER response — the site's capability, not a momentary hiccup.
   let elapsedMs = main.elapsedMs;
   try {
-    const second = await fetchWithValidation(main.finalUrl, 24 * 1024, 6000);
+    const second = await fetchWithValidation(new URL(main.finalUrl), 24 * 1024, 6000);
     if (second.elapsedMs > 0) elapsedMs = Math.min(elapsedMs, second.elapsedMs);
   } catch { /* timing re-measure is best-effort */ }
 
