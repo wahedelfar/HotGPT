@@ -1826,7 +1826,19 @@ export default function Home() {
     const excludePlaceIds = sessionLeadSeenRef.current.get(query) ?? [];
     const priorForCenter = sessionLeadsRef.current.get(query) ?? [];
     const coordLeads = priorForCenter.flat().filter(l => typeof l.lat === "number" && typeof l.lng === "number");
-    const moreCenter = coordLeads.length > 0 ? { lat: coordLeads.reduce((n, l) => n + (l.lat ?? 0), 0) / coordLeads.length, lng: coordLeads.reduce((n, l) => n + (l.lng ?? 0), 0) / coordLeads.length } : undefined;
+    // Anchor on the densest cluster of delivered businesses (a real, busy
+    // location), not the plain centroid: an anchor in empty space makes the
+    // geo search return nothing.
+    let moreCenter: { lat: number; lng: number } | undefined;
+    if (coordLeads.length > 0) {
+      let best = coordLeads[0];
+      let bestCount = -1;
+      for (const candidate of coordLeads) {
+        const n = coordLeads.filter(o => Math.abs((o.lat ?? 0) - (candidate.lat ?? 0)) <= 0.05 && Math.abs((o.lng ?? 0) - (candidate.lng ?? 0)) <= 0.05).length;
+        if (n > bestCount) { bestCount = n; best = candidate; }
+      }
+      moreCenter = { lat: best.lat ?? 0, lng: best.lng ?? 0 };
+    }
     const moreBatch = priorForCenter.length;
     setIsSending(true);
     setIsSearchingWeb(true);

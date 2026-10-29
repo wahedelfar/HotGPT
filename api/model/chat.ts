@@ -1065,11 +1065,18 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
     const centerLat = typeof body?.moreCenter?.lat === "number" ? body.moreCenter.lat : null;
     const centerLng = typeof body?.moreCenter?.lng === "number" ? body.moreCenter.lng : null;
     const moreBatch = Math.min(12, Math.max(1, Number(body?.moreBatch) || 1));
-    const GEO_SHIFTS: Array<[number, number]> = [[0.05, 0], [0, 0.05], [-0.05, 0], [0, -0.05], [0.05, 0.05], [-0.05, 0.05], [0.05, -0.05], [-0.05, -0.05], [0.1, 0], [0, 0.1], [-0.1, 0], [0, -0.1]];
     const runInput: Record<string, unknown> = { searchStringsArray: [query], maxCrawledPlacesPerSearch: LEADS_MAX_PLACES, language };
     if (isMoreRun && centerLat !== null && centerLng !== null && Math.abs(centerLat) <= 90 && Math.abs(centerLng) <= 180) {
-      const [dLat, dLng] = GEO_SHIFTS[(moreBatch - 1) % GEO_SHIFTS.length];
-      runInput.customGeolocation = { type: "Point", coordinates: [centerLng + dLng, centerLat + dLat] };
+      // A bare Point in a sparse spot makes the actor return zero places;
+      // a Polygon box around the anchor (the densest cluster of the batch
+      // already delivered) crawls a defined area instead. The box grows with
+      // every continuation batch, so each "more" opens wider territory.
+      const half = Math.min(0.25, 0.05 + 0.05 * (moreBatch - 1));
+      const loLng = centerLng - half;
+      const hiLng = centerLng + half;
+      const loLat = centerLat - half;
+      const hiLat = centerLat + half;
+      runInput.customGeolocation = { type: "Polygon", coordinates: [[[loLng, loLat], [hiLng, loLat], [hiLng, hiLat], [loLng, hiLat], [loLng, loLat]]] };
     }
     const runPayload = await apify(`acts/${actorPath}/runs`, {
       method: "POST",
