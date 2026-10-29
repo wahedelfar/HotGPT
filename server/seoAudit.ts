@@ -398,7 +398,7 @@ async function collectIndexingData(host: string, metaRobots: string, robotsBlock
   if (robotsBlocksAll) reasons.push("robots.txt يمنع زحف الموقع بالكامل");
   if (similarDomain) reasons.push("ظهرت نتائج للنطاق المشابه " + similarDomain.domain + "؛ يلزم التحقق يدويًا من احتمال الالتباس");
   if (!reasons.length && primary.checked && primary.resultCount === 0) reasons.push("لم تظهر نتائج لاستعلام site:؛ الفحص الخارجي لا يحدد سبب عدم الظهور");
-  return { isIndexed: primary.checked ? primary.resultCount > 0 : false, searchCheckCompleted: primary.checked, siteQueryResultCount: primary.resultCount, robotsTxt, sitemap, similarDomain, evidenceBasedReasons: reasons };
+  return { isIndexed: primary.checked ? primary.resultCount > 0 : null, searchCheckCompleted: primary.checked, siteQueryResultCount: primary.resultCount, robotsTxt, sitemap, similarDomain, evidenceBasedReasons: reasons };
 }
 
 export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
