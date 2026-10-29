@@ -798,7 +798,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
       <div className="panel-heading">
         <div>
           <p className="eyebrow">{tr(language, "الإعدادات", "Settings")}</p>
-          <h1>{tr(language, "مساحتك، بطريقتك", "Your space, your way")}</h1>
+          <h2>{tr(language, "مساحتك، بطريقتك", "Your space, your way")}</h2>
           <p>{tr(language, "خصص المظهر وطريقة رد النموذج لتناسب أسلوبك.", "Personalize the appearance and how the model responds.")}</p>
         </div>
         <button className="icon-button" onClick={onBack} aria-label={tr(language, "العودة للمحادثة", "Back to chat")}><X size={18} /></button>
@@ -882,7 +882,7 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
       <div className="panel-heading">
         <div>
           <p className="eyebrow">{tr(language, "الملفات", "Files")}</p>
-          <h1>{tr(language, "كل ما تحتاجه، في مكان واحد", "Everything you need, in one place")}</h1>
+          <h2>{tr(language, "كل ما تحتاجه، في مكان واحد", "Everything you need, in one place")}</h2>
           <p>{tr(language, "احتفظ بالمراجع والمستندات التي تعمل عليها بجوار محادثاتك.", "Keep your references and documents alongside your conversations.")}</p>
         </div>
         <button
