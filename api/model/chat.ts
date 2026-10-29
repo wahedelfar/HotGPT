@@ -1351,7 +1351,7 @@ export default async function handler(req: any, res: any) {
       { role: "system", content: serverSystemPrompt },
       ...(attachmentText ? providerMessages.map((message: ChatMessage, index: number) => index === providerMessages.length - 1 ? { ...message, content: `${message.content}\\n\\nمحتوى الملف المرفق (${String(attachment.name).slice(0, 120)}):\\n${attachmentText}` } : message) : providerMessages),
     ];
-    const providers: Array<{ name: string; endpoint: URL; key: string; model: string; openRouter?: boolean; reasoningEffort?: string }> = [];
+    const providers: Array<{ name: string; endpoint: URL; key: string; model: string; openRouter?: boolean; apiNex?: boolean; reasoningEffort?: string }> = [];
     // UI mode labels are not provider IDs; preserve DadGPT's configured model IDs.
     const beastModel = (
       process.env.NEXA_PROVIDER_BEAST_MODEL ||
@@ -1368,6 +1368,22 @@ export default async function handler(req: any, res: any) {
     const openRouterKey = (process.env.OPENROUTER_API_KEY || "").trim();
     const openRouterEndpoint = new URL("https://openrouter.ai/api/v1/chat/completions");
     const orQwenModel = (process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim();
+    // APInex free-tier engines (owner decision, 2026-10-29): a second,
+    // OpenAI-compatible provider. Every APInex slot below is added only when
+    // APINEX_API_KEY is configured, so without that key the routing is
+    // exactly the previous OpenRouter-only behavior. Any APInex failure —
+    // including the 402 its free tier returns when the account's daily
+    // check-in was missed — fails over to the next provider in the chain
+    // like any provider error today. Probe evidence, same day: every
+    // APInex chat model refused dark-web intel requests, so the dark-web
+    // desk deliberately gets NO APInex slot; Dark Live (synthesis of
+    // collected listings) gets Kimi as first backup with the existing
+    // Qwen backup kept behind it.
+    const apinexKey = (process.env.APINEX_API_KEY || "").trim();
+    const apinexEndpoint = new URL("https://api.apinex.bond/v1/chat/completions");
+    const apinexDefaultModel = (process.env.APINEX_DEFAULT_MODEL || "free/deepseek-v4.1-flash").trim();
+    const apinexBeastModel = (process.env.APINEX_BEAST_MODEL || "free/deepseek-v4-pro-0813").trim();
+    const apinexDarkLiveModel = (process.env.APINEX_DARK_LIVE_MODEL || "free/kimi-k3").trim();
     // Engine routing (user decisions, 2026-10-25): whenever the OpenRouter key
     // exists it powers every mode, because the user does not trust the opaque
     // DadGPT endpoint. Beast (with or without web search) synthesizes on
@@ -1380,6 +1396,7 @@ export default async function handler(req: any, res: any) {
     const useOpenRouterDefault = chatMode === "default" && Boolean(openRouterKey);
     if (useOpenRouterBeast) {
       providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_BEAST_MODEL || "nousresearch/hermes-3-llama-3.1-70b").trim(), openRouter: true, reasoningEffort: "low" });
+      if (apinexKey) providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexBeastModel, openRouter: true, apiNex: true });
       providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (useOpenRouterDark) {
       // Premium live answers (real listings collected and the fee
@@ -1394,10 +1411,16 @@ export default async function handler(req: any, res: any) {
         ? (process.env.OPENROUTER_DARK_LIVE_MODEL || "nousresearch/hermes-4-405b").trim()
         : (process.env.OPENROUTER_DARK_MODEL || "cognitivecomputations/dolphin-mistral-24b-venice-edition").trim();
       providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: darkPrimaryModel, openRouter: true });
+      if (apinexKey && liveSearchStatus === "active") providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexDarkLiveModel, openRouter: true, apiNex: true });
       providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (useOpenRouterDefault) {
-      providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "deepseek/deepseek-v4-flash").trim(), openRouter: true, reasoningEffort: "low" });
-      providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
+      if (apinexKey) {
+        providers.push({ name: "primary", endpoint: apinexEndpoint, key: apinexKey, model: apinexDefaultModel, openRouter: true, apiNex: true });
+        providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "deepseek/deepseek-v4-flash").trim(), openRouter: true, reasoningEffort: "low" });
+      } else {
+        providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "deepseek/deepseek-v4-flash").trim(), openRouter: true, reasoningEffort: "low" });
+        providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
+      }
     } else if (endpoint && apiKey) {
       providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
       // Smart-backup pair (user design, 2026-10-25): the two DadGPT models watch
@@ -1501,7 +1524,7 @@ export default async function handler(req: any, res: any) {
           headers: {
             "content-type": "application/json",
             authorization: `Bearer ${provider.key}`,
-            ...(provider.openRouter || provider.name === "openrouter-fallback" ? {
+            ...((provider.openRouter && !provider.apiNex) || provider.name === "openrouter-fallback" ? {
               "HTTP-Referer": "https://hot-gpt-ai.vercel.app",
               "X-Title": "HotGPT",
             } : {}),
