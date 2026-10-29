@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { authFetch } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
-import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket } from "lucide-react";
+import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket, Facebook, MessageCircle } from "lucide-react";
 
 // HotLucky — spin game (restructured 2026-10-27).
 // One ticket = one spin. 50 EGP via Vodafone Cash / InstaPay (proof +
@@ -124,6 +124,7 @@ function ReferralSection() {
     return () => { alive = false; };
   }, []);
   const link = info?.code ? `https://hotgpt.pro/?ref=${info.code}` : "";
+  const shareText = t("جرّب HotGPT — ذكاء اصطناعي للمطورين والباحثين. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد 25 توكين هدية.", "Try HotGPT — AI for developers & researchers. Sign up with my link and buy your first pack, and we both get 25 free tokens.");
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { /* the link stays visible for manual copy */ }
   };
@@ -139,6 +140,8 @@ function ReferralSection() {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <code dir="ltr" className="rounded-lg border border-amber-100/15 bg-black/40 px-3 py-2 text-sm text-amber-100">{link}</code>
             <button type="button" onClick={() => void copyLink()} className="rounded-lg border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-300/20">{copied ? t("اتنسخ ✓", "Copied ✓") : t("انسخ الرابط", "Copy link")}</button>
+            <a href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${link}`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/40 bg-emerald-300/10 px-4 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-300/20"><MessageCircle size={15} /> {t("واتساب", "WhatsApp")}</a>
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}&quote=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-sky-300/40 bg-sky-300/10 px-4 py-2 text-sm font-bold text-sky-200 hover:bg-sky-300/20"><Facebook size={15} /> {t("فيسبوك", "Facebook")}</a>
           </div>
           <div className="mt-4 flex flex-wrap gap-5 text-sm text-slate-300">
             <span>{t("مدعوون", "Invited")}: <strong className="text-white">{info.invited}</strong></span>
