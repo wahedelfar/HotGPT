@@ -61,6 +61,13 @@ export default function BillingPage() {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [screenshotData, setScreenshotData] = useState("");
   const [message, setMessage] = useState("");
+  // Deep link from the low-balance offer: /billing?pack=100 preselects that pack.
+  useEffect(() => {
+    try {
+      const pack = Number(new URLSearchParams(window.location.search).get("pack"));
+      if ([100, 500, 800, 1000].includes(pack)) setPackageTokens(pack);
+    } catch {}
+  }, []);
   const [busy, setBusy] = useState(false);
 
   async function load() {

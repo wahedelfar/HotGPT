@@ -1152,13 +1152,8 @@ export default function Home() {
     setShowWinModal(true);
   }, [auth.loading, auth.isAuthenticated, auth.user?.id, hotLuckyPrize?.code]);
 
-  useEffect(() => {
-    if (!auth.loading && auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0 && !freePopupSeen) {
-      setShowFreeUsagePopup(true);
-      setFreePopupSeen(true);
-      try { sessionStorage.setItem("hotgpt-free-usage-popup-seen", "1"); } catch {}
-    }
-  }, [auth.loading, auth.isAuthenticated, freeAnswersRemaining, walletBalance, freePopupSeen]);
+  // Retired 2026-10-29: the free-usage popup no longer fires at zero balance —
+  // the persistent low-balance banner (100-token pack offer) covers that moment.
 
   useEffect(() => {
     if (auth.loading) return;
@@ -1319,12 +1314,7 @@ export default function Home() {
     const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
     if (!trimmed || isSending) return;
     if (auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0) {
-      if (!freePopupSeen) {
-        setShowFreeUsagePopup(true);
-        setFreePopupSeen(true);
-        try { sessionStorage.setItem("hotgpt-free-usage-popup-seen", "1"); } catch {}
-      }
-      setRequestError(null);
+      setRequestError(tr(language, "جرّب HotGPT بـ100 توكن مقابل 100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with 100 tokens for 100 EGP — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay."));
       return;
     }
     if (webSearchEnabled && attachment) {
@@ -2058,6 +2048,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 </div>
               )}
             </div>
+            {auth.isAuthenticated && walletBalance <= 1 && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="mx-auto mb-3 flex w-full max-w-[760px] flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,.45)]"><p className="min-w-0 flex-1 text-sm leading-6 text-[#f5e7c8]">{tr(language, "جرّب HotGPT بـ100 توكن مقابل 100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with 100 tokens for 100 EGP — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay.")}</p><a href="/billing?pack=100" className="shrink-0 rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-5 py-2 text-sm font-black text-[#231300] shadow-[0_8px_22px_rgba(232,160,32,.35)]">{tr(language, "شراء باقة 100 توكن", "Buy the 100-token pack")}</a></div>}
             {approvalNotice && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="fixed left-1/2 top-24 z-[70] w-[min(92vw,430px)] -translate-x-1/2 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)]"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Coins size={18} /></span><div className="min-w-0 flex-1"><strong className="block text-[15px] text-[#f3d27a]">{tr(language, "تم شحن رصيدك بنجاح", "Your balance was topped up")}</strong><p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{approvalNotice.count > 1 ? tr(language, `تمت الموافقة على ${approvalNotice.count} من طلبات الشحن، وأُضيف مجموع ${approvalNotice.totalTokens.toLocaleString("en-US")} توكين إلى حسابك.`, `${approvalNotice.count} top-up requests were approved — a total of ${approvalNotice.totalTokens.toLocaleString("en-US")} tokens was added to your account.`) : tr(language, `تمت الموافقة على طلب الشحن، وأُضيف ${approvalNotice.totalTokens.toLocaleString("en-US")} توكين إلى حسابك.`, `Your top-up was approved — ${approvalNotice.totalTokens.toLocaleString("en-US")} tokens were added to your account.`)}</p></div><button className="icon-button shrink-0" onClick={() => setApprovalNotice(null)} aria-label={tr(language, "إخفاء التنبيه", "Dismiss notification")}><X size={15} /></button></div></div>}
             {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الباقات المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
