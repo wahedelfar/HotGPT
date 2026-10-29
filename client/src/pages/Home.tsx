@@ -1397,6 +1397,9 @@ export default function Home() {
           const seoPayload = await seoResponse.json().catch(() => ({}));
           if (!seoResponse.ok || !seoPayload.content) {
             const seoErrors: Record<string, string> = {
+              invalid_seo_request: tr(language, "أدخل رابط موقع صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة.", "Enter a valid website URL and make sure the conversation is valid, then try again."),
+              auth_unavailable: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+              supabase_server_not_configured: tr(language, "خدمة فحص SEO غير مُعدّة على الخادم بعد.", "The SEO audit service is not configured on the server yet."),
               insufficient_credits: tr(language, "فحص SEO يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "SEO auditing costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
               invalid_url: tr(language, "الرابط غير صالح. اكتب رابطًا كاملًا مثل https://example.com — لم يُخصم الرصيد.", "That URL looks invalid. Enter a full URL like https://example.com — nothing was charged."),
               seo_target_not_public: tr(language, "لا يمكن فحص روابط داخلية أو محلية. جرّب موقعًا عامًا — لم يُخصم الرصيد.", "Internal or local addresses cannot be audited. Try a public website — nothing was charged."),
