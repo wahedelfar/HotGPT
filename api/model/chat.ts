@@ -400,24 +400,30 @@ async function handleUrlScan(req: any, res: any, body: any) {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
+          const consumeSseLine = (line: string) => {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) return;
+            const data = trimmed.slice(5).trim();
+            if (!data || data === "[DONE]") return;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed?.choices?.[0]?.delta?.content;
+              if (typeof delta === "string") collected += delta;
+            } catch { /* Ignore malformed provider frame; keep the rest of the report. */ }
+          };
           for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split("\n");
             buffer = lines.pop() || "";
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed.startsWith("data:")) continue;
-              const data = trimmed.slice(5).trim();
-              if (!data || data === "[DONE]") continue;
-              try {
-                const parsed = JSON.parse(data);
-                const delta = parsed?.choices?.[0]?.delta?.content;
-                if (typeof delta === "string") collected += delta;
-              } catch { /* partial SSE line — keep accumulating */ }
-            }
+            for (const line of lines) consumeSseLine(line);
           }
+          // Providers do not guarantee a trailing newline after the final SSE
+          // frame. Process the remaining buffer or the closing report marker
+          // can be silently dropped, making a complete report look truncated.
+          buffer += decoder.decode();
+          if (buffer.trim()) consumeSseLine(buffer);
         } catch { /* aborted or network error — completeness is judged below */ }
         const text = collected.trim();
         if (text.length >= 300 && text.endsWith(REPORT_CLOSING)) { report = text; break; }
