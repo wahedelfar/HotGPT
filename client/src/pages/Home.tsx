@@ -1436,6 +1436,28 @@ export default function Home() {
     setSidebarOpen(false);
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
+  // Referral attach: a stored invite code (from a ?ref= link) is bound to
+  // this account once, on the first authenticated session that carries it.
+  // The server ignores self-invites and duplicates; the reward itself only
+  // unlocks after this account's first approved purchase.
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated) return;
+    let code = "";
+    try { code = localStorage.getItem("hotgpt-ref-code") || ""; } catch { /* storage unavailable */ }
+    if (!code) return;
+    let cancelled = false;
+    void authFetch("/api/billing?action=referral-attach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) })
+      .then(async response => {
+        if (cancelled || !response.ok) return;
+        const payload = await response.json().catch(() => ({}));
+        if (["attached", "already", "self", "invalid"].includes(String(payload.result))) {
+          try { localStorage.removeItem("hotgpt-ref-code"); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
+
   const loadConversationMessages = async (id: string): Promise<boolean> => {
     const response = await authFetch(`/api/conversations?id=${encodeURIComponent(id)}`);
     const payload = await response.json().catch(() => ({}));

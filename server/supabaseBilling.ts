@@ -437,3 +437,118 @@ export async function voidLuckySpin(spinId: string) {
     body: JSON.stringify({ status: "voided" }),
   });
 }
+
+// --- Referral program (added 2026-10-29): a member's code invites a friend;
+// when the friend completes their FIRST pack purchase (an approved payment
+// request or an approved HotLucky order), both wallets are credited 25
+// tokens exactly once. Storage: referral_codes (one code per member) and
+// referrals (one row per referred member; rewarded_at is the exactly-once
+// claim flag). Every function degrades quietly while the tables do not
+// exist yet, so billing keeps working before the rollout SQL runs.
+export const REFERRAL_REWARD_TOKENS = 25;
+const REFERRAL_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function randomReferralCode(): string {
+  let code = "";
+  for (let i = 0; i < 8; i++) code += REFERRAL_CODE_ALPHABET[Math.floor(Math.random() * REFERRAL_CODE_ALPHABET.length)];
+  return code;
+}
+
+async function addTokensGuarded(userId: string, tokens: number): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const rows = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=token_balance&limit=1`);
+    if (!rows?.[0]) return false;
+    const balance = Number(rows[0].token_balance);
+    const updated = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&token_balance=eq.${balance}`, {
+      method: "PATCH", headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ token_balance: balance + tokens, updated_at: new Date().toISOString() }),
+    });
+    if (Array.isArray(updated) && updated.length > 0) return true;
+  }
+  return false;
+}
+
+export async function getOrCreateReferralCode(userId: string): Promise<string | null> {
+  try {
+    const rows = await rest(`referral_codes?user_id=eq.${encodeURIComponent(userId)}&select=code&limit=1`);
+    if (rows?.[0]?.code) return String(rows[0].code);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = randomReferralCode();
+      try {
+        await rest("referral_codes", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ user_id: userId, code }) });
+        return code;
+      } catch {
+        const again = await rest(`referral_codes?user_id=eq.${encodeURIComponent(userId)}&select=code&limit=1`).catch(() => null);
+        if (again?.[0]?.code) return String(again[0].code);
+      }
+    }
+    return null;
+  } catch { return null; }
+}
+
+export async function attachReferral(referredId: string, rawCode: string): Promise<"attached" | "already" | "self" | "invalid" | "unavailable"> {
+  const code = String(rawCode || "").trim().toUpperCase().slice(0, 16);
+  if (!/^[A-Z0-9]{6,12}$/.test(code)) return "invalid";
+  try {
+    const owners = await rest(`referral_codes?code=eq.${encodeURIComponent(code)}&select=user_id&limit=1`);
+    const referrerId = owners?.[0]?.user_id ? String(owners[0].user_id) : "";
+    if (!referrerId) return "invalid";
+    if (referrerId === referredId) return "self";
+    const existing = await rest(`referrals?referred_id=eq.${encodeURIComponent(referredId)}&select=id&limit=1`);
+    if (existing?.[0]) return "already";
+    try {
+      await rest("referrals", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ referrer_id: referrerId, referred_id: referredId }) });
+      return "attached";
+    } catch {
+      const after = await rest(`referrals?referred_id=eq.${encodeURIComponent(referredId)}&select=id&limit=1`).catch(() => null);
+      return after?.[0] ? "already" : "unavailable";
+    }
+  } catch { return "unavailable"; }
+}
+
+export async function getReferralOverview(userId: string) {
+  const code = await getOrCreateReferralCode(userId);
+  let invited = 0;
+  let rewarded = 0;
+  let myStatus: "none" | "pending" | "rewarded" = "none";
+  try {
+    const mine = await rest(`referrals?referrer_id=eq.${encodeURIComponent(userId)}&select=id,rewarded_at&limit=500`);
+    invited = Array.isArray(mine) ? mine.length : 0;
+    rewarded = (mine || []).filter((r: any) => r.rewarded_at).length;
+    const incoming = await rest(`referrals?referred_id=eq.${encodeURIComponent(userId)}&select=rewarded_at&limit=1`);
+    if (incoming?.[0]) myStatus = incoming[0].rewarded_at ? "rewarded" : "pending";
+  } catch { /* referral tables not ready yet */ }
+  return { code, invited, rewarded, earnedTokens: rewarded * REFERRAL_REWARD_TOKENS, myStatus };
+}
+
+export async function claimReferralReward(userId: string): Promise<{ credited: boolean; reason: string }> {
+  try {
+    const rows = await rest(`referrals?referred_id=eq.${encodeURIComponent(userId)}&select=id,referrer_id,rewarded_at&limit=1`);
+    const row = rows?.[0];
+    if (!row) return { credited: false, reason: "no_referral" };
+    if (row.rewarded_at) return { credited: false, reason: "already_rewarded" };
+    // First-purchase gate: an approved pack payment (manual review or
+    // PayPal, both land in payment_requests) or an approved HotLucky order.
+    // Signup alone never pays out — that is the anti-farming rule.
+    const packs = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&status=eq.approved&select=id&limit=1`);
+    let purchased = Array.isArray(packs) && packs.length > 0;
+    if (!purchased) {
+      const lucky = await rest(`hotlucky_orders?user_id=eq.${encodeURIComponent(userId)}&status=eq.approved&select=id&limit=1`).catch(() => null);
+      purchased = Array.isArray(lucky) && lucky.length > 0;
+    }
+    if (!purchased) return { credited: false, reason: "no_purchase_yet" };
+    // Exactly-once: the guarded transition only matches while unrewarded.
+    const claimed = await rest(`referrals?id=eq.${encodeURIComponent(row.id)}&rewarded_at=is.null`, {
+      method: "PATCH", headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ rewarded_at: new Date().toISOString() }),
+    });
+    if (!Array.isArray(claimed) || claimed.length === 0) return { credited: false, reason: "already_rewarded" };
+    const friendOk = await addTokensGuarded(userId, REFERRAL_REWARD_TOKENS);
+    const referrerOk = await addTokensGuarded(String(row.referrer_id), REFERRAL_REWARD_TOKENS);
+    if (!friendOk || !referrerOk) console.error("[Referral] Reward flag set but a wallet credit failed", { friendOk, referrerOk });
+    return { credited: true, reason: "credited" };
+  } catch (error) {
+    console.error("[Referral] Claim failed", error instanceof Error ? error.message : "unknown");
+    return { credited: false, reason: "unavailable" };
+  }
+}

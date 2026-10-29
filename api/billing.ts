@@ -266,7 +266,17 @@ export default async function handler(req: any, res: any) {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
     const user = await requireMember(req, res);
     if (!user) return;
-    try { return res.status(200).json({ email: user.email, name: user.name, ...(await db.getWallet(user.id)) }); }
+    try {
+      let wallet = await db.getWallet(user.id);
+      // Referral reward lands here: the first wallet read after the member's
+      // first approved purchase credits both sides (server-verified,
+      // exactly once). Fully best-effort — it must never break billing.
+      try {
+        const claim = await db.claimReferralReward(user.id);
+        if (claim.credited) wallet = await db.getWallet(user.id);
+      } catch { /* referral storage not ready yet */ }
+      return res.status(200).json({ email: user.email, name: user.name, ...wallet });
+    }
     catch (error) {
       console.error("[Billing] Wallet lookup failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
@@ -281,6 +291,28 @@ export default async function handler(req: any, res: any) {
       console.error("[Billing] User payment requests failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "payment_requests_unavailable" });
     }
+  }
+  if (action === "referral-info") {
+    if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const user = await requireMember(req, res);
+    if (!user) return;
+    await db.claimReferralReward(user.id).catch(() => null);
+    const overview = await db.getReferralOverview(user.id);
+    return res.status(200).json({ ready: Boolean(overview.code), rewardTokens: db.REFERRAL_REWARD_TOKENS, ...overview });
+  }
+  if (action === "referral-attach") {
+    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const user = await requireMember(req, res);
+    if (!user) return;
+    const result = await db.attachReferral(user.id, String((req.body ?? {}).code || ""));
+    return res.status(200).json({ result });
+  }
+  if (action === "referral-claim") {
+    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const user = await requireMember(req, res);
+    if (!user) return;
+    const result = await db.claimReferralReward(user.id);
+    return res.status(200).json(result);
   }
   if (action === "payment") {
     if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }

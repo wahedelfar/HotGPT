@@ -104,6 +104,57 @@ function PrizeWheel({ rotation, spinning }: { rotation: number; spinning: boolea
   );
 }
 
+function ReferralSection() {
+  const { language } = useAppLanguage();
+  const t = (ar: string, en: string) => (language === "ar" ? ar : en);
+  const [info, setInfo] = useState<{ ready: boolean; code: string | null; invited: number; rewarded: number; earnedTokens: number; myStatus: string } | null>(null);
+  const [guest, setGuest] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void authFetch("/api/billing?action=referral-info", { cache: "no-store" })
+      .then(async response => {
+        if (!alive) return;
+        if (response.status === 401) { setGuest(true); return; }
+        if (!response.ok) return;
+        const data = await response.json().catch(() => null);
+        if (data && alive) setInfo(data);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const link = info?.code ? `https://hotgpt.pro/?ref=${info.code}` : "";
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(link); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { /* the link stays visible for manual copy */ }
+  };
+  return (
+    <section className="hl-card mb-8 p-5 sm:p-6">
+      <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-3 py-1 text-[11px] font-bold tracking-wide text-amber-200"><Users size={13} /> {t("برنامج الإحالة", "REFERRAL PROGRAM")}</span>
+      <h2 className="mt-3 text-2xl font-black">{t("ادعُ صديقًا — واكسبا معًا", "Invite a friend — earn together")}</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">{t("شارك رابط الدعوة بتاعك. لما صديقك يشتري أول باقة، كل واحد فيكم ياخد 25 توكين هدية تنزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل.", "Share your invite link. When your friend buys their first pack, each of you gets 25 free tokens credited automatically — the reward unlocks on the first real purchase, not on signup alone.")}</p>
+      {guest ? (
+        <p className="mt-4 text-sm text-slate-300">{t("سجّل دخولك عشان يظهر رابط الدعوة الخاص بيك.", "Sign in to reveal your personal invite link.")} <a href="/auth?mode=signup" className="font-bold text-amber-300 underline underline-offset-4">{t("إنشاء حساب", "Create account")}</a></p>
+      ) : info?.ready && info.code ? (
+        <>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <code dir="ltr" className="rounded-lg border border-amber-100/15 bg-black/40 px-3 py-2 text-sm text-amber-100">{link}</code>
+            <button type="button" onClick={() => void copyLink()} className="rounded-lg border border-amber-300/40 bg-amber-300/10 px-4 py-2 text-sm font-bold text-amber-200 hover:bg-amber-300/20">{copied ? t("اتنسخ ✓", "Copied ✓") : t("انسخ الرابط", "Copy link")}</button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-5 text-sm text-slate-300">
+            <span>{t("مدعوون", "Invited")}: <strong className="text-white">{info.invited}</strong></span>
+            <span>{t("أكملوا أول شراء", "Completed first purchase")}: <strong className="text-white">{info.rewarded}</strong></span>
+            <span>{t("توكينات كسبتها", "Tokens earned")}: <strong className="hl-gold">{info.earnedTokens}</strong></span>
+          </div>
+          {info.myStatus === "pending" && <p className="mt-3 text-sm text-amber-200">{t("انت سجلت عن طريق دعوة صديق — اشتري أول باقة وكلاكما يكسب 25 توكين.", "You joined through a friend's invite — buy your first pack and you both earn 25 tokens.")}</p>}
+          {info.myStatus === "rewarded" && <p className="mt-3 text-sm text-emerald-300">{t("وصلتك مكافأة الإحالة: 25 توكين اتضافت لرصيدك.", "Your referral reward arrived: 25 tokens were added to your balance.")}</p>}
+        </>
+      ) : (
+        <p className="mt-4 text-sm text-slate-400">{t("رابط الدعوة بيجهز…", "Your invite link is being prepared…")}</p>
+      )}
+    </section>
+  );
+}
+
 export default function LuckyPage() {
   const { language } = useAppLanguage();
   const t = (ar: string, en: string) => (language === "ar" ? ar : en);
@@ -305,6 +356,8 @@ export default function LuckyPage() {
           <LanguageToggle inline />
         </span>
       </nav>
+
+      <ReferralSection />
 
       <header className="py-9 text-center sm:py-12">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-4 py-2 text-xs font-bold tracking-wide text-amber-200"><Sparkles size={15} /> {t("HOTLUCKY · لعبة لفّات الحظ", "HOTLUCKY · SPIN GAME")}</div>

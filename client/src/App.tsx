@@ -140,6 +140,19 @@ function Router() {
   );
 }
 
+// Referral capture: an invite link (?ref=CODE) stores the code locally;
+// the account binds it after the visitor signs up and logs in (Home does
+// the attach call). Last link clicked wins, before signup only.
+function ReferralCapture() {
+  useEffect(() => {
+    try {
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      if (ref && /^[A-Za-z0-9]{6,12}$/.test(ref.trim())) localStorage.setItem("hotgpt-ref-code", ref.trim().toUpperCase());
+    } catch { /* storage unavailable */ }
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -148,6 +161,7 @@ export default function App() {
           <TooltipProvider>
             <Toaster />
             <AgeGate />
+            <ReferralCapture />
             <Router />
             <InstallAppButton />
           </TooltipProvider>
