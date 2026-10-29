@@ -453,11 +453,16 @@ async function handleUrlScan(req: any, res: any, body: any) {
 // refunds in full). It runs purely on server/seoAudit.ts + OpenRouter,
 // so it is dispatched before the primary-provider gate, next to scan.
 async function handleSeoAudit(req: any, res: any, body: any) {
+  const rawUrl = String(body?.url || "").trim().slice(0, 500);
+  console.info("SEO_REQUEST_RECEIVED:", rawUrl || "(missing_url)");
   const user = await requireUser(req, res);
   if (!user) return;
-  const rawUrl = String(body?.url || "").trim().slice(0, 500);
   const conversationId = String(body?.conversationId || "");
-  if (!rawUrl || !/^[0-9a-f-]{36}$/i.test(conversationId)) { res.status(400).json({ error: "invalid_seo_request" }); return; }
+  if (!rawUrl || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
+    console.warn("[SEO] Request validation failed", JSON.stringify({ hasUrl: Boolean(rawUrl), conversationIdValid: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId) }));
+    res.status(400).json({ error: "invalid_seo_request", message: "أدخل رابط موقع صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة." });
+    return;
+  }
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
   if (!orKey) { res.status(503).json({ error: "seo_not_configured" }); return; }
   const walletBefore = await getWallet(user.id).catch(() => null);
@@ -564,9 +569,19 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     const wallet = await getWallet(user.id).catch(() => null);
     res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SEO_COST, score: audit.score, grade: audit.grade });
   } catch (error) {
-    await creditWalletTokens(user.id, SEO_COST);
-    console.error("[SEO] SEO audit failed", error instanceof Error ? error.message : "unknown");
-    res.status(502).json({ error: "seo_report_length_failed", message: "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك." });
+    try {
+      await creditWalletTokens(user.id, SEO_COST);
+    } catch (refundError) {
+      console.error("[SEO] Refund failed", refundError instanceof Error ? refundError.message : "unknown");
+    }
+    const reason = error instanceof Error ? error.message : "unknown";
+    console.error("[SEO] SEO audit failed", reason);
+    if (!res.headersSent) {
+      res.status(502).json({
+        error: "seo_report_length_failed",
+        message: "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.",
+      });
+    }
   }
 }
 
