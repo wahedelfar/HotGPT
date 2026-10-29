@@ -500,9 +500,13 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     // pass ends before the closing section (output cap, early stop or
     // an aborted stream), the server asks the same model to continue
     // from the exact cut point and appends the continuation — up to 3
-    // passes inside the existing deadline. A report counts as complete
-    // ONLY when it contains the closing checklist section; otherwise
-    // the handler fails and the charge is refunded in full. (Field
+    // passes inside the existing deadline. Acceptance follows the
+    // field-proven v2 rules restored 2026-10-29: the closing marker is
+    // the fast path, a pass that ends naturally with >=300 chars is
+    // accepted, and the longest >=1500-char partial is salvaged and
+    // shipped instead of failing a paying user over a missing marker;
+    // the handler fails and refunds only when nothing substantial was
+    // produced. (Field
     // incident, 2026-10-28: an SEO report ended mid-word inside the
     // growth plan and was saved and charged as a success, because the
     // old accumulation never checked completeness and accepted any
@@ -521,10 +525,11 @@ async function handleSeoAudit(req: any, res: any, body: any) {
         { role: "user", content: userContent },
       ];
       for (let pass = 0; pass < 3; pass++) {
-        const modelBudget = pass === 0 ? (index === 0 ? 25000 : 18000) : 10000;
+        const modelBudget = pass === 0 ? (index === 0 ? 36000 : 18000) : 7000;
         const budget = Math.min(modelBudget, reportDeadline - Date.now());
         if (budget < 5000) break;
         console.info("[SEO] Report generation pass", JSON.stringify({ model, modelIndex: index, pass, budgetMs: budget, elapsedMs: Date.now() - seoRequestStartedAt }));
+        const passSignal = AbortSignal.timeout(budget);
         try {
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -537,7 +542,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
               stream: true,
               ...(index === 0 && pass === 0 ? { reasoning: { effort: "low" } } : {}),
             }),
-            signal: AbortSignal.timeout(budget),
+            signal: passSignal,
           });
           if (!response.ok || !response.body) {
             console.warn("[SEO] Report provider rejected request", JSON.stringify({ model, pass, status: response.status, elapsedMs: Date.now() - seoRequestStartedAt }));
@@ -594,7 +599,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
         lastCollectedChars = collected.length;
         const text = collected.trim();
         if (text.length > bestCollectedReport.length) bestCollectedReport = text;
-        if (text.length >= 300 && collected.includes(REPORT_CLOSING)) { report = text; break; }
+        if (text.length >= 300 && (collected.includes(REPORT_CLOSING) || !passSignal.aborted)) { report = text; break; }
         if (text.length < 300) break; // nothing usable from this model — fall through to the backup model
         passMessages = [
           { role: "system", content: system },
@@ -609,6 +614,10 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     if (!report && bestCollectedReport.length >= 1800 && /قائمة التنفيذ بالأولوية/.test(bestCollectedReport)) {
       report = `${bestCollectedReport.trim()}\n\n${REPORT_CLOSING}`;
       console.warn("[SEO] Accepted complete checklist without provider closing marker", JSON.stringify({ chars: bestCollectedReport.length, elapsedMs: Date.now() - seoRequestStartedAt }));
+    }
+    if (!report && bestCollectedReport.length >= 1500) {
+      report = bestCollectedReport;
+      console.warn("[SEO] Salvaged longest partial report (v2 floor)", JSON.stringify({ chars: bestCollectedReport.length, elapsedMs: Date.now() - seoRequestStartedAt }));
     }
     if (!report) {
       console.error("[SEO] Complete report unavailable", JSON.stringify({
