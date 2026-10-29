@@ -103,6 +103,24 @@ const PREMIUM_MIN_BALANCE = 20;
 // an empty/unreachable index costs the user nothing.
 const DARK_LIVE_COST = 5;
 
+// CGI image tier (owner decision, 2026-10-29): the image icon's second
+// kind — a stronger OpenRouter image model steered by an internal FOOH
+// template the user never writes, vertical 9:16 by default, flat 10
+// tokens. The dropdown menu carries names only; image prices are
+// displayed on the /models page.
+const CGI_IMAGE_COST = 10;
+const CGI_FOOH_TEMPLATE = `A FOOH (fake out-of-home) CGI advertisement photograph. Scene brief: "{USER_INPUT}".
+The main subject appears at a monumental, impossible scale — several stories tall — placed naturally inside the real everyday location from the brief. It must look like a flawless physical object photographed in the real world, never an illustration: true-to-life materials, and accurate reflections of the surrounding buildings and sky on its surface. Any brand name or label text in the brief is rendered exactly and legibly.
+Photographic realism: one consistent light source matching the scene's time of day; the subject casts a long, soft, physically correct shadow on the ground and picks up ambient bounce light from nearby surfaces; perspective and vanishing points shared with the street and buildings; the depth of field and slight sensor noise of a flagship smartphone photo. Real people and cars at normal scale stand around it, looking up in amazement, giving an unmistakable sense of scale.
+Vertical 9:16 composition, street-level shot with a slight low angle. The result must be indistinguishable from a genuine viral FOOH photo: no cartoon shading, no painterly texture, no floating, no distorted faces or hands.`;
+
+// Lead extraction (owner decision, 2026-10-29): public Google Maps
+// business listings via Apify, flat 20 tokens for up to 30 businesses,
+// full refund on failure — the premium reports' discipline. It rides
+// inside this function because of the 12-Serverless-Function cap.
+const LEADS_COST = 20;
+const LEADS_MAX_PLACES = 30;
+
 function resolveChatMode(value: unknown): ChatMode {
   return value === "Beast pro" || value === "darkweb" || value === "darklive" ? value : "default";
 }
@@ -208,15 +226,39 @@ async function handleImageGeneration(req: any, res: any, body: any) {
   if (!prompt || !conversationId) { res.status(400).json({ error: "invalid_image_request" }); return; }
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
   if (!orKey) { res.status(503).json({ error: "image_not_configured" }); return; }
-  const IMAGE_COST = 5;
-  const kind = await consumeCredit(user.id, IMAGE_COST, false).catch(() => null);
-  if (!kind) { res.status(402).json({ error: "insufficient_credits" }); return; }
+  // Two kinds behind the one image icon (owner decision, 2026-10-29):
+  // "normal" is the original FLUX Klein path at 5 tokens through the
+  // credit RPC; "cgi" runs the stronger Seedream model steered by the
+  // internal FOOH template at 10 tokens. The generic credit RPC only
+  // ever served small chat costs (see the wallet note further down),
+  // so the CGI tier debits and refunds through the wallet pair, like
+  // the premium reports do.
+  const cgi = body?.imageKind === "cgi";
+  const IMAGE_COST = cgi ? CGI_IMAGE_COST : 5;
+  let kind: "free" | "paid" | null = null;
+  let walletDebited = false;
+  if (cgi) {
+    const walletBefore = await getWallet(user.id).catch(() => null);
+    if (!walletBefore || walletBefore.tokenBalance < IMAGE_COST) { res.status(402).json({ error: "insufficient_credits" }); return; }
+    walletDebited = await debitWalletTokens(user.id, IMAGE_COST);
+    if (!walletDebited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+  } else {
+    kind = await consumeCredit(user.id, IMAGE_COST, false).catch(() => null);
+    if (!kind) { res.status(402).json({ error: "insufficient_credits" }); return; }
+  }
+  const refundImageCharge = async () => {
+    if (walletDebited) { await creditWalletTokens(user.id, IMAGE_COST).catch(() => null); walletDebited = false; }
+    else if (kind) { await refundCredit(user.id, kind, IMAGE_COST).catch(() => null); kind = null; }
+  };
   try {
-    const model = (process.env.OPENROUTER_IMAGE_MODEL || "black-forest-labs/flux-3-image-klein").trim();
+    const model = cgi
+      ? (process.env.OPENROUTER_CGI_IMAGE_MODEL || "bytedance-seed/seedream-5-0-pro").trim()
+      : (process.env.OPENROUTER_IMAGE_MODEL || "black-forest-labs/flux-3-image-klein").trim();
+    const finalPrompt = cgi ? CGI_FOOH_TEMPLATE.replace("{USER_INPUT}", prompt) : prompt;
     const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
-      body: JSON.stringify({ model, prompt }),
+      body: JSON.stringify(cgi ? { model, prompt: finalPrompt, aspect_ratio: "9:16", resolution: "1K" } : { model, prompt: finalPrompt }),
       signal: AbortSignal.timeout(55000),
     });
     const payload: any = await response.json().catch(() => null);
@@ -225,11 +267,13 @@ async function handleImageGeneration(req: any, res: any, body: any) {
     const imageDataUrl = b64 ? `data:image/png;base64,${b64}` : (typeof remoteUrl === "string" && remoteUrl ? remoteUrl : "");
     if (!response.ok || !imageDataUrl) throw new Error("image_generation_failed");
     await saveMessage(user.id, conversationId, "user", prompt);
-    await saveMessage(user.id, conversationId, "assistant", `🎨 صورة مولّدة بناءً على وصفك: «${prompt.slice(0, 200)}» — الصور المولّدة تظهر خلال الجلسة الحالية فقط ولا تُحفظ في قاعدة البيانات بعد. احفظ الصورة على جهازك لأنها تُحذف عند تسجيل خروجك.`);
+    await saveMessage(user.id, conversationId, "assistant", cgi
+      ? `🎨 صورة CGI مولّدة بناءً على وصفك: «${prompt.slice(0, 200)}» — الصور المولّدة تظهر خلال الجلسة الحالية فقط ولا تُحفظ في قاعدة البيانات بعد. احفظ الصورة على جهازك لأنها تُحذف عند تسجيل خروجك.`
+      : `🎨 صورة مولّدة بناءً على وصفك: «${prompt.slice(0, 200)}» — الصور المولّدة تظهر خلال الجلسة الحالية فقط ولا تُحفظ في قاعدة البيانات بعد. احفظ الصورة على جهازك لأنها تُحذف عند تسجيل خروجك.`);
     const wallet = await getWallet(user.id).catch(() => null);
-    res.status(200).json({ imageDataUrl, tokenBalance: wallet?.tokenBalance, cost: IMAGE_COST });
+    res.status(200).json({ imageDataUrl, tokenBalance: wallet?.tokenBalance, cost: IMAGE_COST, imageKind: cgi ? "cgi" : "normal" });
   } catch (error) {
-    await refundCredit(user.id, kind, IMAGE_COST).catch(() => null);
+    await refundImageCharge();
     console.error("[Image] generation failed", error instanceof Error ? error.message : "unknown");
     res.status(502).json({ error: "image_generation_failed" });
   }
@@ -977,6 +1021,100 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
   }
 }
 
+
+// Lead extraction handler: the user types a business type and an area;
+// the server runs the Apify Google Maps extractor, formats the public
+// listings (name, phone, address, website, rating) deterministically —
+// no writer model is involved — and returns them as the assistant
+// message. Flat 20 tokens for up to 30 businesses, charged through the
+// wallet pair, refunded in full on any failure: the premium reports'
+// discipline. Env-gated on APIFY_API_TOKEN: without it the service
+// answers not_configured and nothing is charged.
+async function handleLeadExtraction(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const query = String(body?.query || "").trim().slice(0, 200);
+  const conversationId = String(body?.conversationId || "");
+  if (query.length < 3 || !/^[0-9a-f-]{36}$/i.test(conversationId)) { res.status(400).json({ error: "invalid_leads_request" }); return; }
+  const apifyToken = (process.env.APIFY_API_TOKEN || "").trim();
+  if (!apifyToken) { res.status(503).json({ error: "leads_not_configured" }); return; }
+  const walletBefore = await getWallet(user.id).catch(() => null);
+  if (!walletBefore || walletBefore.tokenBalance < LEADS_COST) { res.status(402).json({ error: "insufficient_credits", wallet: walletBefore }); return; }
+  let debited = false;
+  const deadline = Date.now() + 50000;
+  const apify = async (path: string, init: RequestInit = {}) => {
+    const response = await fetch(`https://api.apify.com/v2/${path}`, {
+      ...init,
+      headers: { "content-type": "application/json", authorization: `Bearer ${apifyToken}` },
+      cache: "no-store",
+    });
+    const payload: any = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(`apify_http_${response.status}`);
+    return payload;
+  };
+  try {
+    debited = await debitWalletTokens(user.id, LEADS_COST);
+    if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+    const actorPath = (process.env.APIFY_LEADS_ACTOR || "compass/google-maps-extractor").trim().replace("/", "~");
+    const language = /[؀-ۿ]/.test(query) ? "ar" : "en";
+    const runPayload = await apify(`acts/${actorPath}/runs`, {
+      method: "POST",
+      body: JSON.stringify({ searchStringsArray: [query], maxCrawledPlacesPerSearch: LEADS_MAX_PLACES, language }),
+    });
+    const run = runPayload?.data;
+    if (!run?.id || !run?.defaultDatasetId) throw new Error("leads_run_not_started");
+    let status = String(run.status || "");
+    while (status !== "SUCCEEDED") {
+      if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") throw new Error("leads_run_failed");
+      if (Date.now() > deadline) throw new Error("leads_run_timeout");
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      const poll = await apify(`acts/${actorPath}/runs/${run.id}`);
+      status = String(poll?.data?.status || "");
+    }
+    const itemsPayload = await apify(`datasets/${run.defaultDatasetId}/items?clean=true&limit=${LEADS_MAX_PLACES}`);
+    const items: any[] = Array.isArray(itemsPayload) ? itemsPayload : [];
+    if (items.length === 0) {
+      await creditWalletTokens(user.id, LEADS_COST);
+      debited = false;
+      res.status(422).json({ error: "leads_no_results" });
+      return;
+    }
+    const clean = (value: unknown, max: number) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+    const lines: string[] = [];
+    let withPhone = 0;
+    items.forEach((item, index) => {
+      const name = clean(item?.title, 120) || "—";
+      const phone = clean(item?.phone, 40);
+      const address = clean(item?.address, 200);
+      const website = clean(item?.website, 200);
+      const rating = typeof item?.totalScore === "number" ? item.totalScore : null;
+      const reviews = typeof item?.reviewsCount === "number" ? item.reviewsCount : null;
+      if (phone) withPhone += 1;
+      lines.push(`${index + 1}. **${name}**`);
+      if (phone) lines.push(`📞 ${phone}`);
+      if (address) lines.push(`📍 ${address}`);
+      if (rating !== null) lines.push(`⭐ ${rating}${reviews !== null ? ` (${reviews} تقييم)` : ""}`);
+      if (website) lines.push(`🌐 ${website}`);
+      lines.push("");
+    });
+    const report = [
+      `📇 **استخراج العملاء — ${clean(query, 120)}**`,
+      `تم العثور على ${items.length} شركة — ${withPhone} منها برقم تليفون منشور.`,
+      "",
+      ...lines,
+      "البيانات من خرائط جوجل كما هي منشورة علنًا وقت الاستخراج، وقد تتغير.",
+    ].join("\n");
+    await saveMessage(user.id, conversationId, "user", `📇 استخراج عملاء: ${query}`);
+    await saveMessage(user.id, conversationId, "assistant", report);
+    const wallet = await getWallet(user.id).catch(() => null);
+    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEADS_COST, count: items.length });
+  } catch (error) {
+    if (debited) { await creditWalletTokens(user.id, LEADS_COST).catch(() => null); debited = false; }
+    console.error("[Leads] extraction failed", error instanceof Error ? error.message : "unknown");
+    res.status(502).json({ error: "leads_failed" });
+  }
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
 
@@ -997,6 +1135,7 @@ export default async function handler(req: any, res: any) {
   if (body?.imageMode === true) return await handleImageGeneration(req, res, body);
   if (body?.scanMode === true) return await handleUrlScan(req, res, body);
   if (body?.seoMode === true) return await handleSeoAudit(req, res, body);
+  if (body?.leadsMode === true) return await handleLeadExtraction(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
   // to OpenRouter when OPENROUTER_API_KEY is configured (see engine routing below).
   if (!hasPrimaryProvider) {

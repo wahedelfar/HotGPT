@@ -55,10 +55,10 @@ const MODELS: ModelCard[] = [
   {
     title: ["توليد الصور", "Image generation"],
     desc: [
-      "حوّل وصفك المكتوب إلى صورة جاهزة — واحفظها على جهازك بعد توليدها.",
-      "Turn your written description into a finished image — and save it to your device after generating it.",
+      "حوّل وصفك المكتوب إلى صورة جاهزة — أو صورة CGI واقعية بأسلوب إعلانات FOOH من وصف قصير. واحفظ صورتك على جهازك بعد توليدها.",
+      "Turn your written description into a finished image — or a photorealistic CGI image in the FOOH ad style from a short brief. Save your image to your device after generating it.",
     ],
-    price: ["صورة واحدة: 5 توكينات", "One image: 5 tokens"],
+    price: ["صورة عادية: 5 توكينات · صورة CGI: ‏10 توكينات", "Normal image: 5 tokens · CGI image: 10 tokens"],
   },
   {
     title: ["محترف الـ SEO", "SEO Pro"],
@@ -75,6 +75,14 @@ const MODELS: ModelCard[] = [
       "A dedicated model that scans your site's security, rates the severity, and recommends how to close its vulnerabilities and protect it.",
     ],
     price: ["تقرير كامل 20 توكين", "Full report, 20 tokens"],
+  },
+  {
+    title: ["استخراج العملاء", "Lead extraction"],
+    desc: [
+      "بيانات شركات حقيقية من خرائط جوجل حسب النشاط والمنطقة: الاسم ورقم التليفون والعنوان والموقع الإلكتروني والتقييم — لحد 30 شركة في الاستخراج الواحد.",
+      "Real business data from Google Maps by business type and area: name, phone number, address, website and rating — up to 30 businesses in a single extraction.",
+    ],
+    price: ["استخراج كامل 20 توكين", "Full extraction, 20 tokens"],
   },
 ];
 

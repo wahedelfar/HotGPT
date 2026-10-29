@@ -38,6 +38,7 @@ import {
   Radar,
   Radio,
   TrendingUp,
+  Users,
   Image as ImageIcon,
   Lock,
   X,
@@ -1059,6 +1060,12 @@ export default function Home() {
   const [scanMode, setScanMode] = useState(false);
   const [seoMode, setSeoMode] = useState(false);
   const [darkLiveMode, setDarkLiveMode] = useState(false);
+  const [leadsMode, setLeadsMode] = useState(false);
+  // One image icon, two kinds (owner decision, 2026-10-29): the icon
+  // opens a small menu — normal image or CGI image. The menu carries
+  // names only; image prices live on the /models page.
+  const [imageKind, setImageKind] = useState<"normal" | "cgi">("normal");
+  const [imageMenuPos, setImageMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
 
   // Generated images live only in this session (by design), and any history
@@ -1098,7 +1105,7 @@ export default function Home() {
   // Staged progress for the premium URL reports (scan / SEO): the server
   // builds the whole report before replying, so instead of a silent
   // «يجهز الرد» the waiting bubble walks through the real phases.
-  const [reportWait, setReportWait] = useState<"scan" | "seo" | null>(null);
+  const [reportWait, setReportWait] = useState<"scan" | "seo" | "leads" | null>(null);
   const [reportWaitSecs, setReportWaitSecs] = useState(0);
   useEffect(() => {
     if (!reportWait) { setReportWaitSecs(0); return; }
@@ -1378,11 +1385,11 @@ export default function Home() {
         // flat 5 tokens and returns the image for this session only; images
         // are not persisted in the database yet.
         try {
-          const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId }) });
+          const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId, imageKind }) });
           const imagePayload = await imageResponse.json().catch(() => ({}));
           if (!imageResponse.ok || !imagePayload.imageDataUrl) {
             const imageErrors: Record<string, string> = {
-              insufficient_credits: tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough."),
+              insufficient_credits: imageKind === "cgi" ? tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.") : tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough."),
               image_generation_failed: tr(language, "تعذر توليد الصورة الآن. لم يُخصم الرصيد؛ حاول مرة أخرى.", "Image generation failed. No charge was made; please try again."),
               image_not_configured: tr(language, "توليد الصور غير مُعدّ على الخادم بعد.", "Image generation is not configured on the server yet."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
@@ -1391,7 +1398,8 @@ export default function Home() {
           }
           sessionImagesRef.current.set(trimmed.slice(0, 200), String(imagePayload.imageDataUrl));
           if (typeof imagePayload.tokenBalance === "number") setWalletBalance(imagePayload.tokenBalance);
-          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: tr(language, `🎨 صورة مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 Image generated from your prompt: "${trimmed.slice(0, 200)}"`), timestamp: formatTime(), imageUrl: String(imagePayload.imageDataUrl) }]);
+          const imageNote = imageKind === "cgi" ? tr(language, `🎨 صورة CGI مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 CGI image generated from your prompt: "${trimmed.slice(0, 200)}"`) : tr(language, `🎨 صورة مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 Image generated from your prompt: "${trimmed.slice(0, 200)}"`);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: imageNote, timestamp: formatTime(), imageUrl: String(imagePayload.imageDataUrl) }]);
         } catch (imageError) {
           setRequestError(imageError instanceof Error ? imageError.message : tr(language, "تعذر توليد الصورة الآن.", "Image generation failed."));
         } finally {
@@ -1469,6 +1477,38 @@ export default function Home() {
           setIsSending(false);
           setIsSearchingWeb(false);
           setSeoMode(false);
+        }
+        return;
+      }
+      if (leadsMode) {
+        // Lead extraction (premium, 2026-10-29): the draft is the
+        // business type + area. The server charges a flat 20 tokens,
+        // runs the Google Maps extraction, and returns up to 30
+        // businesses; failures refund in full.
+        setReportWait("leads");
+        try {
+          const leadsResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadsMode: true, query: trimmed, conversationId }) });
+          const leadsPayload = await leadsResponse.json().catch(() => ({}));
+          if (!leadsResponse.ok || !leadsPayload.content) {
+            const leadsErrors: Record<string, string> = {
+              insufficient_credits: tr(language, "استخراج العملاء يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Lead extraction costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              invalid_leads_request: tr(language, "اكتب نوع النشاط والمنطقة بشكل أوضح — مثال: مطاعم في مدينة نصر. لم يُخصم الرصيد.", "Describe the business type and area more clearly — e.g. restaurants in Nasr City. Nothing was charged."),
+              leads_no_results: tr(language, "لم يتم العثور على شركات مطابقة لبحثك. جرّب منطقة أو نشاطًا مختلفًا — تم استرداد الرصيد بالكامل.", "No matching businesses were found. Try a different area or business type — you were fully refunded."),
+              leads_failed: tr(language, "تعذر إتمام الاستخراج الآن. تم استرداد الرصيد بالكامل؛ حاول مرة أخرى.", "The extraction could not be completed. You were fully refunded; please try again."),
+              leads_not_configured: tr(language, "خدمة استخراج العملاء غير مُعدّة على الخادم بعد.", "The lead extraction service is not configured on the server yet."),
+              login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+            };
+            throw new Error(leadsErrors[String(leadsPayload.error || "")] || tr(language, "تعذر إتمام الاستخراج الآن. لم يُخصم الرصيد.", "The extraction failed. Nothing was charged."));
+          }
+          if (typeof leadsPayload.tokenBalance === "number") setWalletBalance(leadsPayload.tokenBalance);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leadsPayload.content), timestamp: formatTime() }]);
+        } catch (leadsError) {
+          setRequestError(leadsError instanceof Error ? leadsError.message : tr(language, "تعذر إتمام الاستخراج الآن.", "The extraction failed."));
+        } finally {
+          setReportWait(null);
+          setIsSending(false);
+          setIsSearchingWeb(false);
+          setLeadsMode(false);
         }
         return;
       }
@@ -1728,6 +1768,7 @@ export default function Home() {
     setImageMode(false);
     setScanMode(false);
     setSeoMode(false);
+    setLeadsMode(false);
     if (feature === "search") setWebSearchEnabled(value => !value);
     else { setDarkWebEnabled(value => !value); setDarkLiveMode(false); }
   };
@@ -1801,7 +1842,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
 .composer-mode.beast-mode{padding-inline:4px!important}.composer-mode.beast-mode>span:first-child{font-size:12px!important}
 @media(max-width:520px){.composer-mode-row{flex-wrap:nowrap!important;gap:6px!important;padding:6px 10px!important;overflow:visible!important}.composer-mode-row>.composer-mode{flex:1 1 0!important;min-width:0!important;padding-inline:3px!important;font-size:12px!important}.composer-mode.beast-mode{padding-inline:3px!important}.composer-mode.beast-mode>span:first-child{font-size:12px!important}}`}</style>
       <div className="app-shell" dir={language === "ar" ? "rtl" : "ltr"} lang={language}>
-      <style>{`html[data-theme="light"],html[data-theme="light"] body,html[data-theme="light"] #root{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .app-shell,html[data-theme="light"] .main-shell,html[data-theme="light"] .chat-workspace,html[data-theme="light"] main{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .sidebar-drawer,html[data-theme="light"] .sidebar,html[data-theme="light"] .settings-card,html[data-theme="light"] .content-panel,html[data-theme="light"] .composer,html[data-theme="light"] .message-content{background-color:#3D0005!important;color:#fff!important;border-color:#6B1018!important}html[data-theme="light"] h1,html[data-theme="light"] h2,html[data-theme="light"] h3,html[data-theme="light"] p,html[data-theme="light"] label,html[data-theme="light"] small,html[data-theme="light"] strong,html[data-theme="light"] span,html[data-theme="light"] .nav-item,html[data-theme="light"] .conversation-item,html[data-theme="light"] .profile-row,html[data-theme="light"] .setting-status{color:#fff}html[data-theme="light"] input,html[data-theme="light"] textarea,html[data-theme="light"] select{background:#400000!important;color:#fff!important;border-color:#76202A!important}html[data-theme="light"] input::placeholder,html[data-theme="light"] textarea::placeholder{color:#E7BFC3!important}html[data-theme="light"] .new-chat-button,html[data-theme="light"] .send-button.ready,html[data-theme="light"] .hotlucky-slim-cta{background:#FF1E2E!important;color:#fff!important;border-color:#FF1E2E!important}.extended-toggle.active,.extended-toggle.active>svg{color:#22C55E!important}.extended-toggle.active .toggle-track{background:#166534!important}.extended-toggle.active .toggle-track span{background:#22C55E!important}.extended-cost-label{color:#22C55E!important;font-size:10px;white-space:nowrap}.darkweb-mode{padding:6px 12px!important}.composer-mode-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:8px!important;padding-inline:6px!important;justify-content:flex-start!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch}.composer-mode-row::-webkit-scrollbar{display:none}.composer-mode-row>.composer-mode{flex:0 0 auto!important}@media (max-width:520px){.composer-mode-row>.composer-mode{padding-inline:9px!important}}html[data-theme="light"] .composer-mode{padding-inline:12px!important}`}</style>
+      <style>{`html[data-theme="light"],html[data-theme="light"] body,html[data-theme="light"] #root{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .app-shell,html[data-theme="light"] .main-shell,html[data-theme="light"] .chat-workspace,html[data-theme="light"] main{background:#2B0000!important;color:#fff!important}html[data-theme="light"] .sidebar-drawer,html[data-theme="light"] .sidebar,html[data-theme="light"] .settings-card,html[data-theme="light"] .content-panel,html[data-theme="light"] .composer,html[data-theme="light"] .message-content{background-color:#3D0005!important;color:#fff!important;border-color:#6B1018!important}html[data-theme="light"] h1,html[data-theme="light"] h2,html[data-theme="light"] h3,html[data-theme="light"] p,html[data-theme="light"] label,html[data-theme="light"] small,html[data-theme="light"] strong,html[data-theme="light"] span,html[data-theme="light"] .nav-item,html[data-theme="light"] .conversation-item,html[data-theme="light"] .profile-row,html[data-theme="light"] .setting-status{color:#fff}html[data-theme="light"] input,html[data-theme="light"] textarea,html[data-theme="light"] select{background:#400000!important;color:#fff!important;border-color:#76202A!important}html[data-theme="light"] input::placeholder,html[data-theme="light"] textarea::placeholder{color:#E7BFC3!important}html[data-theme="light"] .new-chat-button,html[data-theme="light"] .send-button.ready,html[data-theme="light"] .hotlucky-slim-cta{background:#FF1E2E!important;color:#fff!important;border-color:#FF1E2E!important}.extended-toggle.active,.extended-toggle.active>svg{color:#22C55E!important}.extended-toggle.active .toggle-track{background:#166534!important}.extended-toggle.active .toggle-track span{background:#22C55E!important}.extended-cost-label{color:#22C55E!important;font-size:10px;white-space:nowrap}.darkweb-mode{padding:6px 12px!important}.composer-mode-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow:visible!important;gap:8px!important;padding-inline:6px!important;justify-content:flex-start!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch}.composer-mode-row::-webkit-scrollbar{display:none}.composer-mode-row>.composer-mode{flex:1 1 0!important;min-width:0!important}@media (max-width:520px){.composer-mode-row>.composer-mode{padding-inline:9px!important}}html[data-theme="light"] .composer-mode{padding-inline:12px!important}`}</style>
       <div
         className={sidebarOpen ? "mobile-scrim visible" : "mobile-scrim"}
         onClick={() => setSidebarOpen(false)}
@@ -2042,7 +2083,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                         <i />
                         <i />
                       </span>
-                      <span>{reportWait ? (reportWaitSecs < 12 ? tr(language, reportWait === "seo" ? "جارٍ فحص الموقع وجمع بيانات SEO..." : "جارٍ فحص الموقع وجمع البيانات...", reportWait === "seo" ? "Auditing the site and collecting SEO data..." : "Scanning the site and collecting data...") : reportWaitSecs < 30 ? tr(language, "جارٍ تحليل النتائج...", "Analyzing the results...") : tr(language, "جارٍ كتابة التقرير...", "Writing the report...")) : isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
+                      <span>{reportWait ? (reportWaitSecs < 12 ? tr(language, reportWait === "seo" ? "جارٍ فحص الموقع وجمع بيانات SEO..." : reportWait === "leads" ? "جارٍ استخراج بيانات الشركات من خرائط جوجل..." : "جارٍ فحص الموقع وجمع البيانات...", reportWait === "seo" ? "Auditing the site and collecting SEO data..." : reportWait === "leads" ? "Extracting business data from Google Maps..." : "Scanning the site and collecting data...") : reportWaitSecs < 30 ? tr(language, "جارٍ تحليل النتائج...", "Analyzing the results...") : tr(language, "جارٍ كتابة التقرير...", "Writing the report...")) : isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
                     </div>
                   )}
                 </div>
@@ -2083,7 +2124,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
@@ -2094,7 +2135,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 >
                   <Send size={17} />
                 </button>
-                {draft.trim().length >= 12 && !scanMode && !seoMode && (writingAssist ? (
+                {draft.trim().length >= 12 && !scanMode && !seoMode && !leadsMode && (writingAssist ? (
                   <div className="attachment-cost-note">✨ {tr(language, "محسّن الطلب مفعّل — سيتم تنظيم طلبك قبل الإرسال.", "Prompt enhancer is on — your request will be organized before sending.")} <button type="button" onClick={() => setWritingAssist(false)} style={{ color: "#22d3ee", fontWeight: 700 }}>{tr(language, "إيقاف", "Turn off")}</button></div>
                 ) : (
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
@@ -2103,14 +2144,27 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
-                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
+                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setLeadsMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
-                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={() => { if (imageMode) { setImageMode(false); return; } if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageMode(true); setScanMode(false); setSeoMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} aria-pressed={imageMode} title={tr(language, "توليد صورة — 5 توكينات", "Generate an image — 5 tokens")}>
-                    <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
+                    <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>{imageMode && imageKind === "cgi" && <span style={{ fontSize: 9, fontWeight: 800, color: "#FBBF24", border: "1px solid rgba(251,191,36,.6)", borderRadius: 6, padding: "0 3px", lineHeight: 1.4 }}>CGI</span>}
                   </button>
+                  {imageMenuPos && (
+                    <>
+                      <div onClick={() => setImageMenuPos(null)} style={{ position: "fixed", inset: 0, zIndex: 900 }} />
+                      <div role="menu" dir={language === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", left: imageMenuPos.left, bottom: imageMenuPos.bottom, zIndex: 901, minWidth: 200, background: "#1A0505", border: "1px solid rgba(201,162,39,.55)", borderRadius: 12, padding: 6, boxShadow: "0 18px 50px rgba(0,0,0,.55)" }}>
+                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageKind("normal"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
+                          <ImageIcon size={15} /><span>{tr(language, "صورة عادية", "Normal image")}</span>
+                        </button>
+                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.")); return; } setRequestError(null); setImageKind("cgi"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
+                          <Sparkles size={15} style={{ color: "#FBBF24" }} /><span>{tr(language, "صورة CGI", "CGI image")}</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                   <button type="button" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
-                    setImageMode(false); setScanMode(false); setSeoMode(false);
+                    setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false);
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
                     if (!requireProFeature("beast")) return;
                     if (walletBalance < 3) { setRequestError(tr(language, "تحتاج إلى 3 توكينات على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 توكينات).", "At least 3 tokens are required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 tokens).")); return; }
@@ -2123,17 +2177,21 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
-                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setSeoMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
+                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
                     <Radio size={16} /><span>{tr(language, "دارك لايف", "Dark Live")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
+                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
                     <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
+                  </button>
+                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
+                    <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
               </div>
               {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص. الأداة للأغراض الدفاعية والبحثية فقط على المواقع التي تملكها أو مصرح لك بفحصها.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only, on sites you own or are authorized to scan.")}</div>}
               {seoMode && <div className="attachment-cost-note">{tr(language, "📈 وضع فحص SEO: الصق رابط موقعك واضغط إرسال — تقرير SEO كامل بخطة نمو عملية من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "📈 SEO audit mode: paste your website URL and press send — a full SEO report with a practical growth plan from real collected data for 20 tokens, fully refunded if the audit cannot run.")}</div>}
-              {(darkWebEnabled || darkLiveMode) && !scanMode && !seoMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
+              {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 وضع استخراج العملاء: اكتب نوع النشاط والمنطقة (مثال: عيادات أسنان في التجمع الخامس) واضغط إرسال — بيانات لحد 30 شركة من خرائط جوجل (الاسم والتليفون والعنوان والموقع والتقييم) مقابل 20 توكن، واسترداد كامل إذا تعذر الاستخراج.", "📇 Lead extraction mode: type the business type and area (e.g. dental clinics in New Cairo) and press send — data for up to 30 businesses from Google Maps (name, phone, address, website, rating) for 20 tokens, fully refunded if the extraction cannot run.")}</div>}
+              {(darkWebEnabled || darkLiveMode) && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>
