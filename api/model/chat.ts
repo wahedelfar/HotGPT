@@ -1079,12 +1079,23 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
       res.status(422).json({ error: "leads_no_results" });
       return;
     }
+    // "Extract more" continuation: drop every business already delivered in
+    // this conversation (the client sends their place ids). If too few fresh
+    // businesses remain, refund in full instead of charging for duplicates.
+    const excludeIds = new Set<string>((Array.isArray(body?.excludePlaceIds) ? body.excludePlaceIds : []).map((v: unknown) => String(v ?? "").slice(0, 120)).filter((v: string) => v.length > 0));
+    const freshItems = excludeIds.size > 0 ? items.filter((item) => !excludeIds.has(String(item?.placeId || ""))) : items;
+    if (excludeIds.size > 0 && freshItems.length < 5) {
+      await creditWalletTokens(user.id, LEADS_COST);
+      debited = false;
+      res.status(422).json({ error: "leads_no_more" });
+      return;
+    }
     const clean = (value: unknown, max: number) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-    type LeadOut = { name: string; phone?: string; address?: string; website?: string; rating?: number; reviews?: number };
+    type LeadOut = { name: string; phone?: string; address?: string; website?: string; rating?: number; reviews?: number; placeId?: string };
     const leads: LeadOut[] = [];
     const lines: string[] = [];
     let withPhone = 0;
-    items.forEach((item, index) => {
+    freshItems.forEach((item, index) => {
       const name = clean(item?.title, 120) || "—";
       const phone = clean(item?.phone, 40);
       const address = clean(item?.address, 200);
@@ -1093,6 +1104,8 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
       const reviews = typeof item?.reviewsCount === "number" ? item.reviewsCount : null;
       if (phone) withPhone += 1;
       const lead: LeadOut = { name };
+      const placeId = clean(item?.placeId, 120);
+      if (placeId) lead.placeId = placeId;
       if (phone) lead.phone = phone;
       if (address) lead.address = address;
       if (website) lead.website = website;
@@ -1108,7 +1121,7 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
     });
     const report = [
       `📇 **استخراج العملاء — ${clean(query, 120)}**`,
-      `تم العثور على ${items.length} شركة — ${withPhone} منها برقم تليفون منشور.`,
+      `تم العثور على ${freshItems.length} شركة — ${withPhone} منها برقم تليفون منشور.`,
       "",
       ...lines,
       "البيانات من خرائط جوجل كما هي منشورة علنًا وقت الاستخراج، وقد تتغير.",
@@ -1116,7 +1129,7 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
     await saveMessage(user.id, conversationId, "user", `📇 استخراج عملاء: ${query}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
-    res.status(200).json({ content: report, report, leads, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEADS_COST, count: items.length });
+    res.status(200).json({ content: report, report, leads, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEADS_COST, count: freshItems.length });
   } catch (error) {
     if (debited) { await creditWalletTokens(user.id, LEADS_COST).catch(() => null); debited = false; }
     console.error("[Leads] extraction failed", error instanceof Error ? error.message : "unknown");

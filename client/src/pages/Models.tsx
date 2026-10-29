@@ -79,8 +79,8 @@ const MODELS: ModelCard[] = [
   {
     title: ["استخراج العملاء", "Lead extraction"],
     desc: [
-      "بيانات شركات حقيقية من خرائط جوجل حسب النشاط والمنطقة: الاسم ورقم التليفون والعنوان والموقع الإلكتروني والتقييم — لحد 30 شركة في الاستخراج الواحد.",
-      "Real business data from Google Maps by business type and area: name, phone number, address, website and rating — up to 30 businesses in a single extraction.",
+      "بيانات شركات حقيقية من خرائط جوجل حسب النشاط والمنطقة: الاسم ورقم التليفون والعنوان والموقع الإلكتروني والتقييم — لحد 20 شركة في الاستخراج الواحد.",
+      "Real business data from Google Maps by business type and area: name, phone number, address, website and rating — up to 20 businesses in a single extraction.",
     ],
     price: ["استخراج كامل 20 توكين", "Full extraction, 20 tokens"],
   },

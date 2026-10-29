@@ -61,6 +61,7 @@ type LeadBusiness = {
   website?: string;
   rating?: number;
   reviews?: number;
+  placeId?: string;
 };
 
 type ChatMessage = {
@@ -74,6 +75,9 @@ type ChatMessage = {
   continuationDisabled?: boolean; continuationLabel?: string;
   imageUrl?: string;
   leadsData?: LeadBusiness[];
+  leadsQuery?: string;
+  leadsOffset?: number;
+  leadsMoreDisabled?: boolean;
 };
 
 type Conversation = {
@@ -401,7 +405,7 @@ function Sidebar({
 }
 
 
-function LeadCards({ leads, language }: { leads: LeadBusiness[]; language: Language }) {
+function LeadCards({ leads, language, startIndex = 0, onMore, moreDisabled = false }: { leads: LeadBusiness[]; language: Language; startIndex?: number; onMore?: () => void; moreDisabled?: boolean }) {
   const withPhone = leads.filter(lead => Boolean(lead.phone)).length;
   return (
     <div className="leads-panel" dir={language === "ar" ? "rtl" : "ltr"}>
@@ -409,7 +413,7 @@ function LeadCards({ leads, language }: { leads: LeadBusiness[]; language: Langu
       <div className="leads-sub">{language === "ar" ? `تم العثور على ${leads.length} شركة — ${withPhone} منها برقم تليفون منشور.` : `${leads.length} businesses found — ${withPhone} with a published phone number.`}</div>
       {leads.map((lead, index) => (
         <div className="lead-card" key={index}>
-          <div className="lead-card-name">{index + 1}. {lead.name}</div>
+          <div className="lead-card-name">{startIndex + index + 1}. {lead.name}</div>
           {lead.phone && (
             <div className="lead-row">
               <span className="lead-row-label">📞 {language === "ar" ? "التليفون" : "Phone"}</span>
@@ -437,6 +441,11 @@ function LeadCards({ leads, language }: { leads: LeadBusiness[]; language: Langu
         </div>
       ))}
       <div className="leads-foot">{language === "ar" ? "البيانات من خرائط جوجل كما هي منشورة علنًا وقت الاستخراج، وقد تتغير." : "Data from Google Maps as publicly listed at extraction time; it may change."}</div>
+      {onMore && (
+        <button type="button" onClick={onMore} disabled={moreDisabled} style={{ display: "inline-flex", alignItems: "center", gap: 6, justifySelf: "start", padding: "7px 12px", borderRadius: 10, border: "1px solid #C9A227", background: "rgba(201,162,39,0.10)", color: "#FBBF24", fontSize: 13, fontWeight: 600, cursor: moreDisabled ? "not-allowed" : "pointer", opacity: moreDisabled ? 0.6 : 1 }}>
+          <ChevronDown size={14} /><span>{language === "ar" ? "استخراج المزيد" : "Extract more"}</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -538,7 +547,7 @@ function RenderedMessageContent({ content, language }: { content: string; langua
   </>;
 }
 
-function MessageBubble({ message, onContinue }: { message: ChatMessage; onContinue?: () => void }) {
+function MessageBubble({ message, onContinue, onExtractMore }: { message: ChatMessage; onContinue?: () => void; onExtractMore?: () => void }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const codeContainerRef = useRef<HTMLDivElement>(null);
@@ -611,7 +620,7 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
         <div className="message-content" ref={codeContainerRef}>
           {message.imageUrl && <img src={message.imageUrl} alt={tr(language, "صورة مولّدة", "Generated image")} style={{ maxWidth: "100%", borderRadius: 12, marginBottom: 8 }} />}
           {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span></div>}
-          {message.leadsData && message.leadsData.length > 0 ? <LeadCards leads={message.leadsData} language={language} /> : message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
+          {message.leadsData && message.leadsData.length > 0 ? <LeadCards leads={message.leadsData} language={language} startIndex={message.leadsOffset ?? 0} onMore={onExtractMore} moreDisabled={message.leadsMoreDisabled === true} /> : message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
         </div>
         <div className="message-actions">
           <button
@@ -1117,7 +1126,8 @@ export default function Home() {
   const [imageKind, setImageKind] = useState<"normal" | "cgi">("normal");
   const [imageMenuPos, setImageMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
-  const sessionLeadsRef = useRef<Map<string, LeadBusiness[]>>(new Map());
+  const sessionLeadsRef = useRef<Map<string, LeadBusiness[][]>>(new Map());
+  const sessionLeadSeenRef = useRef<Map<string, string[]>>(new Map());
 
   // Generated images live only in this session (by design), and any history
   // reload replaces the message objects and drops their imageUrl. Instead of
@@ -1127,6 +1137,8 @@ export default function Home() {
     if (sessionImagesRef.current.size === 0 && sessionLeadsRef.current.size === 0) return;
     setMessages(current => {
       let changed = false;
+      const batchCursor = new Map<string, number>();
+      const offsetByQuery = new Map<string, number>();
       const next = current.map(m => {
         let out = m;
         if (!out.imageUrl && sessionImagesRef.current.size > 0) {
@@ -1134,10 +1146,25 @@ export default function Home() {
           const url = match ? sessionImagesRef.current.get(match[1]) : undefined;
           if (url) { out = { ...out, imageUrl: url }; changed = true; }
         }
-        if (!out.leadsData && sessionLeadsRef.current.size > 0 && out.role === "assistant") {
+        if (out.role === "assistant") {
           const header = /استخراج العملاء — ([^*\n]+)/.exec(out.content);
-          const leads = header ? sessionLeadsRef.current.get(header[1].trim()) : undefined;
-          if (leads && leads.length > 0) { out = { ...out, leadsData: leads }; changed = true; }
+          if (header) {
+            const q = header[1].trim();
+            if (!out.leadsData && sessionLeadsRef.current.size > 0) {
+              const batches = sessionLeadsRef.current.get(q);
+              const cursor = batchCursor.get(q) ?? 0;
+              const batch = batches ? batches[cursor] : undefined;
+              if (batch && batch.length > 0) {
+                out = { ...out, leadsData: batch, leadsQuery: q, leadsOffset: offsetByQuery.get(q) ?? 0 };
+                changed = true;
+              }
+            }
+            if (out.leadsData) {
+              batchCursor.set(q, (batchCursor.get(q) ?? 0) + 1);
+              offsetByQuery.set(q, (offsetByQuery.get(q) ?? 0) + out.leadsData.length);
+              if (!out.leadsQuery) { out = { ...out, leadsQuery: q }; changed = true; }
+            }
+          }
         }
         return out;
       });
@@ -1551,6 +1578,7 @@ export default function Home() {
               insufficient_credits: tr(language, "استخراج العملاء يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Lead extraction costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
               invalid_leads_request: tr(language, "اكتب نوع النشاط والمنطقة بشكل أوضح — مثال: مطاعم في مدينة نصر. لم يُخصم الرصيد.", "Describe the business type and area more clearly — e.g. restaurants in Nasr City. Nothing was charged."),
               leads_no_results: tr(language, "لم يتم العثور على شركات مطابقة لبحثك. جرّب منطقة أو نشاطًا مختلفًا — تم استرداد الرصيد بالكامل.", "No matching businesses were found. Try a different area or business type — you were fully refunded."),
+              leads_no_more: tr(language, "مفيش نتائج جديدة كفاية للبحث ده — تم استرداد الرصيد بالكامل. جرّب منطقة أو نشاطًا مختلفًا.", "There are not enough new results for this search — you were fully refunded. Try a different area or activity."),
               leads_failed: tr(language, "تعذر إتمام الاستخراج الآن. تم استرداد الرصيد بالكامل؛ حاول مرة أخرى.", "The extraction could not be completed. You were fully refunded; please try again."),
               leads_not_configured: tr(language, "خدمة استخراج العملاء غير مُعدّة على الخادم بعد.", "The lead extraction service is not configured on the server yet."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
@@ -1558,10 +1586,16 @@ export default function Home() {
             throw new Error(leadsErrors[String(leadsPayload.error || "")] || tr(language, "تعذر إتمام الاستخراج الآن. لم يُخصم الرصيد.", "The extraction failed. Nothing was charged."));
           }
           if (typeof leadsPayload.tokenBalance === "number") setWalletBalance(leadsPayload.tokenBalance);
-          if (Array.isArray(leadsPayload.leads) && leadsPayload.leads.length > 0) {
-            sessionLeadsRef.current.set(trimmed.replace(/\s+/g, " ").trim().slice(0, 120), leadsPayload.leads);
+          const leadsKey = trimmed.replace(/\s+/g, " ").trim().slice(0, 120);
+          const leadsBatch: LeadBusiness[] = Array.isArray(leadsPayload.leads) ? leadsPayload.leads : [];
+          const priorBatches = sessionLeadsRef.current.get(leadsKey) ?? [];
+          const leadsOffset = priorBatches.reduce((n, b) => n + b.length, 0);
+          if (leadsBatch.length > 0) {
+            sessionLeadsRef.current.set(leadsKey, [...priorBatches, leadsBatch]);
+            const seenIds = sessionLeadSeenRef.current.get(leadsKey) ?? [];
+            sessionLeadSeenRef.current.set(leadsKey, [...seenIds, ...leadsBatch.map(l => l.placeId).filter((v): v is string => typeof v === "string" && v.length > 0)]);
           }
-          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leadsPayload.content), timestamp: formatTime(), leadsData: Array.isArray(leadsPayload.leads) ? leadsPayload.leads : undefined }]);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leadsPayload.content), timestamp: formatTime(), leadsData: leadsBatch.length > 0 ? leadsBatch : undefined, leadsQuery: leadsKey, leadsOffset }]);
         } catch (leadsError) {
           setRequestError(leadsError instanceof Error ? leadsError.message : tr(language, "تعذر إتمام الاستخراج الآن.", "The extraction failed."));
         } finally {
@@ -1784,6 +1818,45 @@ export default function Home() {
       }
     }
   };
+  const extractMoreLeads = async (target: ChatMessage) => {
+    if (isSending || !target.leadsQuery || !activeConversation) return;
+    const query = target.leadsQuery;
+    const excludePlaceIds = sessionLeadSeenRef.current.get(query) ?? [];
+    setIsSending(true);
+    setIsSearchingWeb(true);
+    setReportWait("leads");
+    setRequestError(null);
+    try {
+      const moreResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadsMode: true, leadsMore: true, query, conversationId: activeConversation, excludePlaceIds }) });
+      const morePayload = await moreResponse.json().catch(() => ({}));
+      if (!moreResponse.ok || !morePayload.content) {
+        const moreErrors: Record<string, string> = {
+          insufficient_credits: tr(language, "استخراج المزيد يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Extracting more costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+          leads_no_more: tr(language, "مفيش نتائج جديدة كفاية للبحث ده — تم استرداد الرصيد بالكامل. جرّب منطقة أو نشاطًا مختلفًا.", "There are not enough new results for this search — you were fully refunded. Try a different area or activity."),
+          leads_failed: tr(language, "تعذر إتمام الاستخراج الآن. تم استرداد الرصيد بالكامل؛ حاول مرة أخرى.", "The extraction could not be completed. You were fully refunded; please try again."),
+          leads_not_configured: tr(language, "خدمة استخراج العملاء غير مُعدّة على الخادم بعد.", "The lead extraction service is not configured on the server yet."),
+          login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+        };
+        throw new Error(moreErrors[String(morePayload.error || "")] || tr(language, "تعذر إتمام الاستخراج الآن. لم يُخصم الرصيد.", "The extraction failed. Nothing was charged."));
+      }
+      if (typeof morePayload.tokenBalance === "number") setWalletBalance(morePayload.tokenBalance);
+      const batch: LeadBusiness[] = Array.isArray(morePayload.leads) ? morePayload.leads : [];
+      const priorBatches = sessionLeadsRef.current.get(query) ?? [];
+      const offset = priorBatches.reduce((n, b) => n + b.length, 0);
+      if (batch.length > 0) {
+        sessionLeadsRef.current.set(query, [...priorBatches, batch]);
+        sessionLeadSeenRef.current.set(query, [...excludePlaceIds, ...batch.map(l => l.placeId).filter((v): v is string => typeof v === "string" && v.length > 0)]);
+      }
+      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(morePayload.content), timestamp: formatTime(), leadsData: batch.length > 0 ? batch : undefined, leadsQuery: query, leadsOffset: offset }]);
+    } catch (moreError) {
+      setRequestError(moreError instanceof Error ? moreError.message : tr(language, "تعذر إتمام الاستخراج الآن.", "The extraction failed."));
+    } finally {
+      setReportWait(null);
+      setIsSending(false);
+      setIsSearchingWeb(false);
+    }
+  };
+
   const continueMessage = async (target: ChatMessage) => {
     const contCost = darkLiveMode || darkWebEnabled || webSearchEnabled || selectedModel === "dadgpt-beast" ? 5 : 1;
     if (isSending || !target.continuationAvailable || walletBalance < contCost) return;
@@ -2132,7 +2205,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined}/>;})}
+                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel,leadsMoreDisabled:isSending}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined} onExtractMore={message.leadsData&&message.leadsData.length?()=>{void extractMoreLeads(message)}:undefined}/>;})}
                   {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
