@@ -420,7 +420,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
           }
         } catch { /* aborted or network error — completeness is judged below */ }
         const text = collected.trim();
-        if (text.length >= 300 && collected.includes(REPORT_CLOSING)) { report = text; break; }
+        if (text.length >= 300 && text.endsWith(REPORT_CLOSING)) { report = text; break; }
         if (text.length < 300) break; // nothing usable from this model — fall through to the backup model
         passMessages = [
           { role: "system", content: system },
