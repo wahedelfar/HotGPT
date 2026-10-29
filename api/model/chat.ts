@@ -509,6 +509,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة. اختصر خطة النمو إلى 3 نقاط عند الحاجة، وأنهِ بجملة مكتملة ثم سطر مستقل حرفيًا: --- نهاية التقرير --- . لا تتوقف قبل علامة النهاية." ;
     let report = "";
     let lastCollectedChars = 0;
+    let bestCollectedReport = "";
     const reportDeadline = seoRequestDeadline - 3000; // reserve time to persist and return the report
     for (const [index, model] of models.entries()) {
       if (report) break;
@@ -590,6 +591,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
         } catch { /* aborted or network error — completeness is judged below */ }
         lastCollectedChars = collected.length;
         const text = collected.trim();
+        if (text.length > bestCollectedReport.length) bestCollectedReport = text;
         if (text.length >= 300 && collected.includes(REPORT_CLOSING)) { report = text; break; }
         if (text.length < 300) break; // nothing usable from this model — fall through to the backup model
         passMessages = [
@@ -599,6 +601,12 @@ async function handleSeoAudit(req: any, res: any, body: any) {
           { role: "user", content: REPORT_CONTINUE },
         ];
       }
+    }
+    // Some OpenRouter-compatible models finish a complete checklist but omit the literal closing marker.
+    // Preserve a substantial report instead of returning an immediate generic failure and refunding it.
+    if (!report && bestCollectedReport.length >= 1800 && /قائمة التنفيذ بالأولوية/.test(bestCollectedReport)) {
+      report = `${bestCollectedReport.trim()}\n\n${REPORT_CLOSING}`;
+      console.warn("[SEO] Accepted complete checklist without provider closing marker", JSON.stringify({ chars: bestCollectedReport.length, elapsedMs: Date.now() - seoRequestStartedAt }));
     }
     if (!report) {
       console.error("[SEO] Complete report unavailable", JSON.stringify({
