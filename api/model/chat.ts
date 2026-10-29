@@ -973,7 +973,7 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
     row=rows?.[0];if(!row)return res.status(404).json({error:"message_not_found"});
     if(row.is_complete!==false)return res.status(409).json({error:"message_already_complete"});
     const prior=await supabaseRest(`messages?conversation_id=eq.${encodeURIComponent(row.conversation_id)}&user_id=eq.${encodeURIComponent(user.id)}&id=neq.${encodeURIComponent(messageId)}&select=role,content,created_at&order=created_at.asc&limit=38`);
-    history=(Array.isArray(prior)?prior:[]).filter((m:any)=>(m.role==="user"||m.role==="assistant")&&typeof m.content==="string"&&m.content.trim()).map((m:any)=>({role:m.role,content:m.content}));
+    history=(Array.isArray(prior)?prior:[]).filter((m:any)=>(m.role==="user"||m.role==="assistant")&&typeof m.content==="string"&&m.content.trim()).map((m:any)=>({role:m.role,content:stripLeadsDataBlock(m.content)}));
     partIndex=Number(row.part_count||1)+1;
     const charge=await chargeChatPart(user.id,messageId,partIndex,contCost);
     if(charge?.duplicate===true)return res.status(409).json({error:"duplicate_chat_part",messageId,partIndex});
@@ -1030,6 +1030,15 @@ async function handleContinueChatPart(req: any, res: any, body: any) {
 // wallet pair, refunded in full on any failure: the premium reports'
 // discipline. Env-gated on APIFY_API_TOKEN: without it the service
 // answers not_configured and nothing is charged.
+// Lead-extraction results are saved with a machine-readable data block
+// appended (see handleLeadExtraction) so the client can rebuild the result
+// cards after a page reload. The block must never reach a model as context.
+function stripLeadsDataBlock(content: string): string {
+  const marker = "\n\n[[LEADS_DATA]]";
+  const idx = content.lastIndexOf(marker);
+  return idx === -1 ? content : content.slice(0, idx);
+}
+
 async function handleLeadExtraction(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -1151,7 +1160,8 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
       "البيانات من خرائط جوجل كما هي منشورة علنًا وقت الاستخراج، وقد تتغير.",
     ].join("\n");
     await saveMessage(user.id, conversationId, "user", `📇 استخراج عملاء: ${query}`);
-    await saveMessage(user.id, conversationId, "assistant", report);
+    const savedReport = `${report}\n\n[[LEADS_DATA]]${JSON.stringify({ v: 1, q: clean(query, 120), leads })}[[/LEADS_DATA]]`;
+    await saveMessage(user.id, conversationId, "assistant", savedReport);
     const wallet = await getWallet(user.id).catch(() => null);
     res.status(200).json({ content: report, report, leads, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEADS_COST, count: freshItems.length });
   } catch (error) {

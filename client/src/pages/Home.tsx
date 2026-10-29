@@ -82,6 +82,24 @@ type ChatMessage = {
   leadsMoreDisabled?: boolean;
 };
 
+// Lead-extraction messages are saved with a trailing machine-readable block
+// holding the structured batch, so the cards and the "extract more" state can
+// be rebuilt after a page reload. Parse it off the display text.
+function parseSavedLeads(content: string): { text: string; leads?: LeadBusiness[]; query?: string } {
+  const marker = "\n\n[[LEADS_DATA]]";
+  const endMark = "[[/LEADS_DATA]]";
+  const startIdx = content.lastIndexOf(marker);
+  if (startIdx === -1 || !content.trimEnd().endsWith(endMark)) return { text: content };
+  const text = content.slice(0, startIdx);
+  try {
+    const parsed = JSON.parse(content.slice(startIdx + marker.length, content.trimEnd().length - endMark.length));
+    if (parsed && parsed.v === 1 && typeof parsed.q === "string" && Array.isArray(parsed.leads) && parsed.leads.length > 0) {
+      return { text, leads: parsed.leads as LeadBusiness[], query: parsed.q };
+    }
+  } catch { /* malformed block: strip it and show the plain text */ }
+  return { text };
+}
+
 type Conversation = {
   id: string;
   title: string;
@@ -1173,6 +1191,33 @@ export default function Home() {
       return changed ? next : current;
     });
   }, [messages]);
+  // Rebuild the session leads state (batches + delivered place ids) from the
+  // saved data blocks whenever a conversation is loaded, so the cards and
+  // the "extract more" continuation survive a full page reload.
+  const restoreLeadsState = (items: any[]) => {
+    const batches = new Map<string, LeadBusiness[][]>();
+    const seen = new Map<string, string[]>();
+    for (const item of items ?? []) {
+      if (item?.role !== "assistant") continue;
+      const parsed = parseSavedLeads(String(item.content ?? ""));
+      if (!parsed.leads || !parsed.query) continue;
+      const arr = batches.get(parsed.query) ?? [];
+      arr.push(parsed.leads);
+      batches.set(parsed.query, arr);
+      const ids = parsed.leads.map(l => l.placeId).filter((v): v is string => typeof v === "string" && v.length > 0);
+      seen.set(parsed.query, [...(seen.get(parsed.query) ?? []), ...ids]);
+    }
+    batches.forEach((v, k) => sessionLeadsRef.current.set(k, v));
+    seen.forEach((v, k) => sessionLeadSeenRef.current.set(k, v));
+  };
+  const leadsFieldsFor = (item: any, offsets: Map<string, number>) => {
+    if (item?.role !== "assistant") return { content: String(item?.content ?? "") };
+    const parsed = parseSavedLeads(String(item.content ?? ""));
+    if (!parsed.leads || !parsed.query) return { content: parsed.text };
+    const off = offsets.get(parsed.query) ?? 0;
+    offsets.set(parsed.query, off + parsed.leads.length);
+    return { content: parsed.text, leadsData: parsed.leads, leadsQuery: parsed.query, leadsOffset: off };
+  };
   const [selectedModel, setSelectedModel] = useState<"dadgpt-default" | "dadgpt-beast">("dadgpt-default");
   const [walletBalance, setWalletBalance] = useState(() => {
     try { return typeof window !== "undefined" ? Math.max(0, Number(localStorage.getItem("hotgpt-token-balance")) || 0) : 0; }
@@ -1365,9 +1410,11 @@ export default function Home() {
         setRequestError(tr(language, "المحادثة غير موجودة.", "Conversation not found."));
         return;
       }
+      restoreLeadsState(payload.messages ?? []);
+      const leadOffsetsA = new Map<string, number>();
       setMessages((payload.messages ?? []).map((item: any) => ({
         id: String(item.id), role: item.role,
-        content: String(item.content),
+        ...leadsFieldsFor(item, leadOffsetsA),
         timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
         isComplete: item.is_complete !== false, partCount: Number(item.part_count || 1), lastFinishReason: item.last_finish_reason ?? null,
         continuationAvailable: item.role === "assistant" && item.is_complete === false,
@@ -1393,9 +1440,11 @@ export default function Home() {
     const response = await authFetch(`/api/conversations?id=${encodeURIComponent(id)}`);
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || String(payload.conversation?.id) !== id) return false;
+    restoreLeadsState(payload.messages ?? []);
+    const leadOffsetsB = new Map<string, number>();
     setMessages((payload.messages ?? []).map((item: any) => ({
       id: String(item.id), role: item.role,
-      content: String(item.content),
+      ...leadsFieldsFor(item, leadOffsetsB),
       timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
       isComplete: item.is_complete !== false, partCount: Number(item.part_count || 1), lastFinishReason: item.last_finish_reason ?? null,
       continuationAvailable: item.role === "assistant" && item.is_complete === false,
@@ -2013,10 +2062,12 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               const payload = await response.json().catch(() => ({}));
               if (!response.ok) throw new Error("conversation_load_failed");
               if (String(payload.conversation?.id) !== id) return;
+              restoreLeadsState(payload.messages ?? []);
+              const leadOffsetsC = new Map<string, number>();
               setMessages((payload.messages ?? []).map((item: any) => ({
                 id: String(item.id),
                 role: item.role,
-                content: item.role === "assistant" ? String(item.content) : String(item.content),
+                ...leadsFieldsFor(item, leadOffsetsC),
                 timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : "",
               })));
             }).catch(() => setRequestError("تعذر فتح المحادثة المحفوظة. حاول مرة أخرى."));
