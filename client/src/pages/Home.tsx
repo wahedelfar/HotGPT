@@ -1401,7 +1401,8 @@ export default function Home() {
               invalid_url: tr(language, "الرابط غير صالح. اكتب رابطًا كاملًا مثل https://example.com — لم يُخصم الرصيد.", "That URL looks invalid. Enter a full URL like https://example.com — nothing was charged."),
               seo_target_not_public: tr(language, "لا يمكن فحص روابط داخلية أو محلية. جرّب موقعًا عامًا — لم يُخصم الرصيد.", "Internal or local addresses cannot be audited. Try a public website — nothing was charged."),
               seo_target_unreachable: tr(language, "تعذر الوصول إلى هذا الموقع الآن. تأكد من الرابط وحاول مرة أخرى — لم يُخصم الرصيد.", "This website could not be reached. Check the URL and try again — nothing was charged."),
-              seo_failed: tr(language, "تعذر إتمام فحص SEO الآن. تم استرداد الرصيد بالكامل؛ حاول مرة أخرى.", "The SEO audit could not be completed. You were fully refunded; please try again."),
+              seo_failed: tr(language, "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.", "The report was too long to complete. Please retry; your tokens will not be charged."),
+              seo_report_length_failed: tr(language, "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.", "The report was too long to complete. Please retry; your tokens will not be charged."),
               seo_not_configured: tr(language, "خدمة فحص SEO غير مُعدّة على الخادم بعد.", "The SEO audit service is not configured on the server yet."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
             };
