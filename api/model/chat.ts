@@ -371,7 +371,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
     const REPORT_CLOSING = "الخطوات التالية";
     const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
     let report = "";
-    const reportDeadline = Date.now() + 50000;
+    const reportDeadline = seoRequestDeadline - 3000; // reserve time to persist and return the paid report
     for (const [index, model] of models.entries()) {
       if (report) break;
       let collected = "";
@@ -380,8 +380,10 @@ async function handleUrlScan(req: any, res: any, body: any) {
         { role: "user", content: userContent },
       ];
       for (let pass = 0; pass < 3; pass++) {
-        const budget = Math.min(pass === 0 ? (index === 0 ? 40000 : 25000) : 20000, reportDeadline - Date.now());
-        if (budget < 8000) break;
+        const modelBudget = pass === 0 ? (index === 0 ? 25000 : 18000) : 10000;
+        const budget = Math.min(modelBudget, reportDeadline - Date.now());
+        if (budget < 5000) break;
+        console.info("[SEO] Report generation pass", JSON.stringify({ model, modelIndex: index, pass, budgetMs: budget, elapsedMs: Date.now() - seoRequestStartedAt }));
         try {
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -472,6 +474,10 @@ async function handleSeoAudit(req: any, res: any, body: any) {
   }
   const debited = await debitWalletTokens(user.id, SEO_COST);
   if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+  // Keep the complete SEO transaction below Vercel's 60-second Hobby ceiling.
+  // Audit collection and persistence share this absolute request deadline.
+  const seoRequestStartedAt = Date.now();
+  const seoRequestDeadline = seoRequestStartedAt + 54000;
   try {
     const audit = await runSeoAudit(rawUrl);
     if (!audit.reachable) {
@@ -529,26 +535,55 @@ async function handleSeoAudit(req: any, res: any, body: any) {
             }),
             signal: AbortSignal.timeout(budget),
           });
-          if (!response.ok || !response.body) break;
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-            for (const line of lines) {
+          if (!response.ok || !response.body) {
+            console.warn("[SEO] Report provider rejected request", JSON.stringify({ model, pass, status: response.status, elapsedMs: Date.now() - seoRequestStartedAt }));
+            break;
+          }
+          const contentType = response.headers.get("content-type") || "";
+          if (!/text\/event-stream/i.test(contentType)) {
+            // OpenRouter-compatible gateways may return a normal JSON completion.
+            const payload: any = await response.json().catch(() => null);
+            const choice = payload?.choices?.[0];
+            const message = choice?.message?.content ?? choice?.text;
+            if (typeof message === "string") collected += message;
+            else console.warn("[SEO] Report provider returned no text", JSON.stringify({ model, pass, status: response.status, contentType }));
+          } else {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            const consumeSseLine = (line: string) => {
               const trimmed = line.trim();
-              if (!trimmed.startsWith("data:")) continue;
+              if (!trimmed.startsWith("data:")) return;
               const data = trimmed.slice(5).trim();
-              if (!data || data === "[DONE]") continue;
+              if (!data || data === "[DONE]") return;
               try {
                 const parsed = JSON.parse(data);
+                if (parsed?.error) {
+                  console.warn("[SEO] Report stream provider error", JSON.stringify({ model, pass, error: parsed.error?.message || parsed.error?.code || "provider_error" }));
+                  return;
+                }
                 const delta = parsed?.choices?.[0]?.delta?.content;
                 if (typeof delta === "string") collected += delta;
-              } catch { /* partial SSE line — keep accumulating */ }
+                // Some compatible gateways send the final text as message.content.
+                const finalText = parsed?.choices?.[0]?.message?.content;
+                if (typeof finalText === "string") collected += finalText;
+              } catch { /* malformed or incomplete SSE frame */ }
+            };
+            try {
+              for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                buffer = lines.pop() || "";
+                for (const line of lines) consumeSseLine(line);
+              }
+              buffer += decoder.decode();
+              // Critical: the final SSE data line often has no trailing newline.
+              // Previously it was silently discarded, hiding the closing marker.
+              if (buffer.trim()) consumeSseLine(buffer);
+            } finally {
+              try { reader.releaseLock(); } catch { /* stream already closed */ }
             }
           }
         } catch { /* aborted or network error — completeness is judged below */ }
@@ -563,7 +598,14 @@ async function handleSeoAudit(req: any, res: any, body: any) {
         ];
       }
     }
-    if (!report) throw new Error("seo_report_failed");
+    if (!report) {
+      console.error("[SEO] Complete report unavailable", JSON.stringify({
+        elapsedMs: Date.now() - seoRequestStartedAt,
+        deadlineRemainingMs: seoRequestDeadline - Date.now(),
+        collectedChars: models.map((model) => ({ model, chars: 0 })),
+      }));
+      throw new Error("seo_report_failed");
+    }
     await saveMessage(user.id, conversationId, "user", `📈 فحص SEO للرابط: ${audit.target}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
