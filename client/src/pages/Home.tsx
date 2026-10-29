@@ -62,6 +62,8 @@ type LeadBusiness = {
   rating?: number;
   reviews?: number;
   placeId?: string;
+  lat?: number;
+  lng?: number;
 };
 
 type ChatMessage = {
@@ -1822,12 +1824,16 @@ export default function Home() {
     if (isSending || !target.leadsQuery || !activeConversation) return;
     const query = target.leadsQuery;
     const excludePlaceIds = sessionLeadSeenRef.current.get(query) ?? [];
+    const priorForCenter = sessionLeadsRef.current.get(query) ?? [];
+    const coordLeads = priorForCenter.flat().filter(l => typeof l.lat === "number" && typeof l.lng === "number");
+    const moreCenter = coordLeads.length > 0 ? { lat: coordLeads.reduce((n, l) => n + (l.lat ?? 0), 0) / coordLeads.length, lng: coordLeads.reduce((n, l) => n + (l.lng ?? 0), 0) / coordLeads.length } : undefined;
+    const moreBatch = priorForCenter.length;
     setIsSending(true);
     setIsSearchingWeb(true);
     setReportWait("leads");
     setRequestError(null);
     try {
-      const moreResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadsMode: true, leadsMore: true, query, conversationId: activeConversation, excludePlaceIds }) });
+      const moreResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadsMode: true, leadsMore: true, query, conversationId: activeConversation, excludePlaceIds, moreCenter, moreBatch }) });
       const morePayload = await moreResponse.json().catch(() => ({}));
       if (!moreResponse.ok || !morePayload.content) {
         const moreErrors: Record<string, string> = {

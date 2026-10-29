@@ -1057,9 +1057,23 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
     if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
     const actorPath = (process.env.APIFY_LEADS_ACTOR || "compass/google-maps-extractor").trim().replace("/", "~");
     const language = /[؀-ۿ]/.test(query) ? "ar" : "en";
+    // Continuation runs ("extract more") anchor the search geographically:
+    // an unanchored repeat returns the same fixed window of results, while a
+    // Point area (the delivered batch's centroid, shifted ~5 km per batch in
+    // a rotating direction) makes the actor crawl a fresh window.
+    const isMoreRun = Array.isArray(body?.excludePlaceIds) && body.excludePlaceIds.length > 0;
+    const centerLat = typeof body?.moreCenter?.lat === "number" ? body.moreCenter.lat : null;
+    const centerLng = typeof body?.moreCenter?.lng === "number" ? body.moreCenter.lng : null;
+    const moreBatch = Math.min(12, Math.max(1, Number(body?.moreBatch) || 1));
+    const GEO_SHIFTS: Array<[number, number]> = [[0.05, 0], [0, 0.05], [-0.05, 0], [0, -0.05], [0.05, 0.05], [-0.05, 0.05], [0.05, -0.05], [-0.05, -0.05], [0.1, 0], [0, 0.1], [-0.1, 0], [0, -0.1]];
+    const runInput: Record<string, unknown> = { searchStringsArray: [query], maxCrawledPlacesPerSearch: LEADS_MAX_PLACES, language };
+    if (isMoreRun && centerLat !== null && centerLng !== null && Math.abs(centerLat) <= 90 && Math.abs(centerLng) <= 180) {
+      const [dLat, dLng] = GEO_SHIFTS[(moreBatch - 1) % GEO_SHIFTS.length];
+      runInput.customGeolocation = { type: "Point", coordinates: [centerLng + dLng, centerLat + dLat] };
+    }
     const runPayload = await apify(`acts/${actorPath}/runs`, {
       method: "POST",
-      body: JSON.stringify({ searchStringsArray: [query], maxCrawledPlacesPerSearch: LEADS_MAX_PLACES, language }),
+      body: JSON.stringify(runInput),
     });
     const run = runPayload?.data;
     if (!run?.id || !run?.defaultDatasetId) throw new Error("leads_run_not_started");
@@ -1091,7 +1105,7 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
       return;
     }
     const clean = (value: unknown, max: number) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-    type LeadOut = { name: string; phone?: string; address?: string; website?: string; rating?: number; reviews?: number; placeId?: string };
+    type LeadOut = { name: string; phone?: string; address?: string; website?: string; rating?: number; reviews?: number; placeId?: string; lat?: number; lng?: number };
     const leads: LeadOut[] = [];
     const lines: string[] = [];
     let withPhone = 0;
@@ -1106,6 +1120,9 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
       const lead: LeadOut = { name };
       const placeId = clean(item?.placeId, 120);
       if (placeId) lead.placeId = placeId;
+      const locLat = typeof item?.location?.lat === "number" ? item.location.lat : null;
+      const locLng = typeof item?.location?.lng === "number" ? item.location.lng : null;
+      if (locLat !== null && locLng !== null) { lead.lat = locLat; lead.lng = locLng; }
       if (phone) lead.phone = phone;
       if (address) lead.address = address;
       if (website) lead.website = website;
