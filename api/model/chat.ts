@@ -1080,6 +1080,8 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
       return;
     }
     const clean = (value: unknown, max: number) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+    type LeadOut = { name: string; phone?: string; address?: string; website?: string; rating?: number; reviews?: number };
+    const leads: LeadOut[] = [];
     const lines: string[] = [];
     let withPhone = 0;
     items.forEach((item, index) => {
@@ -1090,12 +1092,19 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
       const rating = typeof item?.totalScore === "number" ? item.totalScore : null;
       const reviews = typeof item?.reviewsCount === "number" ? item.reviewsCount : null;
       if (phone) withPhone += 1;
-      lines.push(`${index + 1}. **${name}**`);
-      if (phone) lines.push(`📞 ${phone}`);
-      if (address) lines.push(`📍 ${address}`);
-      if (rating !== null) lines.push(`⭐ ${rating}${reviews !== null ? ` (${reviews} تقييم)` : ""}`);
-      if (website) lines.push(`🌐 ${website}`);
-      lines.push("");
+      const lead: LeadOut = { name };
+      if (phone) lead.phone = phone;
+      if (address) lead.address = address;
+      if (website) lead.website = website;
+      if (rating !== null) lead.rating = rating;
+      if (reviews !== null) lead.reviews = reviews;
+      leads.push(lead);
+      lines.push(`**${index + 1}. ${name}**`);
+      if (phone) lines.push(`- التليفون: \`${phone}\``);
+      if (address) lines.push(`- العنوان: ${address}`);
+      if (rating !== null) lines.push(`- التقييم: ⭐ ${rating}${reviews !== null ? ` (${reviews} تقييم)` : ""}`);
+      if (website) lines.push(`- الموقع: ${website}`);
+      lines.push("", "---", "");
     });
     const report = [
       `📇 **استخراج العملاء — ${clean(query, 120)}**`,
@@ -1107,7 +1116,7 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
     await saveMessage(user.id, conversationId, "user", `📇 استخراج عملاء: ${query}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
-    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEADS_COST, count: items.length });
+    res.status(200).json({ content: report, report, leads, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEADS_COST, count: items.length });
   } catch (error) {
     if (debited) { await creditWalletTokens(user.id, LEADS_COST).catch(() => null); debited = false; }
     console.error("[Leads] extraction failed", error instanceof Error ? error.message : "unknown");

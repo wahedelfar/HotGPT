@@ -747,6 +747,19 @@ html[data-theme="light"] .conversation-delete-action { color: #b42318; }
 @media (max-width: 640px) { .search-skeleton-grid { grid-template-columns: 1fr; } }
 
 
+.leads-panel { display: grid; gap: 10px; margin: 4px 0; width: 100%; }
+.leads-heading { color: #FBBF24; font-size: 14px; font-weight: 700; }
+.leads-sub { color: #e7ded2; opacity: .78; font-size: 12.5px; }
+.lead-card { display: flex; min-width: 0; flex-direction: column; gap: 5px; padding: 12px 13px; border: 1px solid rgba(251, 191, 36, .35); border-radius: 12px; background: rgba(43, 0, 0, .45); }
+.lead-card-name { color: #FBBF24; font-size: 14.5px; font-weight: 700; line-height: 1.55; overflow-wrap: anywhere; margin-bottom: 2px; }
+.lead-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; min-width: 0; font-size: 13px; line-height: 1.65; }
+.lead-row-label { flex: 0 0 auto; color: #d8c9a3; opacity: .85; font-size: 12px; }
+.lead-row-value { min-width: 0; overflow-wrap: anywhere; unicode-bidi: isolate; }
+.lead-phone { color: #FBBF24; font-weight: 700; text-decoration: none; unicode-bidi: isolate; }
+.lead-site { color: #22d3ee; min-width: 0; overflow-wrap: anywhere; unicode-bidi: isolate; }
+.leads-foot { color: #e7ded2; opacity: .65; font-size: 11.5px; }
+
+
 /* Markdown tables stay in a horizontally scrollable RTL wrapper. */
 .markdown-table-scroll {
   width: 100%;

@@ -54,6 +54,15 @@ const LanguageContext = createContext<{ language: Language; toggleLanguage: () =
 function useLanguage() { return useContext(LanguageContext); }
 function tr(language: Language, ar: string, en: string) { return language === "ar" ? ar : en; }
 
+type LeadBusiness = {
+  name: string;
+  phone?: string;
+  address?: string;
+  website?: string;
+  rating?: number;
+  reviews?: number;
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -64,6 +73,7 @@ type ChatMessage = {
   isComplete?: boolean; partCount?: number; lastFinishReason?: string | null;
   continuationDisabled?: boolean; continuationLabel?: string;
   imageUrl?: string;
+  leadsData?: LeadBusiness[];
 };
 
 type Conversation = {
@@ -391,6 +401,46 @@ function Sidebar({
 }
 
 
+function LeadCards({ leads, language }: { leads: LeadBusiness[]; language: Language }) {
+  const withPhone = leads.filter(lead => Boolean(lead.phone)).length;
+  return (
+    <div className="leads-panel" dir={language === "ar" ? "rtl" : "ltr"}>
+      <div className="leads-heading">📇 {language === "ar" ? "نتائج استخراج العملاء" : "Lead extraction results"}</div>
+      <div className="leads-sub">{language === "ar" ? `تم العثور على ${leads.length} شركة — ${withPhone} منها برقم تليفون منشور.` : `${leads.length} businesses found — ${withPhone} with a published phone number.`}</div>
+      {leads.map((lead, index) => (
+        <div className="lead-card" key={index}>
+          <div className="lead-card-name">{index + 1}. {lead.name}</div>
+          {lead.phone && (
+            <div className="lead-row">
+              <span className="lead-row-label">📞 {language === "ar" ? "التليفون" : "Phone"}</span>
+              <a className="lead-phone" dir="ltr" href={`tel:${lead.phone.replace(/[^+\d]/g, "")}`}>{lead.phone}</a>
+            </div>
+          )}
+          {lead.address && (
+            <div className="lead-row">
+              <span className="lead-row-label">📍 {language === "ar" ? "العنوان" : "Address"}</span>
+              <span className="lead-row-value">{lead.address}</span>
+            </div>
+          )}
+          {typeof lead.rating === "number" && (
+            <div className="lead-row">
+              <span className="lead-row-label">⭐ {language === "ar" ? "التقييم" : "Rating"}</span>
+              <span className="lead-row-value">{lead.rating}{typeof lead.reviews === "number" ? ` (${lead.reviews} ${language === "ar" ? "تقييم" : "reviews"})` : ""}</span>
+            </div>
+          )}
+          {lead.website && (
+            <div className="lead-row">
+              <span className="lead-row-label">🌐 {language === "ar" ? "الموقع" : "Website"}</span>
+              <a className="lead-site" dir="ltr" href={/^https?:\/\//i.test(lead.website) ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer">{lead.website}</a>
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="leads-foot">{language === "ar" ? "البيانات من خرائط جوجل كما هي منشورة علنًا وقت الاستخراج، وقد تتغير." : "Data from Google Maps as publicly listed at extraction time; it may change."}</div>
+    </div>
+  );
+}
+
 function SearchResultCards({ content, language }: { content: string; language: Language }) {
   const sections = content.split(/\n(?=###\s+\d+\.)/);
   const items = sections.map(section => {
@@ -561,7 +611,7 @@ function MessageBubble({ message, onContinue }: { message: ChatMessage; onContin
         <div className="message-content" ref={codeContainerRef}>
           {message.imageUrl && <img src={message.imageUrl} alt={tr(language, "صورة مولّدة", "Generated image")} style={{ maxWidth: "100%", borderRadius: 12, marginBottom: 8 }} />}
           {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span></div>}
-          {message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
+          {message.leadsData && message.leadsData.length > 0 ? <LeadCards leads={message.leadsData} language={language} /> : message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
         </div>
         <div className="message-actions">
           <button
@@ -1501,7 +1551,7 @@ export default function Home() {
             throw new Error(leadsErrors[String(leadsPayload.error || "")] || tr(language, "تعذر إتمام الاستخراج الآن. لم يُخصم الرصيد.", "The extraction failed. Nothing was charged."));
           }
           if (typeof leadsPayload.tokenBalance === "number") setWalletBalance(leadsPayload.tokenBalance);
-          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leadsPayload.content), timestamp: formatTime() }]);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leadsPayload.content), timestamp: formatTime(), leadsData: Array.isArray(leadsPayload.leads) ? leadsPayload.leads : undefined }]);
         } catch (leadsError) {
           setRequestError(leadsError instanceof Error ? leadsError.message : tr(language, "تعذر إتمام الاستخراج الآن.", "The extraction failed."));
         } finally {
