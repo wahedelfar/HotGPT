@@ -1,3 +1,4 @@
+import { publicPlatformScript } from "../server/_core/publicConfig.ts";
 import { requireMember } from "../server/_core/vercelAuth.ts";
 import * as db from "../server/supabaseBilling.ts";
 import { usdForEgp } from "../server/fxRate.ts";
@@ -173,7 +174,7 @@ async function handlePaypalWebhook(req: any, res: any) {
           const spins = await db.findLuckySpinsByPaypalOrder(orderId);
           if (spins.length > 0) {
             matchedUserId = spins[0].userId;
-            const won = spins.reduce((sum, s) => sum + (s.spun ? s.prizeTokens : 0), 0);
+            const won = spins.reduce((sum: number, s: { spun: boolean; prizeTokens: number }) => sum + (s.spun ? s.prizeTokens : 0), 0);
             let voided = 0;
             for (const spin of spins) {
               if (!spin.spun && spin.status === "approved") {
@@ -182,7 +183,7 @@ async function handlePaypalWebhook(req: any, res: any) {
               }
             }
             const result = won > 0
-              ? await db.clawbackTokens(matchedUserId, won)
+              ? await db.clawbackTokens(matchedUserId ?? "", won)
               : { deducted: 0, balance: 0 };
             tokensDeducted = result.deducted;
             note = `clawback_lucky:won=${won},deducted=${result.deducted},spins_voided=${voided}`;
@@ -216,6 +217,11 @@ async function handlePaypalWebhook(req: any, res: any) {
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = typeof req.query?.action === "string" ? req.query.action : "";
+  if (action === "platform-config") {
+    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.status(200).send(publicPlatformScript());
+  }
   if (action === "paypal-webhook") return await handlePaypalWebhook(req, res);
   if (action === "auth") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }

@@ -368,6 +368,39 @@ function dead(target: string, fatal: string): SeoAudit {
   return { target, host: "", reachable: false, fatal, score: 0, grade: "F", flags: [], passed: [], details: {} };
 }
 
+
+async function googleSiteSearch(query: string): Promise<{ checked: boolean; resultCount: number; html: string }> {
+  try {
+    const url = new URL("https://www.google.com/search");
+    url.searchParams.set("q", query);
+    url.searchParams.set("num", "10");
+    const response = await fetch(url.toString(), { headers: { "user-agent": BROWSER_UA, accept: "text/html" }, signal: AbortSignal.timeout(8000), redirect: "follow" });
+    if (!response.ok) return { checked: false, resultCount: 0, html: "" };
+    const html = (await response.text()).slice(0, 250000);
+    if (/unusual traffic|captcha|sorry\/index|our systems have detected/i.test(html)) return { checked: false, resultCount: 0, html: "" };
+    return { checked: true, resultCount: (html.match(/<h3\b/gi) || []).length, html };
+  } catch { return { checked: false, resultCount: 0, html: "" }; }
+}
+
+async function collectIndexingData(host: string, metaRobots: string, robotsBlocksAll: boolean, robotsTxt: string, sitemap: string) {
+  const primary = await googleSiteSearch("site:" + host);
+  const base = host.replace(/^www\./, "").split(".")[0];
+  const tlds = ["com", "ai", "net", "org"].filter((tld) => !host.endsWith("." + tld));
+  let similarDomain: { domain: string; resultCount: number } | null = null;
+  for (const tld of tlds.slice(0, 3)) {
+    const candidate = base + "." + tld;
+    if (candidate === host) continue;
+    const found = await googleSiteSearch("site:" + candidate);
+    if (found.checked && found.resultCount > 0) { similarDomain = { domain: candidate, resultCount: found.resultCount }; break; }
+  }
+  const reasons: string[] = [];
+  if (/noindex/i.test(metaRobots)) reasons.push("وسم meta robots يحتوي على noindex");
+  if (robotsBlocksAll) reasons.push("robots.txt يمنع زحف الموقع بالكامل");
+  if (similarDomain) reasons.push("ظهرت نتائج للنطاق المشابه " + similarDomain.domain + "؛ يلزم التحقق يدويًا من احتمال الالتباس");
+  if (!reasons.length && primary.checked && primary.resultCount === 0) reasons.push("لم تظهر نتائج لاستعلام site:؛ الفحص الخارجي لا يحدد سبب عدم الظهور");
+  return { isIndexed: primary.checked ? primary.resultCount > 0 : null, searchCheckCompleted: primary.checked, siteQueryResultCount: primary.resultCount, robotsTxt, sitemap, similarDomain, evidenceBasedReasons: reasons };
+}
+
 export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
   const raw = String(rawInput || "").trim().slice(0, 500);
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
@@ -464,7 +497,7 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
   // the FASTER response — the site's capability, not a momentary hiccup.
   let elapsedMs = main.elapsedMs;
   try {
-    const second = await fetchWithValidation(main.finalUrl, 24 * 1024, 6000);
+    const second = await fetchWithValidation(new URL(main.finalUrl), 24 * 1024, 6000);
     if (second.elapsedMs > 0) elapsedMs = Math.min(elapsedMs, second.elapsedMs);
   } catch { /* timing re-measure is best-effort */ }
 
@@ -647,6 +680,7 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
     auditedAt: new Date().toISOString(),
   };
 
+  details.indexingData = await collectIndexingData(host, analysis.metaRobots, robotsBlocksAll, String(details.robotsTxt), String(details.sitemap));
   return { target, host, reachable: true, score, grade, flags, passed, details };
 }
 
@@ -688,6 +722,9 @@ export function seoFindingsText(audit: SeoAudit): string {
     `الأداء المقاس من الخادم: زمن تحميل HTML ‏${d.elapsedMs}ms · حجم HTML ‏${Math.round((d.htmlBytes || 0) / 1024)} KB · ضغط النقل: ${d.contentEncoding || "غير مفعّل"} · سكربتات خارجية: ${d.scriptCount} · ملفات CSS: ${d.stylesheetCount} · Cache-Control: ${d.cacheControl || "غير مضبوط"}`,
     `robots.txt: ${d.robotsTxt}${d.robotsBlocksAll ? " (يمنع الكل)" : ""} · خريطة الموقع: ${d.sitemap}${d.sitemap === "index" ? ` (${d.sitemapChildCount} خريطة فرعية، عيّنة روابط مقروءة: ${d.sitemapUrlCount})` : d.sitemap === "present" ? ` (${d.sitemapUrlCount} رابطًا)` : ""}`,
     `HTTPS: ${d.usesHttps ? "مفعّل" : "غير مفعّل في الرابط النهائي"}`,
+    "",
+    "== بيانات الفهرسة والظهور في Google (منفصلة عن الدرجة التقنية) ==",
+    `indexingData: ${JSON.stringify(d.indexingData || {})}`,
   ];
   return lines.join("\n").slice(0, 9500);
 }
