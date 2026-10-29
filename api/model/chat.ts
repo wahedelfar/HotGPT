@@ -371,8 +371,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
     const REPORT_CLOSING = "الخطوات التالية";
     const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
     let report = "";
-    let lastCollectedChars = 0;
-    const reportDeadline = seoRequestDeadline - 3000; // reserve time to persist and return the paid report
+    const reportDeadline = Date.now() + 50000;
     for (const [index, model] of models.entries()) {
       if (report) break;
       let collected = "";
@@ -381,10 +380,8 @@ async function handleUrlScan(req: any, res: any, body: any) {
         { role: "user", content: userContent },
       ];
       for (let pass = 0; pass < 3; pass++) {
-        const modelBudget = pass === 0 ? (index === 0 ? 25000 : 18000) : 10000;
-        const budget = Math.min(modelBudget, reportDeadline - Date.now());
-        if (budget < 5000) break;
-        console.info("[SEO] Report generation pass", JSON.stringify({ model, modelIndex: index, pass, budgetMs: budget, elapsedMs: Date.now() - seoRequestStartedAt }));
+        const budget = Math.min(pass === 0 ? (index === 0 ? 40000 : 25000) : 20000, reportDeadline - Date.now());
+        if (budget < 8000) break;
         try {
           const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
