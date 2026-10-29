@@ -1117,22 +1117,29 @@ export default function Home() {
   const [imageKind, setImageKind] = useState<"normal" | "cgi">("normal");
   const [imageMenuPos, setImageMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
+  const sessionLeadsRef = useRef<Map<string, LeadBusiness[]>>(new Map());
 
   // Generated images live only in this session (by design), and any history
   // reload replaces the message objects and drops their imageUrl. Instead of
   // patching each reload path, re-attach session images after every messages
   // change, whichever code path replaced the list.
   useEffect(() => {
-    if (sessionImagesRef.current.size === 0) return;
+    if (sessionImagesRef.current.size === 0 && sessionLeadsRef.current.size === 0) return;
     setMessages(current => {
       let changed = false;
       const next = current.map(m => {
-        if (m.imageUrl) return m;
-        const match = /«([^»]+)»/.exec(m.content);
-        const url = match ? sessionImagesRef.current.get(match[1]) : undefined;
-        if (!url) return m;
-        changed = true;
-        return { ...m, imageUrl: url };
+        let out = m;
+        if (!out.imageUrl && sessionImagesRef.current.size > 0) {
+          const match = /«([^»]+)»/.exec(out.content);
+          const url = match ? sessionImagesRef.current.get(match[1]) : undefined;
+          if (url) { out = { ...out, imageUrl: url }; changed = true; }
+        }
+        if (!out.leadsData && sessionLeadsRef.current.size > 0 && out.role === "assistant") {
+          const header = /استخراج العملاء — ([^*\n]+)/.exec(out.content);
+          const leads = header ? sessionLeadsRef.current.get(header[1].trim()) : undefined;
+          if (leads && leads.length > 0) { out = { ...out, leadsData: leads }; changed = true; }
+        }
+        return out;
       });
       return changed ? next : current;
     });
@@ -1551,6 +1558,9 @@ export default function Home() {
             throw new Error(leadsErrors[String(leadsPayload.error || "")] || tr(language, "تعذر إتمام الاستخراج الآن. لم يُخصم الرصيد.", "The extraction failed. Nothing was charged."));
           }
           if (typeof leadsPayload.tokenBalance === "number") setWalletBalance(leadsPayload.tokenBalance);
+          if (Array.isArray(leadsPayload.leads) && leadsPayload.leads.length > 0) {
+            sessionLeadsRef.current.set(trimmed.replace(/\s+/g, " ").trim().slice(0, 120), leadsPayload.leads);
+          }
           setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leadsPayload.content), timestamp: formatTime(), leadsData: Array.isArray(leadsPayload.leads) ? leadsPayload.leads : undefined }]);
         } catch (leadsError) {
           setRequestError(leadsError instanceof Error ? leadsError.message : tr(language, "تعذر إتمام الاستخراج الآن.", "The extraction failed."));
