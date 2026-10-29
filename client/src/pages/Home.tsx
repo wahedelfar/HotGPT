@@ -739,12 +739,13 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeads }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
   onDarkLive: () => void;
   onSeo: () => void;
+  onLeads: () => void;
 }) {
   const { language } = useLanguage();
   const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
@@ -769,8 +770,9 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
       </button>
     );
   };
-  const premiumCard = (kind: "scan" | "darklive" | "seo") => {
+  const premiumCard = (kind: "scan" | "darklive" | "seo" | "leads") => {
     const data = {
+      leads: { Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 توكين", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 tokens", action: onLeads },
       scan: { Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 توكن للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 tokens per report", action: onScan },
       darklive: { Icon: Radio, label: "DARK_LIVE", ar: "خدمة مستقلة بمحرك خاص — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية", en: "A standalone service with its own engine — live dark-web index search with real results and links", action: onDarkLive },
       seo: { Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 توكن للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 tokens per report", action: onSeo },
@@ -813,12 +815,13 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
       <p style={{ textAlign: "center", fontSize: 12.5, margin: "12px 0 26px", opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 صورة", "The pack covers roughly 100 regular messages or 20 images")}<br />{tr(language, "الدفع بفودافون كاش وإنستاباي بصورة التحويل فقط.", "Pay by Vodafone Cash or InstaPay with just a transfer screenshot.")}</p>
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
         {starterCard(starters[0])}
-        {premiumCard("scan")}
+        {premiumCard("leads")}
         {starterCard(starters[1])}
-        {premiumCard("darklive")}
+        {premiumCard("scan")}
         {starterCard(starters[2])}
+        {premiumCard("darklive")}
+        {starterCard(starters[3])}
         {premiumCard("seo")}
-        {starterCard(starters[3], true)}
       </div>
       {walletBalance < 20 && (
         <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
@@ -2311,6 +2314,21 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setSeoMode(true);
                     setScanMode(false);
                     setImageMode(false);
+                    setDraft("");
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
+                  onLeads={() => {
+                    if (walletBalance < 20) {
+                      setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
+                      return;
+                    }
+                    setRequestError(null);
+                    setLeadsMode(true);
+                    setScanMode(false);
+                    setSeoMode(false);
+                    setImageMode(false);
+                    setDarkWebEnabled(false);
+                    setDarkLiveMode(false);
                     setDraft("");
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
