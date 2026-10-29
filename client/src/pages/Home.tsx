@@ -87,8 +87,8 @@ const starters: Array<{
   {
     icon: Crosshair,
     label: "VULN_HUNT",
-    description: "حلّل كودك واكتشف نقاط الضعف مع خطوات الإصلاح",
-    descriptionEn: "Find code weaknesses and get practical fixes",
+    description: "مراجعة كود واكتشاف الثغرات — مع الإصلاح",
+    descriptionEn: "Code review & vulnerability hunting — with fixes",
     prompt: "راجع الكود الذي سأرسله بحثًا عن ثغرات أمنية وأخطاء منطقية، رتّب النتائج حسب الخطورة، ثم أعطني إصلاحات عملية وكودًا مصححًا.",
     promptEn: "Review the code I send for security weaknesses and logic bugs, rank the findings by severity, then give practical fixes and corrected code.",
     mode: "beast",
@@ -96,8 +96,8 @@ const starters: Array<{
   {
     icon: Radar,
     label: "NET_RECON",
-    description: "حلّل إعدادات موقعك وراجع أساسيات الحماية",
-    descriptionEn: "Review your site's security basics",
+    description: "مراجعة إعدادات أمان موقعك وتقوية الحماية",
+    descriptionEn: "Review your site's security settings & harden them",
     prompt: "أريد مراجعة دفاعية لإعدادات موقعي. أعطني قائمة تحقق لهيدرز الأمان وTLS وSPF وDMARC والملفات المكشوفة، مع طريقة إصلاح كل نقطة.",
     promptEn: "Give me a defensive review checklist for my website: security headers, TLS, SPF, DMARC, and exposed files, with a practical fix for each item.",
     mode: "beast",
@@ -105,8 +105,8 @@ const starters: Array<{
   {
     icon: Terminal,
     label: "CODE_LAB",
-    description: "حل أخطاء البرمجة واكتب كودًا قابلًا للتشغيل",
-    descriptionEn: "Fix bugs and write working code",
+    description: "إصلاح خطأ برمجي وإضافة اختبار يثبّته",
+    descriptionEn: "Fix a bug and add a test that locks it in",
     prompt: "سأرسل لك خطأ برمجيًا أو جزءًا من كود. اشرح سبب المشكلة، ثم اكتب الحل الكامل القابل للتشغيل وأضف اختبارًا بسيطًا للتأكد منه.",
     promptEn: "I will send a programming error or code snippet. Explain the root cause, provide a complete working fix, and add a small test to verify it.",
     mode: "beast",
@@ -671,8 +671,11 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo }: {
       </div>
       <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
-      <p className="welcome-copy">{tr(language, "حل مشكلة برمجية أو راجع أمان موقعك بنتيجة عملية.", "Solve a coding problem or review your site's security with a practical result.")}<br />{tr(language, "ابدأ مجانًا بـ5 توكنات، ثم أكمل بباقة البداية: 100 توكن مقابل 100 جنيه.", "Start with 5 free tokens, then continue with the Starter pack: 100 tokens for 100 EGP.")}</p>
-      <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 8, opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 مرحلة تحليل عميق — والدفع بصورة التحويل فقط.", "The pack covers roughly 100 regular messages or 20 deep-analysis stages — payment requires only a transfer screenshot.")} <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "ابدأ بباقة 100 توكن", "Start with 100 tokens")}</a></p>
+      <p className="welcome-copy">{tr(language, "نحلّ مشاكل البرمجة، ونراجع أمان موقعك ونقوّيه — بنتائج عملية من أول طلب.", "We solve coding problems and review and harden your site's security — with practical results from the very first request.")}<br />{tr(language, "ابدأ مجانًا بـ5 توكنات، ثم أكمل بباقة البداية: 100 توكن مقابل 100 جنيه.", "Start with 5 free tokens, then continue with the Starter pack: 100 tokens for 100 EGP.")}</p>
+      <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 8, opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 مرحلة تحليل عميق — والدفع بصورة التحويل فقط.", "The pack covers roughly 100 regular messages or 20 deep-analysis stages — payment requires only a transfer screenshot.")}</p>
+      <div style={{ textAlign: "center", marginTop: 14 }}>
+        <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "ابدأ بباقة 100 توكن", "Start with the 100-token pack")}</a>
+      </div>
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
         {starterCard(starters[0])}
         {premiumCard("scan")}
