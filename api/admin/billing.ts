@@ -66,5 +66,18 @@ export default async function handler(req: any, res: any) {
       return res.status(503).json({ error: "payment_review_failed" });
     }
   }
+  if (action === "delete") {
+    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const id = String(Array.isArray(req.query.id) ? req.query.id[0] : req.query.id || "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "invalid_payment_id" });
+    try {
+      const deleted = await db.deletePaymentRequest(id);
+      if (!deleted) return res.status(404).json({ error: "payment_not_found" });
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("[Admin] Payment delete failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "payment_delete_failed" });
+    }
+  }
   return res.status(404).json({ error: "unknown_admin_billing_action" });
 }

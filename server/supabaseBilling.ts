@@ -287,6 +287,27 @@ export async function getPaymentProofById(paymentId: string) {
   return { id: row.id, email: row.email, proofUrl: `${url}/storage/v1${signedData.signedURL?.startsWith("/") ? "" : "/"}${signedData.signedURL}` };
 }
 
+export async function deletePaymentRequest(paymentId: string) {
+  const rows = await rest(`payment_requests?id=eq.${encodeURIComponent(paymentId)}&select=id,proof_path&limit=1`);
+  if (!rows?.[0]) return false;
+  const proofPath = rows[0].proof_path;
+  await rest(`payment_requests?id=eq.${encodeURIComponent(paymentId)}`, {
+    method: "DELETE", headers: { Prefer: "return=minimal" },
+  });
+  // Best-effort: remove the uploaded proof image too, so deleted requests do
+  // not leave orphaned files accumulating in the proofs bucket. PayPal audit
+  // rows carry the "paypal-auto" marker instead of an uploaded file path.
+  if (proofPath && proofPath !== "paypal-auto") {
+    try {
+      const { url, key } = config();
+      await fetch(`${url}/storage/v1/object/hotgpt-payment-proofs/${proofPath}`, {
+        method: "DELETE", headers: { apikey: key, authorization: `Bearer ${key}` },
+      });
+    } catch { /* the row is already deleted; a leftover file can be cleaned manually */ }
+  }
+  return true;
+}
+
 export async function reviewPaymentRequest(paymentId: string, approve: boolean, reviewedBy: string) {
   return await rest("rpc/hotgpt_review_payment", {
     method: "POST",

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type Member = { id: string; name: string | null; email: string | null; role: string; tokenBalance: number; freeAnswersUsed: number; createdAt: string };
-type Payment = { id: string; userId: string; email: string; paymentMethod: "vodafone_cash" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string };
+type Payment = { id: string; userId: string; email: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string };
 
 function AdminDashboard() {
   const { language } = useAppLanguage();
@@ -83,6 +83,19 @@ function AdminDashboard() {
     finally { setBusyId(null); }
   }
 
+  async function deletePayment(payment: Payment) {
+    if (!window.confirm(`حذف طلب الدفع #${payment.id.slice(0, 8)} نهائيًا؟ الحذف يمسح سجل الطلب وصورة الإثبات فقط، ولا يؤثر على رصيد العضو الحالي.`)) return;
+    setBusyId(payment.id); setMessage("");
+    try {
+      const response = await fetch(`/api/admin/billing?action=delete&id=${encodeURIComponent(payment.id)}`, { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error === "payment_not_found" ? "الطلب غير موجود — ربما تم حذفه من قبل." : "تعذر حذف طلب الدفع.");
+      setPayments(current => current.filter(item => item.id !== payment.id));
+      setMessage("تم حذف طلب الدفع نهائيًا.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "فشل حذف الطلب."); }
+    finally { setBusyId(null); }
+  }
+
   return <LocalizedText><main dir={language === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-8">
     <LanguageToggle />
     <div className="mx-auto max-w-7xl">
@@ -102,9 +115,10 @@ function AdminDashboard() {
         <h2 className="text-xl font-bold">طلبات الدفع وإثباتات التحويل</h2>
         {loading ? <p className="py-8 text-slate-400">جارٍ تحميل البيانات...</p> : payments.length === 0 ? <p className="py-8 text-slate-400">لا توجد طلبات دفع حتى الآن.</p> :
           <div className="mt-4 grid gap-4 lg:grid-cols-2">{payments.map(payment => <article key={payment.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-bold">طلب #{payment.id.slice(0, 8)} · {payment.packageTokens} توكين</h3><p className="mt-1 text-sm text-slate-400">{payment.email}</p><p className="mt-1 text-sm">{payment.amountEgp} جنيه · {payment.paymentMethod === "vodafone_cash" ? "فودافون كاش" : "PayPal"}</p>{payment.transferReference && <p className="mt-1 text-xs text-slate-400">رقم العملية: {payment.transferReference}</p>}</div><span className={`rounded-full px-3 py-1 text-xs ${payment.status === "pending" ? "bg-amber-300/10 text-amber-200" : payment.status === "approved" ? "bg-emerald-300/10 text-emerald-200" : "bg-red-300/10 text-red-200"}`}>{payment.status === "pending" ? "قيد المراجعة" : payment.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span></div>
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-bold">طلب #{payment.id.slice(0, 8)} · {payment.packageTokens} توكين</h3><p className="mt-1 text-sm text-slate-400">{payment.email}</p><p className="mt-1 text-sm">{payment.amountEgp} جنيه · {payment.paymentMethod === "vodafone_cash" ? "فودافون كاش" : payment.paymentMethod === "instapay" ? "إنستاباي" : "PayPal"}</p>{payment.transferReference && <p className="mt-1 text-xs text-slate-400">رقم العملية: {payment.transferReference}</p>}</div><span className={`rounded-full px-3 py-1 text-xs ${payment.status === "pending" ? "bg-amber-300/10 text-amber-200" : payment.status === "approved" ? "bg-emerald-300/10 text-emerald-200" : "bg-red-300/10 text-red-200"}`}>{payment.status === "pending" ? "قيد المراجعة" : payment.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span></div>
             {proofs[payment.id] ? <img src={proofs[payment.id]} alt={`إثبات الدفع للطلب ${payment.id}`} className="mt-4 max-h-80 w-full rounded-lg border border-white/10 bg-black/30 object-contain" /> : <Button variant="outline" className="mt-4" disabled={proofLoadingId === payment.id} onClick={() => void loadProof(payment.id)}>{proofLoadingId === payment.id ? "جارٍ تحميل الصورة..." : "عرض صورة إثبات الدفع"}</Button>}
             {payment.status === "pending" && <div className="mt-4 flex gap-3"><Button disabled={busyId === payment.id} onClick={() => void review(payment, "approve")}>موافقة وإضافة التوكينات</Button><Button variant="outline" disabled={busyId === payment.id} onClick={() => void review(payment, "reject")}>رفض الطلب</Button></div>}
+            <div className="mt-3 flex justify-end"><Button variant="outline" className="border-red-300/30 text-red-200 hover:bg-red-400/10" disabled={busyId === payment.id} onClick={() => void deletePayment(payment)}>حذف الطلب</Button></div>
           </article>)}</div>}
       </section>
       <section className="mt-7 rounded-2xl border border-white/10 bg-white/[.03] p-5">

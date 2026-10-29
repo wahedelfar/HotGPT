@@ -1021,6 +1021,7 @@ export default function Home() {
   );
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [approvalNotice, setApprovalNotice] = useState<{ totalTokens: number; count: number } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [extended, setExtended] = useState(false);
@@ -1152,6 +1153,40 @@ export default function Home() {
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
+
+  // Purchase-approval notice: when an admin approves a top-up request, the
+  // member gets one gold in-app notice per approval. Approvals already shown
+  // are marked in localStorage (same acknowledge pattern as the HotLucky win
+  // modal), so each approval celebrates exactly once.
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated) return;
+    let cancelled = false;
+    const checkApprovals = async () => {
+      try {
+        const response = await authFetch("/api/billing?action=requests", { cache: "no-store" });
+        if (!response.ok || cancelled) return;
+        const payload = await response.json().catch(() => ({}));
+        const requests = Array.isArray(payload.requests) ? payload.requests : [];
+        const unseen = requests.filter((r: any) => {
+          if (!r || r.status !== "approved" || !r.id) return false;
+          try { return localStorage.getItem("hotgpt.approval-acknowledged:" + r.id) !== "1"; } catch { return false; }
+        });
+        if (!unseen.length || cancelled) return;
+        for (const r of unseen) { try { localStorage.setItem("hotgpt.approval-acknowledged:" + r.id, "1"); } catch {} }
+        const totalTokens = unseen.reduce((sum: number, r: any) => sum + (Number(r.packageTokens) || 0), 0);
+        if (!cancelled && totalTokens > 0) setApprovalNotice({ totalTokens, count: unseen.length });
+      } catch {}
+    };
+    void checkApprovals();
+    const interval = window.setInterval(() => void checkApprovals(), 60_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
+
+  useEffect(() => {
+    if (!approvalNotice) return;
+    const timer = window.setTimeout(() => setApprovalNotice(null), 15_000);
+    return () => window.clearTimeout(timer);
+  }, [approvalNotice]);
 
   useEffect(() => {
     try { localStorage.setItem("hotgpt-token-balance", String(Math.max(0, walletBalance))); } catch {}
@@ -1999,6 +2034,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 </div>
               )}
             </div>
+            {approvalNotice && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="fixed left-1/2 top-24 z-[70] w-[min(92vw,430px)] -translate-x-1/2 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)]"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Coins size={18} /></span><div className="min-w-0 flex-1"><strong className="block text-[15px] text-[#f3d27a]">{tr(language, "تم شحن رصيدك بنجاح", "Your balance was topped up")}</strong><p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{approvalNotice.count > 1 ? tr(language, `تمت الموافقة على ${approvalNotice.count} من طلبات الشحن، وأُضيف مجموع ${approvalNotice.totalTokens.toLocaleString("en-US")} توكين إلى حسابك.`, `${approvalNotice.count} top-up requests were approved — a total of ${approvalNotice.totalTokens.toLocaleString("en-US")} tokens was added to your account.`) : tr(language, `تمت الموافقة على طلب الشحن، وأُضيف ${approvalNotice.totalTokens.toLocaleString("en-US")} توكين إلى حسابك.`, `Your top-up was approved — ${approvalNotice.totalTokens.toLocaleString("en-US")} tokens were added to your account.`)}</p></div><button className="icon-button shrink-0" onClick={() => setApprovalNotice(null)} aria-label={tr(language, "إخفاء التنبيه", "Dismiss notification")}><X size={15} /></button></div></div>}
             {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الباقات المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
               <div
