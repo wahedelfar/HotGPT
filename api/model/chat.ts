@@ -458,8 +458,8 @@ async function handleSeoAudit(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
   const conversationId = String(body?.conversationId || "");
-  if (!rawUrl || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
-    console.warn("[SEO] Request validation failed", JSON.stringify({ hasUrl: Boolean(rawUrl), conversationIdValid: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId) }));
+  if (!rawUrl || !/^[0-9a-f-]{36}$/i.test(conversationId)) {
+    console.warn("[SEO] Request validation failed", JSON.stringify({ hasUrl: Boolean(rawUrl), conversationIdValid: /^[0-9a-f-]{36}$/i.test(conversationId) }));
     res.status(400).json({ error: "invalid_seo_request", message: "أدخل رابط موقع صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة." });
     return;
   }
@@ -470,16 +470,18 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     res.status(402).json({ error: "insufficient_credits", wallet: walletBefore });
     return;
   }
-  const debited = await debitWalletTokens(user.id, SEO_COST);
-  if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
-  // Keep the complete SEO transaction below Vercel's 60-second Hobby ceiling.
-  // Audit collection and persistence share this absolute request deadline.
+  // Keep wallet debit and the entire SEO transaction inside one guarded block.
+  // A thrown debit must still produce JSON, and only a confirmed debit is refunded.
+  let debited = false;
   const seoRequestStartedAt = Date.now();
   const seoRequestDeadline = seoRequestStartedAt + 54000;
   try {
+    debited = await debitWalletTokens(user.id, SEO_COST);
+    if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
     const audit = await runSeoAudit(rawUrl);
     if (!audit.reachable) {
       await creditWalletTokens(user.id, SEO_COST);
+      debited = false;
       const unreachable = audit.fatal === "target_not_public" ? "seo_target_not_public" : audit.fatal === "invalid_url" ? "invalid_url" : "seo_target_unreachable";
       res.status(422).json({ error: unreachable });
       return;
@@ -622,16 +624,19 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     const wallet = await getWallet(user.id).catch(() => null);
     res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SEO_COST, score: audit.score, grade: audit.grade });
   } catch (error) {
-    try {
-      await creditWalletTokens(user.id, SEO_COST);
-    } catch (refundError) {
-      console.error("[SEO] Refund failed", refundError instanceof Error ? refundError.message : "unknown");
+    if (debited) {
+      try {
+        await creditWalletTokens(user.id, SEO_COST);
+        debited = false;
+      } catch (refundError) {
+        console.error("[SEO] Refund failed", refundError instanceof Error ? refundError.message : "unknown");
+      }
     }
     const reason = error instanceof Error ? error.message : "unknown";
     console.error("[SEO] SEO audit failed", reason);
     if (!res.headersSent) {
       res.status(502).json({
-        error: "seo_report_length_failed",
+        error: "seo_failed",
         message: "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.",
       });
     }
