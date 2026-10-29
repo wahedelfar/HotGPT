@@ -479,34 +479,15 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
   const isSitemapIndex = /<sitemapindex/i.test(sitemapBody);
   let sitemapUrlCount = isSitemapIndex ? 0 : sitemapLocs.length;
   let sitemapChildCount = isSitemapIndex ? sitemapLocs.length : 0;
-  if (isSitemapIndex && sitemapLocs.length) {
-    // Sample up to 2 child sitemaps to estimate the real URL count
-    // without turning one audit into a crawl.
-    const samples = sitemapLocs.slice(0, 2);
-    let sampled = 0;
-    for (const child of samples) {
-      try {
-        const childUrl = new URL(child);
-        if (childUrl.hostname.toLowerCase() !== finalUrl.hostname.toLowerCase()) continue;
-        const childFetch = await fetchAux(childUrl.toString(), 512 * 1024, 6000);
-        if (childFetch && childFetch.status === 200) {
-          sampled += (childFetch.body.match(/<loc>/gi) || []).length;
-        }
-      } catch { /* sample is best-effort */ }
-    }
-    sitemapUrlCount = sampled;
-  }
+  // Do not fetch child sitemaps during a paid audit. The sitemap index itself
+  // is sufficient evidence that a sitemap exists; sampling child files adds
+  // sequential network waits and can starve report generation.
+  if (isSitemapIndex && sitemapLocs.length) sitemapUrlCount = 0;
   const hasSitemap = sitemapIsReal;
 
-  // Response-time stability (Wahid round, 2026-10-27): one slow fetch
-  // used to swing the score between runs (the same site scored 88 in
-  // one run and 92 in another). Measure a second time and score on
-  // the FASTER response — the site's capability, not a momentary hiccup.
-  let elapsedMs = main.elapsedMs;
-  try {
-    const second = await fetchWithValidation(new URL(main.finalUrl), 24 * 1024, 6000);
-    if (second.elapsedMs > 0) elapsedMs = Math.min(elapsedMs, second.elapsedMs);
-  } catch { /* timing re-measure is best-effort */ }
+  // Use the primary validated fetch timing. A second network request added
+  // latency without material SEO evidence and consumed time needed by the writer.
+  const elapsedMs = main.elapsedMs;
 
   // ------------------------------------------------------------ scoring
   const flags: SeoFlag[] = [];
