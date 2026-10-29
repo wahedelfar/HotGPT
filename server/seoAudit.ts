@@ -680,7 +680,24 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
     auditedAt: new Date().toISOString(),
   };
 
-  details.indexingData = await collectIndexingData(host, analysis.metaRobots, robotsBlocksAll, String(details.robotsTxt), String(details.sitemap));
+  // Indexing lookup is supplemental evidence: Google can rate-limit or block
+  // automated queries. Never fail the paid technical audit just because this
+  // optional lookup is unavailable; report the state as unknown instead.
+  try {
+    details.indexingData = await collectIndexingData(host, analysis.metaRobots, robotsBlocksAll, String(details.robotsTxt), String(details.sitemap));
+  } catch (error) {
+    console.warn("[SEO] Indexing lookup unavailable", error instanceof Error ? error.message : "unknown");
+    details.indexingData = {
+      isIndexed: null,
+      searchCheckCompleted: false,
+      siteQueryResultCount: null,
+      robotsTxt: String(details.robotsTxt),
+      sitemap: String(details.sitemap),
+      similarDomain: null,
+      evidenceBasedReasons: [],
+      status: "unknown",
+    };
+  }
   return { target, host, reachable: true, score, grade, flags, passed, details };
 }
 
