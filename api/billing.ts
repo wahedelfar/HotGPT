@@ -173,7 +173,7 @@ async function handlePaypalWebhook(req: any, res: any) {
           const spins = await db.findLuckySpinsByPaypalOrder(orderId);
           if (spins.length > 0) {
             matchedUserId = spins[0].userId;
-            const won = spins.reduce((sum, s) => sum + (s.spun ? s.prizeTokens : 0), 0);
+            const won = spins.reduce((sum: number, s: { spun: boolean; prizeTokens: number }) => sum + (s.spun ? s.prizeTokens : 0), 0);
             let voided = 0;
             for (const spin of spins) {
               if (!spin.spun && spin.status === "approved") {
@@ -182,7 +182,7 @@ async function handlePaypalWebhook(req: any, res: any) {
               }
             }
             const result = won > 0
-              ? await db.clawbackTokens(matchedUserId, won)
+              ? await db.clawbackTokens(matchedUserId ?? "", won)
               : { deducted: 0, balance: 0 };
             tokensDeducted = result.deducted;
             note = `clawback_lucky:won=${won},deducted=${result.deducted},spins_voided=${voided}`;
