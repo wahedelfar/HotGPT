@@ -441,7 +441,13 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
   // robots.txt + sitemap (from robots directives first, else the
   // conventional /sitemap.xml). SPA catch-all shells are detected:
   // an HTML body answering for robots/sitemap means "not present".
-  const robotsFetch = await fetchAux(`${origin}/robots.txt`, 32 * 1024, 6000);
+  // Fetch the conventional sitemap concurrently with robots.txt. These are
+  // independent network checks; serial waits were consuming most of the
+  // Hobby function's 60-second budget before the report model could start.
+  const [robotsFetch, conventionalSitemapFetch] = await Promise.all([
+    fetchAux(`${origin}/robots.txt`, 32 * 1024, 3500),
+    fetchAux(`${origin}/sitemap.xml`, 512 * 1024, 5000),
+  ]);
   const robotsIsReal = Boolean(
     robotsFetch && robotsFetch.status === 200 && !/<html|<!doctype/i.test(robotsFetch.body.slice(0, 500)),
   );
@@ -464,11 +470,15 @@ export async function runSeoAudit(rawInput: string): Promise<SeoAudit> {
   }
 
   const sitemapCandidate = sitemapUrlsFromRobots[0] || `${origin}/sitemap.xml`;
-  let sitemapFetch: FetchOutcome | null = null;
+  let sitemapFetch: FetchOutcome | null = conventionalSitemapFetch;
   try {
     const sitemapUrl = new URL(sitemapCandidate);
-    if (sitemapUrl.hostname.toLowerCase() === finalUrl.hostname.toLowerCase()) {
-      sitemapFetch = await fetchAux(sitemapUrl.toString(), 512 * 1024, 8000);
+    if (sitemapUrl.hostname.toLowerCase() !== finalUrl.hostname.toLowerCase()) {
+      sitemapFetch = null;
+    } else if (sitemapUrl.toString() !== new URL(`${origin}/sitemap.xml`).toString()) {
+      // Respect a sitemap explicitly advertised by robots.txt, but cap the
+      // optional fetch and do not let it consume the old 8-second serial wait.
+      sitemapFetch = await fetchAux(sitemapUrl.toString(), 512 * 1024, 5000);
     }
   } catch { sitemapFetch = null; }
   const sitemapIsReal = Boolean(
