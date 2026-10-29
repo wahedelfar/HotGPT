@@ -374,7 +374,7 @@ async function googleSiteSearch(query: string): Promise<{ checked: boolean; resu
     const url = new URL("https://www.google.com/search");
     url.searchParams.set("q", query);
     url.searchParams.set("num", "10");
-    const response = await fetch(url.toString(), { headers: { "user-agent": BROWSER_UA, accept: "text/html" }, signal: AbortSignal.timeout(8000), redirect: "follow" });
+    const response = await fetch(url.toString(), { headers: { "user-agent": BROWSER_UA, accept: "text/html" }, signal: AbortSignal.timeout(3500), redirect: "follow" });
     if (!response.ok) return { checked: false, resultCount: 0, html: "" };
     const html = (await response.text()).slice(0, 250000);
     if (/unusual traffic|captcha|sorry\/index|our systems have detected/i.test(html)) return { checked: false, resultCount: 0, html: "" };
