@@ -136,7 +136,7 @@ async function refreshSession(): Promise<string | null> {
     if (attempt > 0) await new Promise(resolve => setTimeout(resolve, attempt * 900));
     const session = readSession();
     if (!session) return null;
-    if (session.expires_at > Math.floor(Date.now() / 1000) + 60) return session.access_token;
+    if (session.expires_at > Math.floor(Date.now() / 1000) + REFRESH_WINDOW_SECONDS) return session.access_token;
     try {
       const payload = await authRequest("token?grant_type=refresh_token", { refresh_token: session.refresh_token });
       const next = saveSession(payload);
@@ -167,10 +167,17 @@ async function refreshSession(): Promise<string | null> {
   return null;
 }
 
+// Refresh this long before the access token actually expires. Doing the
+// refresh early, while the app is open and being used, keeps a page reload
+// from ever racing an in-flight refresh at the expiry cliff: a killed
+// refresh rotates the token on the server while the response (with the
+// new token) never reaches storage, and the next boot is then rejected.
+const REFRESH_WINDOW_SECONDS = 600;
+
 export async function getAccessToken(): Promise<string | null> {
   const session = readSession();
   if (!session) return null;
-  if (session.expires_at > Math.floor(Date.now() / 1000) + 60) return session.access_token;
+  if (session.expires_at > Math.floor(Date.now() / 1000) + REFRESH_WINDOW_SECONDS) return session.access_token;
   if (!refreshInFlight) {
     refreshInFlight = refreshSession()
       .catch(() => null)
