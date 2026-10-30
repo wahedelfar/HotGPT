@@ -1118,7 +1118,7 @@ export default function Home() {
       const anchor = target.closest('a[href^="/"]');
       if (anchor) {
         const href = anchor.getAttribute("href") || "";
-        const publicPaths = ["/billing", "/models", "/rewards", "/hotlucky", "/faq", "/terms", "/privacy", "/refund", "/lucky-terms"];
+        const publicPaths = ["/billing", "/models", "/rewards", "/hotlucky", "/faq", "/about", "/terms", "/privacy", "/refund", "/lucky-terms"];
         if (publicPaths.some(path => href === path || href.startsWith(path + "?") || href.startsWith(path + "#"))) return;
       }
       const protectedControl = target.closest(protectedSelector);
@@ -2486,6 +2486,19 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             </div>
           </section>
         )}
+        <footer className="home-site-footer">
+          <nav className="home-footer-links">
+            <a href="/about">{tr(language, "من نحن", "About us")}</a>
+            <a href="/models">{tr(language, "نماذجنا", "Our models")}</a>
+            <a href="/billing">{tr(language, "الباقات", "Plans")}</a>
+            <a href="/faq">{tr(language, "الأسئلة الشائعة", "FAQ")}</a>
+            <a href="/rewards">{tr(language, "الجوائز", "Rewards")}</a>
+            <a href="/terms">{tr(language, "الشروط والأحكام", "Terms")}</a>
+            <a href="/privacy">{tr(language, "سياسة الخصوصية", "Privacy policy")}</a>
+            <a href="/refund">{tr(language, "سياسة الاسترداد", "Refund policy")}</a>
+          </nav>
+          <p className="home-footer-copy">© {new Date().getFullYear()} HotGPT — {tr(language, "جميع الحقوق محفوظة", "All rights reserved")}</p>
+        </footer>
       </main>
       {showWinModal && hotLuckyPrize && auth.isAuthenticated && (
         <div className="welcome-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowWinModal(false); }} style={{zIndex:1200,background:"rgba(0,0,0,.82)",backdropFilter:"blur(7px)"}}>

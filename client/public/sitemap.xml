@@ -7,6 +7,7 @@
   <url><loc>https://hotgpt.pro/rewards</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://hotgpt.pro/lucky-terms</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://hotgpt.pro/faq</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://hotgpt.pro/about</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://hotgpt.pro/terms</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://hotgpt.pro/privacy</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
   <url><loc>https://hotgpt.pro/refund</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>

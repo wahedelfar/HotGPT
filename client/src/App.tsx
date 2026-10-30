@@ -19,6 +19,7 @@ import TermsPage from "./pages/Terms";
 import PrivacyPage from "./pages/Privacy";
 import RefundPage from "./pages/Refund";
 import FaqPage from "./pages/Faq";
+import AboutPage from "./pages/About";
 import AgeGate from "./components/AgeGate";
 import InstallAppButton from "@/components/InstallAppButton";
 
@@ -71,6 +72,10 @@ const PAGE_META: Record<string, { title: string; description: string }> = {
   "/faq": {
     title: "الأسئلة الشائعة | HotGPT",
     description: "إجابات مباشرة عن أسئلة الأمن السيبراني واختبار الاختراق وفحص الثغرات والبرمجة، وعن خدمات HotGPT وأسعاره.",
+  },
+  "/about": {
+    title: "من نحن | HotGPT",
+    description: "تعرّف على HotGPT: منصة ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع — برمجة وفحص أمني وSEO واستخراج عملاء، بأسعار ثابتة بالجنيه ودفع فودافون كاش وإنستاباي.",
   },
 };
 
@@ -129,6 +134,7 @@ function Router() {
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/refund" component={RefundPage} />
       <Route path="/faq" component={FaqPage} />
+      <Route path="/about" component={AboutPage} />
       <Route path="/admin/lucky.php" component={AdminLuckyPage} />
       <Route path="/admin" component={AdminBillingPage} />
       <Route path="/admin/login" component={AdminBillingPage} />
