@@ -739,13 +739,14 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeads }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeads, onImage }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
   onDarkLive: () => void;
   onSeo: () => void;
   onLeads: () => void;
+  onImage: () => void;
 }) {
   const { language } = useLanguage();
   const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
@@ -770,6 +771,18 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeads 
       </button>
     );
   };
+  // Image square (Wahid, 2026-10-30): takes the NET_RECON slot in the
+  // grid and arms normal image generation (5 tokens) in the composer,
+  // exactly like choosing "Normal image" from the composer's dropdown.
+  const imageCard = () => (
+    <button type="button" className="starter-card hotgpt-starter-card" key="IMAGE_GEN" style={cardStyle} onClick={() => { trackFunnelEvent({ name: "starter_example_clicked", metadata: { label: "IMAGE_GEN" } }); onImage(); }}>
+      <span className="starter-icon hotgpt-starter-icon"><ImageIcon size={19} /></span>
+      <span className="starter-copy">
+        <strong>IMAGE_GEN</strong>
+        <small>{tr(language, "ولّد صورتك من وصف بسيط — صورة عادية بـ5 توكين", "Generate your image from a simple description — a normal image for 5 tokens")}</small>
+      </span>
+    </button>
+  );
   const premiumCard = (kind: "scan" | "darklive" | "seo" | "leads") => {
     const data = {
       leads: { Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 توكين", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 tokens", action: onLeads },
@@ -816,7 +829,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeads 
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
         {starterCard(starters[0])}
         {premiumCard("leads")}
-        {starterCard(starters[1])}
+        {imageCard()}
         {premiumCard("scan")}
         {starterCard(starters[2])}
         {premiumCard("darklive")}
@@ -2341,6 +2354,25 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setImageMode(false);
                     setDarkWebEnabled(false);
                     setDarkLiveMode(false);
+                    setDraft("");
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
+                  onImage={() => {
+                    if (walletBalance < 5) {
+                      setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough."));
+                      return;
+                    }
+                    setRequestError(null);
+                    setImageKind("normal");
+                    setImageMode(true);
+                    setScanMode(false);
+                    setSeoMode(false);
+                    setLeadsMode(false);
+                    setWebSearchEnabled(false);
+                    setDarkWebEnabled(false);
+                    setDarkLiveMode(false);
+                    setSelectedModel("dadgpt-default");
+                    setAttachment(null);
                     setDraft("");
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
