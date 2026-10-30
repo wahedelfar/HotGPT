@@ -147,8 +147,13 @@ async function refreshSession(): Promise<string | null> {
       const message = cause instanceof Error ? cause.message : "";
       const definitive = status === 400 && /refresh_token|invalid_grant/i.test(`${code} ${message}`);
       if (definitive) {
-        // The refresh token itself is dead (expired, revoked or reused):
-        // the session really is over.
+        // Another tab or context may have refreshed first and saved a NEW
+        // session while this attempt was in flight — then the token that
+        // just failed is merely stale, not dead. Only end the session when
+        // storage still holds the very token that was rejected; otherwise
+        // loop around and use the stored one.
+        const stored = readSession();
+        if (stored && stored.refresh_token !== session.refresh_token) continue;
         clearSession();
         return null;
       }
@@ -178,13 +183,21 @@ export async function getCurrentUser(): Promise<HotGPTUser | null> {
   const token = await getAccessToken();
   if (!token) return null;
   const { url, key } = publicConfig();
-  const response = await fetch(`${url}/auth/v1/user`, {
+  let response = await fetch(`${url}/auth/v1/user`, {
     headers: { apikey: key, Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
   if (response.status === 401 || response.status === 403) {
-    clearSession();
-    return null;
+    const stored = readSession();
+    let recovered = false;
+    if (stored && stored.access_token !== token) {
+      const retry = await fetch(`${url}/auth/v1/user`, {
+        headers: { apikey: key, Authorization: `Bearer ${stored.access_token}` },
+        cache: "no-store",
+      }).catch(() => null);
+      if (retry && retry.ok) { response = retry; recovered = true; }
+    }
+    if (!recovered) { clearSession(); return null; }
   }
   if (!response.ok) throw new Error("auth_unavailable");
   const raw = await response.json() as { id?: string; email?: string; user_metadata?: Record<string, unknown> };
