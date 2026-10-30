@@ -156,7 +156,7 @@ export default function AdminBillingPage() {
         body: JSON.stringify({ email, password }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error === "admin_auth_unavailable" ? "قاعدة البيانات أو إعدادات الجلسة غير جاهزة. يلزم تطبيق الترحيل وضبط إعدادات Vercel." : "البريد أو كلمة المرور غير صحيحين.");
+      if (!response.ok) throw new Error(payload.error === "admin_auth_unavailable" ? "قاعدة البيانات أو إعدادات الجلسة غير جاهزة. يلزم تطبيق الترحيل وضبط إعدادات Vercel." : payload.error === "too_many_attempts" ? "تم إيقاف محاولات الدخول مؤقتًا لمدة 30 دقيقة بسبب محاولات خاطئة متكررة." : "البريد أو كلمة المرور غير صحيحين.");
       setAuthenticated(true); setPassword(""); setNotice("");
     } catch (error) { setNotice(error instanceof Error ? error.message : "تعذر تسجيل الدخول."); }
     finally { setBusy(false); }

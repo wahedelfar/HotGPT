@@ -3,6 +3,8 @@ import { parse } from "cookie";
 
 export const ADMIN_COOKIE = "hotgpt_admin_session";
 const SESSION_SECONDS = 12 * 60 * 60;
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 30;
 const adminEmail = () => (process.env.HOTGPT_ADMIN_EMAILS || "").split(",")[0].trim().toLowerCase();
 const secret = () => process.env.ADMIN_SESSION_SECRET || "";
 const supabaseUrl = () => (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
@@ -62,15 +64,67 @@ async function getCredential(email: string): Promise<AdminCredential | null> {
   return rows?.[0] ?? null;
 }
 
+type LoginThrottle = { failed_attempts: number; locked_until: string | null };
+
+// Throttle storage rides two extra columns on admin_credentials
+// (failed_attempts, locked_until). Until that migration is applied every
+// helper fails open quietly, so login keeps working exactly as before.
+async function getLoginThrottle(email: string): Promise<LoginThrottle | null> {
+  try {
+    const rows = await credentialRequest(
+      `admin_credentials?email=eq.${encodeURIComponent(email)}&select=failed_attempts,locked_until&limit=1`,
+    );
+    const row = rows?.[0];
+    if (!row) return null;
+    return { failed_attempts: Number(row.failed_attempts) || 0, locked_until: row.locked_until ?? null };
+  } catch {
+    return null;
+  }
+}
+
+async function patchThrottle(email: string, patch: Record<string, unknown>) {
+  try {
+    await credentialRequest(`admin_credentials?email=eq.${encodeURIComponent(email)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify(patch),
+    });
+  } catch { /* bookkeeping only — never break the login flow */ }
+}
+
+async function recordLoginFailure(email: string, currentAttempts: number) {
+  const next = currentAttempts + 1;
+  if (next >= MAX_FAILED_ATTEMPTS) {
+    await patchThrottle(email, {
+      failed_attempts: 0,
+      locked_until: new Date(Date.now() + LOCK_MINUTES * 60 * 1000).toISOString(),
+    });
+  } else {
+    await patchThrottle(email, { failed_attempts: next });
+  }
+}
+
+async function recordLoginSuccess(email: string) {
+  await patchThrottle(email, { failed_attempts: 0, locked_until: null });
+}
+
 export async function loginAdmin(emailInput: string, password: string) {
   const email = emailInput.trim().toLowerCase();
   if (!email || email !== adminEmail() || !password) return false;
   if (!secret()) throw new Error("ADMIN_SESSION_SECRET is not configured");
 
+  const throttle = await getLoginThrottle(email);
+  if (throttle?.locked_until && Date.parse(throttle.locked_until) > Date.now()) {
+    throw new Error("admin_login_locked");
+  }
+
   let row = await getCredential(email);
   if (!row) {
     const initial = process.env.ADMIN_INITIAL_PASSWORD || "";
-    if (!initial || password !== initial) return false;
+    if (!initial || password !== initial) {
+      await recordLoginFailure(email, throttle?.failed_attempts ?? 0);
+      return false;
+    }
     await credentialRequest("admin_credentials?on_conflict=email", {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
@@ -78,7 +132,11 @@ export async function loginAdmin(emailInput: string, password: string) {
     });
     row = await getCredential(email);
   }
-  if (!row || !verifyPassword(password, row.password_hash)) return false;
+  if (!row || !verifyPassword(password, row.password_hash)) {
+    await recordLoginFailure(email, throttle?.failed_attempts ?? 0);
+    return false;
+  }
+  await recordLoginSuccess(email);
   return { email, updatedAt: new Date(row.updated_at).getTime() };
 }
 

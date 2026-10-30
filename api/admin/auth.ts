@@ -23,6 +23,9 @@ export default async function handler(req: any, res: any) {
       res.setHeader("Set-Cookie", createAdminCookie(session));
       return res.status(200).json({ success: true, email: session.email });
     } catch (error) {
+      if (error instanceof Error && error.message === "admin_login_locked") {
+        return res.status(429).json({ error: "too_many_attempts" });
+      }
       console.error("[AdminAuth] Login failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "admin_auth_unavailable" });
     }
