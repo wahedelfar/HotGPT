@@ -1099,6 +1099,9 @@ export default function Home() {
   useEffect(() => {
     if (auth.loading || auth.isAuthenticated) return;
     try {
+      // A saved session means this is a member whose auth check has not
+      // settled (or hiccuped) — never greet them with the guest window.
+      if (localStorage.getItem("hotgpt.supabase.session")) return;
       const until = Number(localStorage.getItem("hotgpt-welcome-dismissed-until") || 0);
       if (Date.now() >= until) setWelcomeGateVisible(true);
     } catch { setWelcomeGateVisible(true); }

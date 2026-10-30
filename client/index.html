@@ -17,8 +17,15 @@
         }
       })();
     </script>
+    <script>
+      // Members must never see the guest welcome flash on load/refresh:
+      // if a saved session exists, flag it before first paint so the
+      // static welcome below stays hidden and the app boots straight in.
+      try { if (window.localStorage.getItem("hotgpt.supabase.session")) document.documentElement.dataset.session = "1"; } catch (_) {}
+    </script>
     <style>
       html, body, #root { min-height: 100%; background: var(--bg, #2B0000); color: #FFFFFF; }
+      html[data-session="1"] .hg-welcome { display: none; }
       html[data-theme="dark"] { --bg: #000000; --card: #111111; --text: #FFFFFF; --accent: #FFFFFF; }
       html[data-theme="blood"] { --bg: #2B0000; --card: #400000; --text: #FFFFFF; --accent: #FF1E2E; }
       html[data-theme="dark"] body, html[data-theme="blood"] body { background: var(--bg); color: var(--text); }
