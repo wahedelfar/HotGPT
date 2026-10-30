@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
-  ArrowUp,
   Coins,
   Bot,
   HelpCircle,
@@ -41,8 +40,6 @@ import {
   Users,
   Image as ImageIcon,
   Lock,
-  Facebook,
-  MessageCircle,
   X,
 } from "lucide-react";
 import { Streamdown } from "streamdown";
@@ -221,25 +218,6 @@ function Sidebar({
   const [openConversationMenu, setOpenConversationMenu] = useState<string | null>(null);
   const [historyMenuOpen, setHistoryMenuOpen] = useState(false);
   const [sidebarProfileOpen, setSidebarProfileOpen] = useState(false);
-  const [referralLink, setReferralLink] = useState("");
-  const [referralCopied, setReferralCopied] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    void authFetch("/api/billing?action=referral-info", { cache: "no-store" })
-      .then(async response => {
-        if (!alive || !response.ok) return;
-        const data = await response.json().catch(() => null);
-        if (alive && data?.code) setReferralLink(`https://hotgpt.pro/auth?mode=signup&ref=${data.code}`);
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, []);
-  const referralShareText = tr(language, "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد 25 توكين هدية.", "Try HotGPT — AI for developers, marketers & web development companies. Sign up with my link and buy your first pack, and we both get 25 free tokens.");
-  const referralWaUrl = referralLink ? `https://wa.me/?text=${encodeURIComponent(`${referralShareText} ${referralLink}`)}` : "";
-  const referralFbUrl = referralLink ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${encodeURIComponent(referralShareText)}` : "";
-  const copyReferralLink = async () => {
-    try { await navigator.clipboard.writeText(referralLink); setReferralCopied(true); window.setTimeout(() => setReferralCopied(false), 1800); } catch { /* the link stays visible for manual copy */ }
-  };
   return (
     <aside className="sidebar">
       <style>{`
@@ -260,14 +238,6 @@ function Sidebar({
 .sidebar .conversation-item.selected{background:rgba(255,255,255,.09)}
 .sidebar .rewards-sidebar-link{display:flex;align-items:center;gap:8px;margin:10px 12px 0;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);color:#FBBF24;font-weight:800;text-decoration:none;transition:background .15s ease}
 .sidebar .rewards-sidebar-link:hover{background:rgba(251,191,36,.14)}
-.sidebar .referral-sidebar-card{margin:10px 12px 0;padding:11px 12px;border-radius:10px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.28)}
-.sidebar .referral-sidebar-title{color:#FBBF24;font-weight:800;font-size:13px;margin-bottom:7px}
-.sidebar .referral-sidebar-note{font-size:11px;opacity:.75;margin-top:7px;line-height:1.6}
-.sidebar .referral-sidebar-row{display:flex;align-items:center;gap:6px}
-.sidebar .referral-sidebar-row code{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:left;font-size:11px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:5px 7px;color:#FDE68A}
-.sidebar .referral-chip{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.1);color:#FBBF24;cursor:pointer;text-decoration:none}
-.sidebar .referral-chip:hover{background:rgba(251,191,36,.2)}
-.sidebar .sidebar-note{opacity:.8}
 .sidebar .profile-row{border-radius:12px;width:100%;transition:background .15s ease}
 .sidebar .profile-row:hover{background:rgba(255,255,255,.06)}
 .sidebar .profile-avatar{background:linear-gradient(135deg,#DC2626,#F59E0B)!important;color:#fff!important;font-weight:900}
@@ -409,30 +379,8 @@ function Sidebar({
       </div>
 
       <a href="/rewards" className="rewards-sidebar-link">🎁 <span>{tr(language, "صفحة الجوائز", "Rewards")}</span></a>
-      {referralLink && (
-        <div className="referral-sidebar-card">
-          <div className="referral-sidebar-title">🤝 {tr(language, "إدع صديق واكسب", "Invite a friend & earn")}</div>
-          <div className="referral-sidebar-row">
-            <code>{referralLink}</code>
-            <button type="button" className="referral-chip" onClick={() => void copyReferralLink()} aria-label={tr(language, "نسخ رابط الإحالة", "Copy invite link")} title={referralCopied ? tr(language, "اتنسخ", "Copied") : tr(language, "نسخ", "Copy")}>{referralCopied ? <Check size={14} /> : <Copy size={14} />}</button>
-            <a className="referral-chip" href={referralWaUrl} target="_blank" rel="noreferrer" aria-label={tr(language, "مشاركة عبر واتساب", "Share on WhatsApp")} title="WhatsApp"><MessageCircle size={14} /></a>
-            <a className="referral-chip" href={referralFbUrl} target="_blank" rel="noreferrer" aria-label={tr(language, "مشاركة عبر فيسبوك", "Share on Facebook")} title="Facebook"><Facebook size={14} /></a>
-          </div>
-          <div className="referral-sidebar-note">{tr(language, "أول شراء لصديقك = 25 توكين ليك و25 ليه", "Your friend's first purchase = 25 tokens for you, 25 for them")}</div>
-        </div>
-      )}
+      <a href="/rewards" className="rewards-sidebar-link">🤝 <span>{tr(language, "إدع صديق واكسب", "Invite a friend & earn")}</span></a>
       <div className="sidebar-bottom">
-        <div className="sidebar-note">
-          <span className="note-mark">
-            <Sparkles size={14} />
-          </span>
-          <p>
-            {tr(language, "برمجة • اختبار اختراق • فحص ثغرات", "Programming • Pentesting • Vuln Scanning")}
-            <br />
-            <strong>{tr(language, "للمطورين والمسوقين وشركات تطوير المواقع", "FOR DEVELOPERS, MARKETERS & WEB DEVELOPMENT COMPANIES")}</strong>
-          </p>
-          <ArrowUp size={13} />
-        </div>
         <div className="profile-menu-wrap sidebar-profile-wrap">
           {sidebarProfileOpen && (
             <>
