@@ -174,11 +174,11 @@ function formatTime() {
 function BrandMark({ compact = false }: { compact?: boolean }) {
   const { language } = useLanguage();
   return (
-    <div className="brand-mark" aria-label={language === "ar" ? "للمطورين والباحثين" : "For Developers & Researchers"}>
+    <div className="brand-mark" aria-label={language === "ar" ? "للمطورين والمسوقين وشركات تطوير المواقع" : "For Developers, Marketers & Web Development Companies"}>
       <img
         className="brand-logo-img"
         src="/brand/logo.png"
-        alt={language === "ar" ? "للمطورين والباحثين" : "For Developers & Researchers"}
+        alt={language === "ar" ? "للمطورين والمسوقين وشركات تطوير المواقع" : "For Developers, Marketers & Web Development Companies"}
         draggable={false}
       />
       {!compact && <span className="brand-wordmark">Hot<span>GPT</span></span>}
@@ -234,7 +234,7 @@ function Sidebar({
       .catch(() => {});
     return () => { alive = false; };
   }, []);
-  const referralShareText = tr(language, "جرّب HotGPT — ذكاء اصطناعي للمطورين والباحثين. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد 25 توكين هدية.", "Try HotGPT — AI for developers & researchers. Sign up with my link and buy your first pack, and we both get 25 free tokens.");
+  const referralShareText = tr(language, "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد 25 توكين هدية.", "Try HotGPT — AI for developers, marketers & web development companies. Sign up with my link and buy your first pack, and we both get 25 free tokens.");
   const referralWaUrl = referralLink ? `https://wa.me/?text=${encodeURIComponent(`${referralShareText} ${referralLink}`)}` : "";
   const referralFbUrl = referralLink ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}&quote=${encodeURIComponent(referralShareText)}` : "";
   const copyReferralLink = async () => {
@@ -429,7 +429,7 @@ function Sidebar({
           <p>
             {tr(language, "برمجة • اختبار اختراق • فحص ثغرات", "Programming • Pentesting • Vuln Scanning")}
             <br />
-            <strong>{tr(language, "للمطورين والباحثين", "FOR DEVELOPERS & RESEARCHERS")}</strong>
+            <strong>{tr(language, "للمطورين والمسوقين وشركات تطوير المواقع", "FOR DEVELOPERS, MARKETERS & WEB DEVELOPMENT COMPANIES")}</strong>
           </p>
           <ArrowUp size={13} />
         </div>
@@ -1086,8 +1086,8 @@ export default function Home() {
     const twitterImage = document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]');
     if (twitterImage) twitterImage.content = new URL(brandAsset, window.location.origin).href;
     const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
-    if (ogTitle) ogTitle.content = language === "ar" ? "HotGPT — للمطورين والباحثين" : "HotGPT — For Developers & Researchers";
-    const pageTitle = language === "ar" ? "HotGPT — للمطورين والباحثين" : "HotGPT — For Developers & Researchers";
+    if (ogTitle) ogTitle.content = language === "ar" ? "HotGPT — للمطورين والمسوقين وشركات تطوير المواقع" : "HotGPT — For Developers, Marketers & Web Development Companies";
+    const pageTitle = language === "ar" ? "HotGPT — للمطورين والمسوقين وشركات تطوير المواقع" : "HotGPT — For Developers, Marketers & Web Development Companies";
     document.title = pageTitle;
   }, [language]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1095,6 +1095,15 @@ export default function Home() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeGiftJustGranted, setWelcomeGiftJustGranted] = useState(false);
   const [showAuthGateModal, setShowAuthGateModal] = useState(false);
+  const [welcomeGateVisible, setWelcomeGateVisible] = useState(false);
+  useEffect(() => {
+    if (auth.loading || auth.isAuthenticated) return;
+    try {
+      const until = Number(localStorage.getItem("hotgpt-welcome-dismissed-until") || 0);
+      if (Date.now() >= until) setWelcomeGateVisible(true);
+    } catch { setWelcomeGateVisible(true); }
+  }, [auth.loading, auth.isAuthenticated]);
+  const dismissWelcomeGate = () => { try { localStorage.setItem("hotgpt-welcome-dismissed-until", String(Date.now() + 24 * 60 * 60 * 1000)); } catch {} setWelcomeGateVisible(false); };
 
   useEffect(() => {
     if (auth.loading) return;
@@ -2511,6 +2520,23 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               <button type="button" onClick={() => { try { localStorage.setItem("hotlucky-win-acknowledged:" + (hotLuckyPrize.code || ""), "1"); } catch {} setShowWinModal(false); }} style={{borderRadius:12,padding:"12px 20px",background:"#292929",border:"1px solid #444",color:"#eee",fontWeight:800}}>شكراً</button>
             </div>
           </section>
+        </div>
+      )}
+      {welcomeGateVisible && !auth.loading && !auth.isAuthenticated && (
+        <div role="dialog" aria-modal="true" aria-label="HotGPT" dir={language === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 70, overflowY: "auto", background: "radial-gradient(ellipse at top, rgba(251,191,36,.10), transparent 55%), linear-gradient(180deg, #2B0000, #1A0505)", display: "flex", alignItems: "center", justifyContent: "center", padding: "28px 18px" }}>
+          <div style={{ maxWidth: 620, width: "100%", textAlign: "center", position: "relative" }}>
+            <button type="button" aria-label={tr(language, "إغلاق", "Close")} onClick={dismissWelcomeGate} style={{ position: "absolute", top: -6, insetInlineEnd: 0, width: 36, height: 36, borderRadius: 999, border: "1px solid rgba(251,191,36,.4)", color: "#FBBF24", fontSize: 20, lineHeight: 1, background: "rgba(0,0,0,.25)", cursor: "pointer" }}>×</button>
+            <h1 style={{ margin: 0, fontSize: "clamp(42px, 9vw, 64px)", fontWeight: 900, color: "#fff", lineHeight: 1.15 }}>HotGPT</h1>
+            <p style={{ margin: "6px 0 0", fontSize: "clamp(21px, 5.4vw, 32px)", fontWeight: 800, color: "#FBBF24", lineHeight: 1.5 }}>{tr(language, "ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع", "AI for developers, marketers & web development companies")}</p>
+            <p style={{ margin: "20px auto 0", maxWidth: 560, fontSize: 16, lineHeight: 2, color: "#E7E5E4" }}>{tr(language, "منصة HotGPT هي مساحة عمل ذكاء اصطناعي متكاملة: محادثات ذكية، كتابة وتصحيح أكواد، تحليل ملفات، توليد صور وCGI، فحص أمني وSEO للمواقع، بحث حي، واستخراج بيانات عملاء — كل الأدوات في مكان واحد.", "HotGPT is an all-in-one AI workspace: smart chat, code writing & debugging, file analysis, image & CGI generation, website security & SEO audits, live search, and customer lead extraction — every tool in one place.")}</p>
+            <a href="/auth?mode=signup" style={{ display: "block", margin: "26px auto 0", maxWidth: 520, padding: "15px 20px", borderRadius: 16, background: "linear-gradient(135deg, #F6C453, #E8A020 55%, #B97A0F)", color: "#231300", fontWeight: 900, fontSize: 17, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35)" }}>{tr(language, "ابدأ مجانًا ↗", "Start free ↗")}</a>
+            <ul style={{ listStyle: "none", margin: "24px 0 0", padding: 0, display: "grid", gap: 9, fontSize: 15, color: "#F5F5F4" }}>
+              <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "5 محادثات مجانًا عند أول تسجيل", "5 free conversations when you sign up")}</li>
+              <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "واجهة محادثة كاملة بالعربي والإنجليزي", "Full chat interface in Arabic & English")}</li>
+              <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "رد فوري خلال ثوانٍ", "Instant replies within seconds")}</li>
+            </ul>
+            <p style={{ margin: "22px auto 0", maxWidth: 520, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(251,191,36,.35)", background: "rgba(251,191,36,.07)", color: "#FBBF24", fontSize: 14.5, fontWeight: 800, lineHeight: 1.9 }}>⚡ {tr(language, "أرخص اشتراك في مصر — 100 جنيه فقط · الدفع بفودافون كاش وإنستاباي", "Egypt's cheapest subscription — only 100 EGP · Pay by Vodafone Cash & InstaPay")}</p>
+          </div>
         </div>
       )}
       {showAuthGateModal && !auth.loading && !auth.isAuthenticated && (

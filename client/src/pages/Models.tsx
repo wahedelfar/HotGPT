@@ -110,8 +110,8 @@ export default function ModelsPage() {
             <h1 className="mt-2 text-3xl font-bold">{t("تعرّف على نماذجنا", "Meet our models")}</h1>
             <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-400">
               {t(
-                "عائلة واحدة من النماذج المتخصصة للمطورين والباحثين — كل نموذج له شغلته وسعره الثابت بالتوكين، تعرفه قبل ما تبدأ.",
-                "One family of specialized models for developers and researchers — every model has its job and its flat token price, known before you start."
+                "عائلة واحدة من النماذج المتخصصة للمطورين والمسوقين وشركات تطوير المواقع — كل نموذج له شغلته وسعره الثابت بالتوكين، تعرفه قبل ما تبدأ.",
+                "One family of specialized models for developers, marketers and web development companies — every model has its job and its flat token price, known before you start."
               )}
             </p>
           </div>

@@ -7,8 +7,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "ما هو HotGPT؟",
     qEn: "What is HotGPT?",
-    aAr: "HotGPT مساحة عمل ذكاء اصطناعي عربية للمطورين والباحثين: مساعدة في البرمجة وتحليل الكود، وأوضاع متخصصة في اختبار الاختراق وفحص الثغرات، وبحث ويب مباشر وبحث في الدارك ويب، وتوليد صور، وتقارير فحص أمان وSEO للروابط — بدون قيود على البحث والبرمجة، وبواجهة عربية وإنجليزية.",
-    aEn: "HotGPT is an Arabic AI workspace for developers and researchers: programming and code-analysis help, specialized modes for penetration testing and vulnerability scanning, live web search and dark-web search, image generation, and security and SEO audit reports for URLs — with no limits on research and programming, in an Arabic and English interface.",
+    aAr: "HotGPT مساحة عمل ذكاء اصطناعي عربية للمطورين والمسوقين وشركات تطوير المواقع: مساعدة في البرمجة وتحليل الكود، وأوضاع متخصصة في اختبار الاختراق وفحص الثغرات، وبحث ويب مباشر وبحث في الدارك ويب، وتوليد صور، وتقارير فحص أمان وSEO للروابط — بدون قيود على البحث والبرمجة، وبواجهة عربية وإنجليزية.",
+    aEn: "HotGPT is an Arabic AI workspace for developers, marketers and web development companies: programming and code-analysis help, specialized modes for penetration testing and vulnerability scanning, live web search and dark-web search, image generation, and security and SEO audit reports for URLs — with no limits on research and programming, in an Arabic and English interface.",
   },
   {
     qAr: "كم تبلغ أسعار HotGPT؟",
@@ -73,8 +73,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "كيف أختار أداة ذكاء اصطناعي للبرمجة والأمن السيبراني؟",
     qEn: "How do I choose an AI tool for programming and cybersecurity?",
-    aAr: "قارن بخمسة معايير: التخصص في مجالك بدل العمومية، دعم لغتك (خصوصًا العربي)، شفافية الأسعار قبل الاستخدام، قوة النماذج المستخدمة في المهام الصعبة، وسياسة الخصوصية لبياناتك وكودك. HotGPT مبني حوالين المعايير دي للمطورين والباحثين العرب.",
-    aEn: "Compare on five criteria: specialization in your field instead of generality, support for your language (especially Arabic), transparent pricing before you use it, the strength of the models behind hard tasks, and the privacy policy for your data and code. HotGPT is built around these criteria for Arab developers and researchers.",
+    aAr: "قارن بخمسة معايير: التخصص في مجالك بدل العمومية، دعم لغتك (خصوصًا العربي)، شفافية الأسعار قبل الاستخدام، قوة النماذج المستخدمة في المهام الصعبة، وسياسة الخصوصية لبياناتك وكودك. HotGPT مبني حوالين المعايير دي للمطورين والمسوقين وشركات تطوير المواقع العرب.",
+    aEn: "Compare on five criteria: specialization in your field instead of generality, support for your language (especially Arabic), transparent pricing before you use it, the strength of the models behind hard tasks, and the privacy policy for your data and code. HotGPT is built around these criteria for Arab developers, marketers and web development companies.",
   },
   {
     qAr: "هل محادثاتي وبياناتي خاصة في HotGPT؟",

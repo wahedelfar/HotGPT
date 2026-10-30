@@ -35,7 +35,7 @@ export default function AgeGate() {
         <img src="/brand/logo.png" alt="HotGPT" style={{ width: 84, height: 84, objectFit: "contain", margin: "0 auto 10px", display: "block" }} />
         <h2 style={{ fontSize: 24, fontWeight: 900, margin: "4px 0" }}>HotGPT</h2>
         <p style={{ color: "#f7cf65", fontWeight: 800, fontSize: 14, margin: "2px 0 10px" }}>
-          {t("برمجة • اختبار اختراق • فحص ثغرات — للمطورين والباحثين", "Programming • Pentesting • Vuln Scanning — FOR DEVELOPERS & RESEARCHERS")}
+          {t("برمجة • اختبار اختراق • فحص ثغرات — للمطورين والمسوقين وشركات تطوير المواقع", "Programming • Pentesting • Vuln Scanning — FOR DEVELOPERS, MARKETERS & WEB DEVELOPMENT COMPANIES")}
         </p>
         <p style={{ color: "#cbd5e1", fontSize: 14, lineHeight: 1.9, margin: "8px 0 4px" }}>
           {t("هذا الموقع مخصص للبالغين فقط (+18). بالدخول أنت تقر أن عمرك ١٨ عامًا أو أكثر، وأنك مسؤول عن استخدامك للمحتوى وفق قوانين بلدك.",
