@@ -147,7 +147,16 @@ function ReferralCapture() {
   useEffect(() => {
     try {
       const ref = new URLSearchParams(window.location.search).get("ref");
-      if (ref && /^[A-Za-z0-9]{6,12}$/.test(ref.trim())) localStorage.setItem("hotgpt-ref-code", ref.trim().toUpperCase());
+      if (ref && /^[A-Za-z0-9]{6,12}$/.test(ref.trim())) {
+        const code = ref.trim().toUpperCase();
+        localStorage.setItem("hotgpt-ref-code", code);
+        // Invite links shared before the signup-landing change point at
+        // the homepage: send guests straight to the signup form with
+        // their invite applied. Members keep browsing where they are.
+        if (window.location.pathname === "/" && !localStorage.getItem("hotgpt.supabase.session")) {
+          window.location.replace(`/auth?mode=signup&ref=${code}`);
+        }
+      }
     } catch { /* storage unavailable */ }
   }, []);
   return null;

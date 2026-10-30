@@ -20,6 +20,17 @@ function messageFor(error: unknown) {
 export default function AuthPage() {
   const { language } = useAppLanguage();
   const [mode, setMode] = useState<"login" | "signup">(() => new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login");
+  // Invite code shown on the form: from this link's ?ref= first, else the
+  // code stored when an invite link was opened earlier. Always the code
+  // from the visitor's own link — never a fixed value.
+  const [inviteCode] = useState(() => {
+    try {
+      const fromUrl = (new URLSearchParams(window.location.search).get("ref") || "").trim().toUpperCase();
+      if (/^[A-Za-z0-9]{6,12}$/.test(fromUrl)) return fromUrl;
+      const stored = (localStorage.getItem("hotgpt-ref-code") || "").trim().toUpperCase();
+      return /^[A-Za-z0-9]{6,12}$/.test(stored) ? stored : "";
+    } catch { return ""; }
+  });
   const [recoveryAccessToken] = useState(() => { const hash = new URLSearchParams(window.location.hash.replace(/^#/, "")); return hash.get("type") === "recovery" ? hash.get("access_token") || "" : ""; });
   const [recoveryRefreshToken] = useState(() => { const hash = new URLSearchParams(window.location.hash.replace(/^#/, "")); return hash.get("type") === "recovery" ? hash.get("refresh_token") || "" : ""; });
   const [newPassword, setNewPassword] = useState("");
@@ -170,6 +181,12 @@ export default function AuthPage() {
         </div>
         <h1 className="mt-2 text-2xl font-bold">{mode === "login" ? "مرحبًا بعودتك" : "أنشئ حسابك"}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">سجّل الدخول لحفظ محادثاتك ومتابعة رصيدك من أي جهاز.</p>
+        {!recoveryMode && inviteCode && (
+          <div className="mt-5 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-start">
+            <p className="text-sm font-bold text-amber-200">{language === "ar" ? <>حضرتك وصلت عن طريق كود الدعوة: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></> : <>You arrived via an invite code: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></>}</p>
+            <p className="mt-1.5 text-sm leading-7 text-amber-100/90">{language === "ar" ? "أهلا بيك في موقعنا. استمتع بـ٥ محادثات مجانية، ولتفعيل جائزة الإحالة ليك ولصاحبك اشترك في أي باقة في الموقع" : "Welcome to our site. Enjoy 5 free conversations, and to activate the referral reward for you and your friend, subscribe to any plan on the site."}</p>
+          </div>
+        )}
         {!recoveryMode && mode === "signup" && <label className="mt-6 block text-sm">الاسم
           <span className="relative mt-2 block"><UserRound className="absolute right-3 top-3.5 text-amber-400/60" size={17} /><input autoComplete="name" required maxLength={80} value={name} onChange={e => setName(e.target.value)} className="w-full rounded-xl border-amber-400/25 bg-black/40 text-amber-200 placeholder:text-amber-200/40 caret-amber-400 outline-none focus:border-amber-400 py-3 pr-10 pl-3" placeholder="اسمك" /></span>
         </label>}

@@ -229,7 +229,7 @@ function Sidebar({
       .then(async response => {
         if (!alive || !response.ok) return;
         const data = await response.json().catch(() => null);
-        if (alive && data?.code) setReferralLink(`https://hotgpt.pro/?ref=${data.code}`);
+        if (alive && data?.code) setReferralLink(`https://hotgpt.pro/auth?mode=signup&ref=${data.code}`);
       })
       .catch(() => {});
     return () => { alive = false; };
