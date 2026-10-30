@@ -124,7 +124,7 @@ function ReferralSection() {
     return () => { alive = false; };
   }, []);
   const link = info?.code ? `https://hotgpt.pro/?ref=${info.code}` : "";
-  const shareText = t("جرّب HotGPT — ذكاء اصطناعي للمطورين والباحثين. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد 25 توكين هدية.", "Try HotGPT — AI for developers & researchers. Sign up with my link and buy your first pack, and we both get 25 free tokens.");
+  const shareText = t("جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد 25 توكين هدية.", "Try HotGPT — AI for developers, marketers & web development companies. Sign up with my link and buy your first pack, and we both get 25 free tokens.");
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { /* the link stays visible for manual copy */ }
   };
