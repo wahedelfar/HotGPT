@@ -1603,8 +1603,12 @@ export default async function handler(req: any, res: any) {
     const useOpenRouterDefault = chatMode === "default" && Boolean(openRouterKey);
     if (useOpenRouterBeast) {
       providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_BEAST_MODEL || "nousresearch/hermes-3-llama-3.1-70b").trim(), openRouter: true, reasoningEffort: "low" });
-      if (apinexKey) providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexBeastModel, openRouter: true, apiNex: true });
+      // Backup order (owner decision, 2026-10-30): Qwen3 235B is the first
+      // Beast backup — the APInex V4 Pro checkpoint produced inaccurate
+      // answers when it carried Beast traffic during primary timeouts, so
+      // the APInex slot is demoted to last resort behind Qwen.
       providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
+      if (apinexKey) providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexBeastModel, openRouter: true, apiNex: true });
     } else if (useOpenRouterDark) {
       // Premium live answers (real listings collected and the fee
       // charged) synthesize on the most liberated flagship — Hermes
