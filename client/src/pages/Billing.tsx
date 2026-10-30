@@ -61,6 +61,7 @@ export default function BillingPage() {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [screenshotData, setScreenshotData] = useState("");
   const [message, setMessage] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
   // Deep link from the low-balance offer: /billing?pack=100 preselects that pack.
   useEffect(() => {
     try {
@@ -133,7 +134,7 @@ export default function BillingPage() {
   async function submitPayment() {
     if (paymentMethod === "paypal") { setMessage(t("الدفع بـ PayPal يتم من زرار PayPal مباشرة — وتُضاف التوكينات تلقائيًا فور تأكيد الدفع.", "PayPal payment happens through the PayPal button itself — tokens are added automatically as soon as the payment is confirmed.")); return; }
     if (!selected || !screenshotData) { setMessage(t("اختر الباقة وارفع صورة إثبات الدفع أولًا.", "Choose a pack and upload your payment proof first.")); return; }
-    setBusy(true); setMessage("");
+    setBusy(true); setMessage(""); setPaymentSuccess(false);
     trackFunnelEvent({ name: "manual_payment_submit_started", metadata: { packageTokens, paymentMethod } });
     try {
       const response = await authFetch("/api/billing?action=payment", {
@@ -153,7 +154,7 @@ export default function BillingPage() {
         if (payload.error === "invalid_package_or_method") throw new Error(t("اختر باقة وطريقة دفع صحيحتين.", "Choose a valid pack and payment method."));
         throw new Error(t("تعذر إرسال طلب الدفع. تحقق من اتصالك وحاول مرة أخرى.", "Could not send the payment request. Check your connection and try again."));
       }
-      setMessage(t("تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة.", "Your payment proof was sent for review. Tokens are added after admin approval."));
+      setMessage(""); setPaymentSuccess(true);
       trackFunnelEvent({ name: "manual_payment_proof_submitted", metadata: { packageTokens, paymentMethod } });
       setScreenshotData("");
       void load().catch(() => {});
@@ -289,7 +290,7 @@ export default function BillingPage() {
           <Button className="mt-5 h-12 w-full bg-[#FBBF24] font-black text-[#1A0505] hover:bg-[#FBBF24]" style={{ backgroundColor: "#FBBF24", color: "#1A0505" }} disabled={busy || !screenshotData} onClick={() => void submitPayment()}>{busy ? t("جارٍ إرسال الطلب...", "Sending your request...") : t("إرسال إثبات الدفع للمراجعة", "Send payment proof for review")}</Button>
           <p className="mt-3 text-xs leading-5 text-slate-500">{t("للتأكيد السريع يمكنك أيضًا إرسال صورة التحويل عبر", "For faster confirmation you can also send the transfer screenshot via")} <a className="text-amber-400 underline" href="https://wa.me/201063537686" target="_blank" rel="noreferrer">WhatsApp</a>.</p>
         </div>}
-        {message && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p>}
+        {message ? <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p> : paymentSuccess && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{language === "ar" ? <>تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة. سيصلك تنبيه خلال دقائق. يمكنك العودة إلى <a href="/" className="font-bold text-amber-300 underline underline-offset-4">رئيسية الموقع</a>.</> : <>Your payment proof was sent for review. Tokens are added after admin approval. You&apos;ll receive a notification within minutes. You can return to the <a href="/" className="font-bold text-amber-300 underline underline-offset-4">site homepage</a>.</>}</p>}
       </section>
       {account && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.2em] text-amber-400">PAYMENT ACTIVITY</p><h2 className="mt-2 text-xl font-bold">{t("طلبات الدفع الأخيرة", "Recent payment requests")}</h2></div><button type="button" onClick={() => void load().catch(() => {})} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">{t("تحديث الحالة", "Refresh status")}</button></div>
