@@ -156,7 +156,7 @@ export default function AdminBillingPage() {
         body: JSON.stringify({ email, password }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error === "admin_auth_unavailable" ? "قاعدة البيانات أو إعدادات الجلسة غير جاهزة. يلزم تطبيق الترحيل وضبط إعدادات Vercel." : payload.error === "too_many_attempts" ? "تم إيقاف محاولات الدخول مؤقتًا لمدة 30 دقيقة بسبب محاولات خاطئة متكررة." : "البريد أو كلمة المرور غير صحيحين.");
+      if (!response.ok) throw new Error(payload.error === "admin_auth_unavailable" ? "قاعدة البيانات أو إعدادات الجلسة غير جاهزة. يلزم تطبيق الترحيل وضبط إعدادات Vercel." : payload.error === "too_many_attempts" ? "تم إيقاف محاولات الدخول مؤقتًا لمدة 30 دقيقة بسبب محاولات خاطئة متكررة. متحاولش كتير يا اهبل. عشان انت اللي هتزعل 😀" : "البريد أو كلمة المرور غير صحيحين.");
       setAuthenticated(true); setPassword(""); setNotice("");
     } catch (error) { setNotice(error instanceof Error ? error.message : "تعذر تسجيل الدخول."); }
     finally { setBusy(false); }
@@ -191,6 +191,10 @@ export default function AdminBillingPage() {
       <p className="mt-7 text-xs font-bold tracking-[.25em] text-cyan-300">HOTGPT ADMIN</p>
       <h1 className="mt-2 text-2xl font-bold">تسجيل دخول الإدارة</h1>
       <p className="mt-2 text-sm text-slate-400">دخول مستقل عن تسجيل دخول أعضاء الموقع.</p>
+      <div className="mt-5 rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-center">
+        <p className="text-base font-black text-red-300">⚠️ تحذير</p>
+        <p className="mt-1 text-sm font-bold text-red-200">متحاولش كتير يا اهبل. عشان انت اللي هتزعل 😀</p>
+      </div>
       <label className="mt-6 block text-sm">البريد الإلكتروني</label>
       <input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 p-3 outline-none focus:border-cyan-300" />
       <label className="mt-4 block text-sm">كلمة المرور</label>
