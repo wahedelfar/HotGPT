@@ -600,6 +600,10 @@ export default async function handler(req: any, res: any) {
       return res.status(503).json({ error: "auth_unavailable" });
     }
   }
+  if (action === "geo") {
+    if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
+    return res.status(200).json({ country: String(req.headers["x-vercel-ip-country"] || "").toUpperCase() });
+  }
   if (action === "config") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
     const packagesUsd = await Promise.all(Object.entries(PACKAGES).map(async ([tokens, priceEgp]) => {

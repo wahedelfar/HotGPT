@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth";
 import { trackFunnelEvent } from "@/lib/analytics";
-import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import { LanguageFlag, LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type PackageOption = { tokens: number; priceEgp: number };
 type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null; notifyOnApproval?: boolean; approvalNoticeSeenAt?: string | null; memberNoticeText?: string | null; test?: boolean };
@@ -172,6 +172,8 @@ export default function BillingPage() {
 
   const selectedUsd = (config?.packagesUsd ?? []).find(item => item.tokens === packageTokens);
   const [copiedKey, setCopiedKey] = useState("");
+  const usdFor = (tokens: number) => (config?.packagesUsd ?? []).find(p => p.tokens === tokens)?.priceUsd;
+  const priceLabel = (tokens: number, priceEgp: number) => (language === "en" && usdFor(tokens) != null ? `$${usdFor(tokens)}` : `${priceEgp} ${t("جنيه", "EGP")}`);
   const statusLabel = (status: string) => ({ pending: t("قيد المراجعة", "Under review"), approved: t("تم الاعتماد", "Approved"), rejected: t("مرفوض", "Rejected") }[status] ?? t("غير معروف", "Unknown"));
   const methodLabel = (method: PaymentRequest["paymentMethod"]) => method === "vodafone_cash" ? t("فودافون كاش", "Vodafone Cash") : method === "instapay" ? t("إنستا باي", "InstaPay") : "PayPal";
   const formatRequestDate = (value: string) => { try { return new Intl.DateTimeFormat(language === "ar" ? "ar-EG" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); } catch { return value; } };
@@ -264,10 +266,10 @@ export default function BillingPage() {
       <section className="mt-4 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
         <h2 className="text-xl font-bold">{t("مقارنة سريعة — أي باقة تناسبك؟", "Quick comparison — which pack fits you?")}</h2>
         <div className="mt-4 divide-y divide-white/5">
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">100 {t("توكن", "tokens")} — 100 {t("جنيه", "EGP")}</span><span className="text-sm text-slate-400">{t("للتجربة", "For trying it out")}</span></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">500 {t("توكن", "tokens")} — 300 {t("جنيه", "EGP")}</span><span className="text-sm font-bold text-amber-300">{t("الأكثر توفيرًا", "Best value")}</span></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">800 {t("توكن", "tokens")} — 500 {t("جنيه", "EGP")}</span><span className="text-sm text-slate-400">{t("للمستخدم النشط", "For the active user")}</span></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">1000 {t("توكن", "tokens")} — 700 {t("جنيه", "EGP")}</span><span className="text-sm text-slate-400">{t("للاستخدام المستمر", "For continuous use")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">100 {t("توكن", "tokens")} — {priceLabel(100, 100)}</span><span className="text-sm text-slate-400">{t("للتجربة", "For trying it out")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">500 {t("توكن", "tokens")} — {priceLabel(500, 300)}</span><span className="text-sm font-bold text-amber-300">{t("الأكثر توفيرًا", "Best value")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">800 {t("توكن", "tokens")} — {priceLabel(800, 500)}</span><span className="text-sm text-slate-400">{t("للمستخدم النشط", "For the active user")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">1000 {t("توكن", "tokens")} — {priceLabel(1000, 700)}</span><span className="text-sm text-slate-400">{t("للاستخدام المستمر", "For continuous use")}</span></div>
         </div>
       </section>
       <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -282,8 +284,8 @@ export default function BillingPage() {
             {isPopular && <span className="absolute -top-3 start-4 rounded-full bg-amber-400 px-3 py-0.5 text-[11px] font-black text-black shadow">{t("الأكثر طلبًا ⭐", "Most popular ⭐")}</span>}
             <div className="text-sm text-slate-400">{label}</div>
             <div className="mt-3 text-3xl font-bold">{item.tokens.toLocaleString("en-US")} <span className="text-base font-normal text-amber-400">{t("توكين", "tokens")}</span></div>
-            <div className="mt-2 text-xl font-semibold">{item.priceEgp} {t("جنيه", "EGP")}{usd && <span className="text-sm font-normal text-slate-400"> · {t(`أو ما يعادل $${usd.priceUsd} بـ PayPal`, `or the equivalent of $${usd.priceUsd} via PayPal`)}</span>}</div>
-            <div className="mt-2 text-xs text-slate-400">{t(`التوكين ≈ ${perToken.toFixed(2)} جنيه`, `≈ ${perToken.toFixed(2)} EGP per token`)}{saving > 0 ? t(` · أوفر ${saving}% من السعر الأساسي (1 جنيه)`, ` · save ${saving}% vs the base rate (1 EGP)`) : t(" · بالسعر الأساسي", " · at the base rate")}</div>
+            <div className="mt-2 text-xl font-semibold">{priceLabel(item.tokens, item.priceEgp)}{usd && <span className="text-sm font-normal text-slate-400"> · {language === "en" ? t(`أو ${item.priceEgp} جنيه بفودافون كاش أو انستا باي`, `or ${item.priceEgp} EGP via Vodafone Cash or InstaPay`) : t(`أو ما يعادل $${usd.priceUsd} بـ PayPal`, `or the equivalent of $${usd.priceUsd} via PayPal`)}</span>}</div>
+            <div className="mt-2 text-xs text-slate-400">{language === "en" && usd ? `≈ $${(usd.priceUsd / item.tokens).toFixed(2)} per token` : t(`التوكين ≈ ${perToken.toFixed(2)} جنيه`, `≈ ${perToken.toFixed(2)} EGP per token`)}{saving > 0 ? t(` · أوفر ${saving}% من السعر الأساسي (1 جنيه)`, ` · save ${saving}% vs the base rate (1 EGP)`) : t(" · بالسعر الأساسي", " · at the base rate")}</div>
             <div className="mt-3 text-xs leading-5 text-slate-400">{t(`تكفي تقريبًا: ${item.tokens.toLocaleString("en-US")} رسالة افتراضية · أو ${Math.floor(item.tokens / 5)} مرحلة وحش/Dark · أو ${Math.floor(item.tokens / 5)} صورة`, `Covers roughly: ${item.tokens.toLocaleString("en-US")} default messages · or ${Math.floor(item.tokens / 5)} Beast/Dark stages · or ${Math.floor(item.tokens / 5)} images`)}</div>
             {item.tokens === 500 && <div className="mt-3 rounded-lg bg-amber-400/15 px-3 py-2 text-xs font-bold text-amber-300">{t("الأفضل للمطورين الذين يستخدمون الموقع أسبوعيًا", "Best for developers who use the site weekly")}</div>}
           </button>
@@ -295,13 +297,13 @@ export default function BillingPage() {
         <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/5 p-3 text-sm leading-6 text-amber-200">{t("ملحوظة مهمة: سواء دفعت بفودافون كاش أو إنستا باي، التفعيل بيتم بعد ما تبعت اسكرين شوت للتحويل يظهر فيها الرقم اللي حوّلت عليه والمبلغ ووقت التحويل — ابعت الإثبات بعد التحويل على طول عشان باقتك تتفعّل.", "Important: whether you pay by Vodafone Cash or InstaPay, activation happens after you send a transfer screenshot clearly showing the number you paid to, the amount and the transfer time — send the proof right after paying so your pack gets activated.")}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <button onClick={() => setPaymentMethod("vodafone_cash")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "vodafone_cash" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
-            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e60000] text-sm font-black text-white">VF</span><span><strong className="block">{t("فودافون كاش", "Vodafone Cash")}</strong><span className="text-xs text-slate-400">{t("جنيه مصري · تحويل من محفظتك", "EGP · transfer from your wallet")}</span></span></span>
+            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e60000] text-sm font-black text-white">VF</span><span><strong className="block">{t("فودافون كاش", "Vodafone Cash")}</strong><span className="text-xs text-slate-400">{t("جنيه مصري · تحويل من محفظتك", "EGP · transfer from your wallet")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-300/90"><LanguageFlag lang="ar" />{t("خاص بالمصريين فقط", "Egyptians only")}</span></span>
           </button>
           <button onClick={() => setPaymentMethod("instapay")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "instapay" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
-            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d4ed8] text-sm font-black text-white">IP</span><span><strong className="block">{t("انستا باي", "InstaPay")}</strong><span className="text-xs text-slate-400">{t("جنيه مصري · تحويل بنكي لحظي", "EGP · instant bank transfer")}</span></span></span>
+            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d4ed8] text-sm font-black text-white">IP</span><span><strong className="block">{t("انستا باي", "InstaPay")}</strong><span className="text-xs text-slate-400">{t("جنيه مصري · تحويل بنكي لحظي", "EGP · instant bank transfer")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-300/90"><LanguageFlag lang="ar" />{t("خاص بالمصريين فقط", "Egyptians only")}</span></span>
           </button>
           <button onClick={() => setPaymentMethod("paypal")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "paypal" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
-            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#012169] text-sm font-black italic text-white">P</span><span><strong className="block">PayPal</strong><span className="text-xs text-slate-400">{t("دولار أمريكي · إضافة فورية تلقائية", "USD · instant automatic credit")}</span></span></span>
+            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#012169] text-sm font-black italic text-white">P</span><span><strong className="block">PayPal</strong><span className="text-xs text-slate-400">{t("دولار أمريكي · إضافة فورية تلقائية", "USD · instant automatic credit")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-300"><span aria-hidden="true">🌐</span><span className="rounded bg-white px-1.5 py-px text-[9px] font-black italic tracking-wide text-[#1a1f71]">VISA</span><span className="flex items-center" aria-hidden="true"><span className="h-3.5 w-3.5 rounded-full bg-[#eb001b]/90"></span><span className="-ms-1.5 h-3.5 w-3.5 rounded-full bg-[#f79e1b]/90"></span></span>Mastercard</span></span>
           </button>
         </div>
         {paymentMethod === "vodafone_cash" && <div className="mt-5">
