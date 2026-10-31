@@ -272,7 +272,8 @@ export default function BillingPage() {
           <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">1000 {t("توكن", "tokens")} — {priceLabel(1000, 700)}</span><span className="text-sm text-slate-400">{t("للاستخدام المستمر", "For continuous use")}</span></div>
         </div>
       </section>
-      <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <p className="mt-10 text-sm font-bold text-amber-300">{t("اضغط على كارت الباقة المناسبة لك", "Tap the pack card that suits you")}</p>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {packages.map(item => {
           const perToken = item.priceEgp / item.tokens;
           const saving = Math.max(0, Math.round((1 - perToken) * 100));
@@ -280,7 +281,7 @@ export default function BillingPage() {
           const label = item.tokens === 100 ? t("باقة البداية", "Starter") : item.tokens === 500 ? t("الأساسية", "Basic") : item.tokens === 800 ? t("الأكثر طلبًا", "Most popular") : t("الأكبر", "Largest");
           const isPopular = item.tokens === 800;
           return (
-          <button key={item.tokens} onClick={() => { setPackageTokens(item.tokens); trackFunnelEvent({ name: "package_selected", metadata: { packageTokens: item.tokens, priceEgp: item.priceEgp } }); }} className={`relative rounded-2xl border p-6 text-start transition ${packageTokens === item.tokens ? "border-amber-400 bg-amber-400/10" : isPopular ? "border-amber-300/60 bg-amber-300/[.06] hover:border-amber-300" : "border-white/10 bg-white/[.03] hover:border-amber-400/50"}`}>
+          <button key={item.tokens} onClick={() => { setPackageTokens(item.tokens); trackFunnelEvent({ name: "package_selected", metadata: { packageTokens: item.tokens, priceEgp: item.priceEgp } }); document.getElementById("payment-methods")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`relative rounded-2xl border p-6 text-start transition ${packageTokens === item.tokens ? "border-amber-400 bg-amber-400/10" : isPopular ? "border-amber-300/60 bg-amber-300/[.06] hover:border-amber-300" : "border-white/10 bg-white/[.03] hover:border-amber-400/50"}`}>
             {isPopular && <span className="absolute -top-3 start-4 rounded-full bg-amber-400 px-3 py-0.5 text-[11px] font-black text-black shadow">{t("الأكثر طلبًا ⭐", "Most popular ⭐")}</span>}
             <div className="text-sm text-slate-400">{label}</div>
             <div className="mt-3 text-3xl font-bold">{item.tokens.toLocaleString("en-US")} <span className="text-base font-normal text-amber-400">{t("توكين", "tokens")}</span></div>
@@ -292,7 +293,7 @@ export default function BillingPage() {
           );
         })}
       </div>
-      <section className="mt-8 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
+      <section id="payment-methods" className="mt-8 scroll-mt-6 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
         <h2 className="text-xl font-bold">{t("طريقة الدفع", "Payment method")}</h2>
         <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/5 p-3 text-sm leading-6 text-amber-200">{t("ملحوظة مهمة: سواء دفعت بفودافون كاش أو إنستا باي، التفعيل بيتم بعد ما تبعت اسكرين شوت للتحويل يظهر فيها الرقم اللي حوّلت عليه والمبلغ ووقت التحويل — ابعت الإثبات بعد التحويل على طول عشان باقتك تتفعّل.", "Important: whether you pay by Vodafone Cash or InstaPay, activation happens after you send a transfer screenshot clearly showing the number you paid to, the amount and the transfer time — send the proof right after paying so your pack gets activated.")}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -309,6 +310,7 @@ export default function BillingPage() {
         {paymentMethod === "vodafone_cash" && <div className="mt-5">
           <a href={config?.vodafoneCashUrl ?? "https://vf.eg/vfcash?id=mt&qrId=G0gO2O"} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#e60000] px-5 py-3.5 text-center font-black text-white transition hover:brightness-110">{t("ادفع الآن — يفتح تطبيق فودافون كاش ↗", "Pay now — opens the Vodafone Cash app ↗")}</a>
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] px-4 py-3 text-sm"><span className="text-slate-400">{t("أو حوّل يدويًا إلى الرقم:", "Or transfer manually to:")}</span><strong dir="ltr" className="text-base tracking-wide">{config?.vodafoneCashNumber ?? "01063537686"}</strong><button type="button" onClick={() => void copyValue("vf", config?.vodafoneCashNumber ?? "01063537686")} className="rounded-lg border border-white/15 px-3 py-1 text-xs hover:bg-white/10">{copiedKey === "vf" ? t("تم النسخ ✓", "Copied ✓") : t("نسخ الرقم", "Copy number")}</button></div>
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[.03] px-4 py-3 text-sm"><span className="text-slate-400">{t("أو اطلب كود التحويل الجاهز من موبايلك:", "Or dial the ready transfer code from your phone:")}</span><strong dir="ltr" className="text-base tracking-wide">*9*7*{config?.vodafoneCashNumber ?? "01063537686"}*{selected?.priceEgp ?? "—"}#</strong><button type="button" onClick={() => void copyValue("ussd", `*9*7*${config?.vodafoneCashNumber ?? "01063537686"}*${selected?.priceEgp ?? ""}#`)} className="rounded-lg border border-white/15 px-3 py-1 text-xs hover:bg-white/10">{copiedKey === "ussd" ? t("تم النسخ ✓", "Copied ✓") : t("نسخ الكود", "Copy code")}</button></div>
           <p className="mt-3 text-xs leading-5 text-slate-500">{t(`حوّل قيمة الباقة المختارة بالظبط (${selected?.priceEgp ?? "—"} جنيه) ثم ارفع صورة الإثبات بالأسفل. المراجعة عادة خلال 5–15 دقيقة أثناء ساعات العمل.`, `Transfer the exact price of the selected pack (${selected?.priceEgp ?? "—"} EGP), then upload the proof image below. Review usually takes 5–15 minutes during working hours.`)}</p>
         </div>}
         {paymentMethod === "instapay" && <div className="mt-5">
