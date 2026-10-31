@@ -279,6 +279,7 @@ async function sendTelegramPaymentAlert(args: {
       ],
     }));
     const { ok, payload } = await telegramPayApi("sendPhoto", form);
+    if (ok) console.log("[Telegram] payment alert sent request", args.request.id);
     if (ok && payload?.result?.message_id) {
       await db.setPaymentRequestTelegramMessageId(args.request.id, Number(payload.result.message_id)).catch(() => {});
     } else {
@@ -377,10 +378,12 @@ async function handleTelegramIntakeMessage(update: any) {
   if (text === "/start") {
     await intakeSend(chatId, INTAKE_WELCOME_TEXT, INTAKE_WELCOME_MARKUP);
     await intakeSend(chatId, INTAKE_GATEWAY_TEXT, INTAKE_PACK_BUTTONS);
+    console.log("[Telegram Intake] welcome+gateway chat", chatId);
     return;
   }
   if (text.includes("فعّل باقتي")) {
     await intakeSend(chatId, INTAKE_GATEWAY_TEXT, INTAKE_PACK_BUTTONS);
+    console.log("[Telegram Intake] gateway chat", chatId);
     return;
   }
 
@@ -396,72 +399,26 @@ async function handleTelegramIntakeMessage(update: any) {
     const missing: string[] = [];
     if (!email) missing.push("الإيميل المسجل به");
     if (!sender) missing.push("الرقم المحول منه");
-    if (!INTAKE_PACKAGES[pack]) missing.push("رقم الباقة اللي دفعتها (100 أو 500 أو 800 أو 1000)");
     if (missing.length) {
+      console.log("[Telegram Intake] incomplete photo chat", chatId, "missing:", missing.join(","));
       await intakeSend(chatId, `وصلت الصورة ✔\nفاضل: ${missing.join("، ")}\nاكتبهم في تعليق على الاسكرين وابعت الصورة تاني — ولو عايز تبدأ من الأول اختار باقتك 👇`, INTAKE_PACK_BUTTONS);
       return;
     }
     const name = String(who.first_name || "").trim();
     const memberLine = name + (who.username ? ` (@${who.username})` : "");
-    // Linked path (Wahid's order, 2026-10-31): open a REAL payment request
-    // for the member's site account, so the admin's button tap credits
-    // through the shared review function — the old signal-only forwarding
-    // remains only as the fallback when linking fails.
-    const profile = await db.findProfileByEmail(email).catch(() => null);
-    if (!profile) {
-      await intakeSend(chatId, "الإيميل اللي كتبته مش مسجل عندنا في الموقع.\nسجّل حسابك الأول من هنا: https://hotgpt.pro/auth?mode=signup\nوبعدها ابعت الاسكرين تاني بنفس الإيميل المسجل.");
-      return;
-    }
-    if (await db.hasPendingPaymentRequest(profile.id).catch(() => false)) {
-      await intakeSend(chatId, "عندك طلب دفع قيد المراجعة بالفعل — بنكمّل عليه وهتوصلك النتيجة أول ما يتحسم. مش محتاج تبعت تاني.");
-      return;
-    }
-    let created: { id: string; status: string; proofPath: string } | null = null;
-    let bridge = "none";
-    try {
-      const fileInfo = await telegramPayApi("getFile", { file_id: fileId });
-      const filePath = String((fileInfo.payload as any)?.result?.file_path || "");
-      if (!fileInfo.ok || !filePath) throw new Error("proof_download_failed");
-      const fileResponse = await fetch(`https://api.telegram.org/file/bot${cfg.token}/${filePath}`, { cache: "no-store" });
-      if (!fileResponse.ok) throw new Error("proof_download_failed");
-      const bytes = new Uint8Array(await fileResponse.arrayBuffer());
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-      created = await db.submitPaymentRequest({
-        userId: profile.id, email, paymentMethod: sender.includes("@") ? "instapay" : "vodafone_cash",
-        packageTokens: pack, amountEgp: INTAKE_PACKAGES[pack],
-        screenshotData: `data:image/jpeg;base64,${btoa(binary)}`,
-      });
-      bridge = await db.grantBridgeGiftIfEligible(created.id, profile.id).catch(() => "none");
-    } catch (error) {
-      console.error("[Telegram Webhook] Intake link failed", error instanceof Error ? error.message : "unknown");
-      created = null;
-    }
-    const bridgeText = bridge === "granted" ? "مُنحت (٥ توكين)"
-      : bridge === "blocked" ? "محظورة"
-      : bridge === "duplicate" ? "مكررة — عنده جسر قائم" : "لم تُمنح";
     const adminCaption = [
       "🔔 طلب تفعيل جديد من البوت",
-      `الباقة: ${pack} توكين — ${INTAKE_PACKAGES[pack]} جنيه`,
+      pack ? `الباقة: ${pack} توكين — ${INTAKE_PACKAGES[pack]} جنيه` : "الباقة: غير مذكورة في التعليق — المبلغ باين في الصورة",
       `الإيميل: ${email}`,
       `الرقم المحول منه: ${sender}`,
       `العضو: ${memberLine}`,
       `شات العضو: ${chatId}`,
-      ...(created
-        ? [`رقم الطلب: #${created.id.slice(0, 8)}`, `هدية الجسر: ${bridgeText}`]
-        : ["⚠️ تعذّر إنشاء طلب دفع مرتبط — التعامل يدوي من اللوحة"]),
     ].join("\n");
     const sent = await telegramPayApi("sendPhoto", {
       chat_id: cfg.adminChatId,
       photo: fileId,
       caption: adminCaption,
-      reply_markup: created ? {
-        inline_keyboard: [
-          [{ text: "✅ موافقة وإضافة التوكنات", callback_data: `b:a:${created.id}:${chatId}` }],
-          [{ text: "❌ رفض – إثبات غير صحيح", callback_data: `b:f:${created.id}:${chatId}` }],
-          [{ text: "🔁 رفض – صورة غير واضحة", callback_data: `b:u:${created.id}:${chatId}` }],
-        ],
-      } : {
+      reply_markup: {
         inline_keyboard: [
           [
             { text: "✅ تم التفعيل", callback_data: `ok:${chatId}` },
@@ -471,13 +428,11 @@ async function handleTelegramIntakeMessage(update: any) {
       },
     }).catch(() => ({ ok: false, payload: null as any }));
     if (!sent.ok) {
+      console.error("[Telegram Intake] forward failed chat", chatId);
       await intakeSend(chatId, "حصلت مشكلة أثناء إرسال طلبك — من فضلك حاول تبعت الاسكرين تاني بعد دقيقة.");
       return;
     }
-    if (created) {
-      const adminMessageId = Number((sent.payload as any)?.result?.message_id || 0);
-      if (adminMessageId) await db.setPaymentRequestTelegramMessageId(created.id, adminMessageId).catch(() => {});
-    }
+    console.log("[Telegram Intake] submission forwarded chat", chatId, "pack", pack || "-", "email", email, "sender", sender);
     await intakeSend(
       chatId,
       "شكرًا لحضرتك 🙏\nدقيقة هراجع التحويل، ويمكنك العودة للموقع من <a href=\"https://hotgpt.pro\">هنا</a> واستخدام الهدية.\nوستصلك الباقة حالًا ⚡",
@@ -492,10 +447,12 @@ async function handleTelegramIntakeMessage(update: any) {
     const compact = text.replace(/\s+/g, "");
     const hasSender = /^\+?2?01\d{9}$/.test(compact) || text.toLowerCase().includes("@instapay");
     if (hasEmail || hasSender) {
+      console.log("[Telegram Intake] partial text chat", chatId);
       await intakeSend(chatId, "تمام ✔\nفاضل اسكرين التحويل — ابعته هنا واكتب في تعليقه الإيميل المسجل به والرقم المحول منه.");
       return;
     }
   }
+  console.log("[Telegram Intake] gateway shown chat", chatId);
   await intakeSend(chatId, INTAKE_GATEWAY_TEXT, INTAKE_PACK_BUTTONS);
 }
 
@@ -533,6 +490,7 @@ async function handleTelegramWebhook(req: any, res: any) {
     if (INTAKE_PACKAGES[pack]) {
       await answer(`اخترت باقة ${pack} توكين`);
       await intakeSend(chatId, intakeProofRequestText(pack));
+      console.log("[Telegram Intake] pack chosen chat", chatId, "pack", pack);
     } else {
       await answer("");
     }
@@ -549,6 +507,7 @@ async function handleTelegramWebhook(req: any, res: any) {
     // decision (crediting itself stays in the admin panel, as in v1).
     const memberChat = signal[2];
     const approved = signal[1] === "ok";
+    console.log("[Telegram Intake] admin decision", approved ? "approved" : "rejected", "member", memberChat);
     if (approved) {
       await intakeSend(memberChat, "🎉 تم تفعيل باقتك بنجاح!\nالتوكنات اتضافت لحسابك على الموقع — افتح حسابك وهتلاقي رصيدك الجديد.\nhttps://hotgpt.pro");
       await answer("تم إبلاغ العضو بالتفعيل");
@@ -568,21 +527,18 @@ async function handleTelegramWebhook(req: any, res: any) {
     }
     return res.status(200).json({ ok: true });
   }
-  const botMatch = data.match(/^b:(a|f|u):([0-9a-f-]{36}):(\d+)$/i);
-  const match = botMatch ? null : data.match(/^pay:(approve|reject_fake|reject_unclear):([0-9a-f-]{36})$/i);
-  if (!botMatch && !match) {
+  const match = data.match(/^pay:(approve|reject_fake|reject_unclear):([0-9a-f-]{36})$/i);
+  if (!match) {
     await answer("بيانات غير صالحة", true);
     return res.status(200).json({ ok: true });
   }
-  const decision = (botMatch
-    ? ({ a: "approve", f: "reject_fake", u: "reject_unclear" } as const)[botMatch[1].toLowerCase() as "a" | "f" | "u"]
-    : match![1]) as "approve" | "reject_fake" | "reject_unclear";
-  const paymentId = botMatch ? botMatch[2] : match![2];
-  const memberChatId = botMatch ? botMatch[3] : "";
+  const decision = match[1] as "approve" | "reject_fake" | "reject_unclear";
+  const paymentId = match[2];
   try {
     const result = await db.reviewPaymentRequestShared({ paymentId, decision, source: "telegram", reviewer: "telegram-admin" });
     const answerText = decision === "approve" ? "تمت الموافقة ✔" : decision === "reject_fake" ? "تم الرفض ❌" : "تم الرفض 🔁";
     await answer(answerText);
+    console.log("[Telegram Webhook] review", decision, "payment", paymentId);
     const time = new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" });
     const resultLine = decision === "approve"
       ? `تمت الموافقة ✔ أُضيفت ${result.packageTokens} توكين — ${time}`
@@ -596,14 +552,6 @@ async function handleTelegramWebhook(req: any, res: any) {
         caption: originalCaption ? `${originalCaption}\n${resultLine}` : resultLine,
         reply_markup: { inline_keyboard: [] },
       }).catch(() => {});
-    }
-    if (memberChatId) {
-      const memberText = decision === "approve"
-        ? "🎉 تم تفعيل باقتك بنجاح!\nالتوكنات اتضافت لحسابك على الموقع — افتح حسابك وهتلاقي رصيدك الجديد.\nhttps://hotgpt.pro"
-        : decision === "reject_fake"
-          ? "تمت مراجعة إثبات الدفع ولم يتم قبوله، ولم تُضف أي توكينات.\nلو شايف إن فيه خطأ، تواصل مع الإدارة: hotgpt.pro@gmail.com"
-          : "تعذّر تفعيل طلبك هذه المرة.\nمن فضلك تأكد أن اسكرين التحويل واضح، وأن الإيميل هو المسجل به في الموقع، وأعد المحاولة — أو ادفع من صفحة الدفع في الموقع:\nhttps://hotgpt.pro";
-      await intakeSend(memberChatId, memberText).catch(() => {});
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown";
