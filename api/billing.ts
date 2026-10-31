@@ -290,6 +290,164 @@ async function sendTelegramPaymentAlert(args: {
     console.error("[Telegram] Payment alert failed", error instanceof Error ? error.message : "unknown");
   }
 }
+// --- Telegram-native visitor intake: the flow Wahid designed and ran on
+// the getUpdates watcher until the webhook replaced it (Telegram feeds
+// updates to one channel only). Ported into this handler with the same
+// texts and steps; the one mechanical change is that the handler is
+// stateless, so the member writes the registered email and the number
+// transferred from in the proof photo's caption instead of sending the
+// three items as separate messages. Pack buttons, admin forwarding with
+// «تم التفعيل / رفض» signal buttons, and the decision relay to the member
+// behave exactly as the watcher did. Signal buttons only NOTIFY the
+// member — crediting a native submission still happens in the admin
+// panel, as in v1.
+const INTAKE_PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 500, 1000: 700 };
+const INTAKE_PACK_BUTTONS = {
+  inline_keyboard: [
+    [{ text: "باقة 100 توكين — 100 جنيه", callback_data: "pack:100" }],
+    [{ text: "باقة 500 توكين — 300 جنيه", callback_data: "pack:500" }],
+    [{ text: "باقة 800 توكين — 500 جنيه", callback_data: "pack:800" }],
+    [{ text: "باقة 1000 توكين — 700 جنيه", callback_data: "pack:1000" }],
+  ],
+};
+const INTAKE_ACTIVATE_KEYBOARD = {
+  keyboard: [[{ text: "🚀 فعّل باقتي" }]],
+  resize_keyboard: true,
+  is_persistent: true,
+};
+const INTAKE_WELCOME_TEXT = [
+  "🟥🟨 أهلاً بيك في HotGPT",
+  "━━━━━━━━━━━━━━",
+  "منصة ذكاء اصطناعي عربية للمطورين والمسوقين وشركات تطوير المواقع — أجوبة بدون قيود على البحث والبرمجة، وبأرخص أسعار بالجنيه المصري.",
+  "",
+  "🎁 هدية ترحيب: ٥ توكين مجانًا أول ما تنشئ حسابك.",
+  "",
+  "🌐 زور الموقع وجرّب بنفسك:",
+  "https://hotgpt.pro",
+  "━━━━━━━━━━━━━━",
+  "🔥 HotGPT — بدون قيود على البحث والبرمجة",
+].join("\n");
+const INTAKE_WELCOME_MARKUP = {
+  inline_keyboard: [
+    [
+      { text: "🌐 زيارة الموقع", url: "https://hotgpt.pro" },
+      { text: "✍️ إنشاء حساب مجاني", url: "https://hotgpt.pro/auth?mode=signup" },
+    ],
+  ],
+};
+const INTAKE_GATEWAY_TEXT = "أهلاً بك في بوابة دفع HOT GPT الذكية 🔥\nمن فضلك اختر باقتك المراد تفعيلها 👇";
+function intakeProofRequestText(packTokens: number) {
+  const price = INTAKE_PACKAGES[packTokens];
+  return [
+    `اخترت باقة ${packTokens} توكين — ${price} جنيه ✔`,
+    "",
+    "حوّل مبلغ الباقة إلى:",
+    "📱 فودافون كاش: 01063537686",
+    "💳 إنستاباي: wahedelfar@instapay",
+    "https://ipn.eg/S/wahedelfar/instapay/4LnUCo",
+    "",
+    "وبعد التحويل، ابعت هنا اسكرين التحويل — يكون واضح — واكتب في تعليقه:",
+    "١. الإيميل المسجل به في الموقع",
+    "٢. الرقم المحول منه",
+    "لسرعة المراجعة وإضافة الباقة لحسابك ⚡",
+    "",
+    "⚠️ مهم: الاسكرين لازم يكون كاملًا ويبان فيه رقم العملية وتاريخها بوضوح — من غيرهم الطلب بيتحول للمراجعة اليدوية وبتستغرق من ١٠ ل ٣٠ دقيقة.",
+    "",
+    "ولو ناقص حاجة في التعليق هنقولك عليها.",
+  ].join("\n");
+}
+async function intakeSend(chatId: string | number, text: string, replyMarkup?: unknown, parseMode?: string) {
+  const body: Record<string, unknown> = { chat_id: chatId, text };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  if (parseMode) body.parse_mode = parseMode;
+  return telegramPayApi("sendMessage", body).catch(() => ({ ok: false, payload: null as any }));
+}
+async function handleTelegramIntakeMessage(update: any) {
+  const cfg = telegramPayConfig();
+  if (!cfg) return;
+  const msg = update?.message;
+  const chat = msg?.chat;
+  if (!chat || chat.type !== "private") return;
+  const chatId = String(chat.id);
+  if (chatId === cfg.adminChatId) return;
+  const who = msg?.from || {};
+  const text = typeof msg?.text === "string" ? msg.text.trim() : "";
+  const caption = typeof msg?.caption === "string" ? msg.caption : "";
+
+  if (text === "/start") {
+    await intakeSend(chatId, INTAKE_WELCOME_TEXT, INTAKE_WELCOME_MARKUP);
+    await intakeSend(chatId, INTAKE_GATEWAY_TEXT, INTAKE_PACK_BUTTONS);
+    return;
+  }
+  if (text.includes("فعّل باقتي")) {
+    await intakeSend(chatId, INTAKE_GATEWAY_TEXT, INTAKE_PACK_BUTTONS);
+    return;
+  }
+
+  if (Array.isArray(msg?.photo) && msg.photo.length) {
+    const fileId = String(msg.photo[msg.photo.length - 1]?.file_id || "");
+    const emailMatch = caption.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+    const email = emailMatch ? emailMatch[0].toLowerCase() : "";
+    const phoneMatch = caption.replace(/\s+/g, "").match(/\+?2?01\d{9}/);
+    const instapayMatch = caption.match(/\S+@instapay/i);
+    const sender = phoneMatch ? phoneMatch[0] : instapayMatch ? instapayMatch[0] : "";
+    const packMatch = caption.match(/\b(1000|800|500|100)\b/);
+    const pack = packMatch ? Number(packMatch[1]) : 0;
+    const missing: string[] = [];
+    if (!email) missing.push("الإيميل المسجل به");
+    if (!sender) missing.push("الرقم المحول منه");
+    if (missing.length) {
+      await intakeSend(chatId, `وصلت الصورة ✔\nفاضل: ${missing.join("، ")}\nاكتبهم في تعليق على الاسكرين وابعت الصورة تاني — ولو عايز تبدأ من الأول اختار باقتك 👇`, INTAKE_PACK_BUTTONS);
+      return;
+    }
+    const name = String(who.first_name || "").trim();
+    const memberLine = name + (who.username ? ` (@${who.username})` : "");
+    const adminCaption = [
+      "🔔 طلب تفعيل جديد من البوت",
+      pack ? `الباقة: ${pack} توكين — ${INTAKE_PACKAGES[pack]} جنيه` : "الباقة: غير مذكورة في التعليق — المبلغ باين في الصورة",
+      `الإيميل: ${email}`,
+      `الرقم المحول منه: ${sender}`,
+      `العضو: ${memberLine}`,
+      `شات العضو: ${chatId}`,
+    ].join("\n");
+    const sent = await telegramPayApi("sendPhoto", {
+      chat_id: cfg.adminChatId,
+      photo: fileId,
+      caption: adminCaption,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ تم التفعيل", callback_data: `ok:${chatId}` },
+            { text: "❌ رفض الطلب", callback_data: `no:${chatId}` },
+          ],
+        ],
+      },
+    }).catch(() => ({ ok: false, payload: null as any }));
+    if (!sent.ok) {
+      await intakeSend(chatId, "حصلت مشكلة أثناء إرسال طلبك — من فضلك حاول تبعت الاسكرين تاني بعد دقيقة.");
+      return;
+    }
+    await intakeSend(
+      chatId,
+      "شكرًا لحضرتك 🙏\nدقيقة هراجع التحويل، ويمكنك العودة للموقع من <a href=\"https://hotgpt.pro\">هنا</a> واستخدام الهدية.\nوستصلك الباقة حالًا ⚡",
+      INTAKE_ACTIVATE_KEYBOARD,
+      "HTML",
+    );
+    return;
+  }
+
+  if (text) {
+    const hasEmail = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.test(text) && !text.toLowerCase().includes("@instapay");
+    const compact = text.replace(/\s+/g, "");
+    const hasSender = /^\+?2?01\d{9}$/.test(compact) || text.toLowerCase().includes("@instapay");
+    if (hasEmail || hasSender) {
+      await intakeSend(chatId, "تمام ✔\nفاضل اسكرين التحويل — ابعته هنا واكتب في تعليقه الإيميل المسجل به والرقم المحول منه.");
+      return;
+    }
+  }
+  await intakeSend(chatId, INTAKE_GATEWAY_TEXT, INTAKE_PACK_BUTTONS);
+}
+
 async function handleTelegramWebhook(req: any, res: any) {
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
   const secret = process.env.TELEGRAM_PAY_WEBHOOK_SECRET || "";
@@ -303,6 +461,12 @@ async function handleTelegramWebhook(req: any, res: any) {
   try {
     update = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
   } catch { update = null; }
+  if (update?.message) {
+    await handleTelegramIntakeMessage(update).catch((error) => {
+      console.error("[Telegram Webhook] Intake failed", error instanceof Error ? error.message : "unknown");
+    });
+    return res.status(200).json({ ok: true });
+  }
   const callback = update?.callback_query;
   if (!callback) return res.status(200).json({ ok: true });
   const cfg = telegramPayConfig();
@@ -311,12 +475,49 @@ async function handleTelegramWebhook(req: any, res: any) {
   const answer = async (text: string, alert = false) => {
     await telegramPayApi("answerCallbackQuery", { callback_query_id: String(callback.id), text, show_alert: alert }).catch(() => {});
   };
+  const data = String(callback.data || "");
+  if (data.startsWith("pack:")) {
+    // Visitor intake: pack selection from the member's own chat.
+    const pack = Number(data.slice(5));
+    if (INTAKE_PACKAGES[pack]) {
+      await answer(`اخترت باقة ${pack} توكين`);
+      await intakeSend(chatId, intakeProofRequestText(pack));
+    } else {
+      await answer("");
+    }
+    return res.status(200).json({ ok: true });
+  }
   if (!cfg || chatId !== cfg.adminChatId) {
     console.error("[Telegram Webhook] Callback from unexpected chat", chatId || "unknown");
     await answer("غير مصرّح", true);
     return res.status(200).json({ ok: true });
   }
-  const match = String(callback.data || "").match(/^pay:(approve|reject_fake|reject_unclear):([0-9a-f-]{36})$/i);
+  const signal = data.match(/^(ok|no):(\d+)$/);
+  if (signal) {
+    // Visitor-intake signal buttons: notify the member of the admin's
+    // decision (crediting itself stays in the admin panel, as in v1).
+    const memberChat = signal[2];
+    const approved = signal[1] === "ok";
+    if (approved) {
+      await intakeSend(memberChat, "🎉 تم تفعيل باقتك بنجاح!\nالتوكنات اتضافت لحسابك على الموقع — افتح حسابك وهتلاقي رصيدك الجديد.\nhttps://hotgpt.pro");
+      await answer("تم إبلاغ العضو بالتفعيل");
+    } else {
+      await intakeSend(memberChat, "تعذّر تفعيل طلبك هذه المرة.\nمن فضلك تأكد أن اسكرين التحويل واضح، وأن الإيميل هو المسجل به في الموقع، وأعد المحاولة — أو ادفع من صفحة الدفع في الموقع:\nhttps://hotgpt.pro");
+      await answer("تم إبلاغ العضو بالرفض");
+    }
+    if (messageId) {
+      await telegramPayApi("editMessageReplyMarkup", {
+        chat_id: cfg.adminChatId, message_id: messageId, reply_markup: { inline_keyboard: [] },
+      }).catch(() => {});
+      await telegramPayApi("sendMessage", {
+        chat_id: cfg.adminChatId,
+        text: approved ? "✔ تم التفعيل — طلب من البوت" : "✖ مرفوض — طلب من البوت",
+        reply_to_message_id: messageId,
+      }).catch(() => {});
+    }
+    return res.status(200).json({ ok: true });
+  }
+  const match = data.match(/^pay:(approve|reject_fake|reject_unclear):([0-9a-f-]{36})$/i);
   if (!match) {
     await answer("بيانات غير صالحة", true);
     return res.status(200).json({ ok: true });
