@@ -115,6 +115,20 @@ export async function signIn(email: string, password: string) {
   return session;
 }
 
+export function signInWithGoogle() {
+  const { url } = publicConfig();
+  // Markers read by Auth.tsx / Home.tsx when the browser returns from
+  // Google: oauth-pending tells Auth.tsx to hand off to "/" once the
+  // session lands, welcome-pending arms the post-login welcome popup
+  // (same pattern as the password sign-in in Auth.tsx).
+  try {
+    sessionStorage.setItem("hotgpt-oauth-pending", "1");
+    sessionStorage.setItem("hotgpt-welcome-pending", "1");
+  } catch {}
+  const redirectTo = encodeURIComponent(`${window.location.origin}/auth`);
+  window.location.assign(`${url}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`);
+}
+
 export async function signOut() {
   const session = readSession();
   try {

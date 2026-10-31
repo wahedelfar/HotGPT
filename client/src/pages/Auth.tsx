@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { signIn, signUp } from "@/lib/auth";
+import { readSession, signIn, signInWithGoogle, signUp } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 function messageFor(error: unknown) {
@@ -36,6 +36,25 @@ export default function AuthPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [recoveryMode] = useState(() => { const hash = new URLSearchParams(window.location.hash.replace(/^#/, "")); return hash.get("type") === "recovery" && Boolean(hash.get("access_token")); });
+  // Google OAuth return: signInWithGoogle() marked sessionStorage before
+  // leaving. On return, main.tsx's consumeAuthRedirect has already stored
+  // any session from the hash — here we only hand off to "/" on success,
+  // or surface the failure in the notice below. Recovery hashes are not
+  // OAuth returns and are left to the recovery flow above.
+  const [oauthReturn] = useState(() => {
+    try {
+      const pending = sessionStorage.getItem("hotgpt-oauth-pending") === "1";
+      if (pending) sessionStorage.removeItem("hotgpt-oauth-pending");
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const failed = pending && Boolean(hash.get("error") || hash.get("error_description"));
+      if (failed) {
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      } else if (pending && readSession()) {
+        window.location.replace("/");
+      }
+      return { failed };
+    } catch { return { failed: false }; }
+  });
   const [forgotPasswordBusy, setForgotPasswordBusy] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -49,6 +68,7 @@ export default function AuthPage() {
         return "الرابط اللي فتحته انتهى أو استُخدم من قبل. لو كنت بتفعّل حسابك جرّب تسجيل الدخول عادي، ولو كنت بتعيّن كلمة مرور جديدة اطلب رابطًا جديدًا من «نسيت كلمة المرور؟».";
       }
     } catch {}
+    if (oauthReturn.failed) return "اتلغى تسجيل الدخول بـ Google أو حصلت مشكلة أثناءه — جرّب تاني أو ادخل بالإيميل وكلمة المرور.";
     return "";
   });
   const [success, setSuccess] = useState(false);
@@ -181,6 +201,14 @@ export default function AuthPage() {
         </div>
         <h1 className="mt-2 text-2xl font-bold">{mode === "login" ? "مرحبًا بعودتك" : "أنشئ حسابك"}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">سجّل الدخول لحفظ محادثاتك ومتابعة رصيدك من أي جهاز.</p>
+        {!recoveryMode && <>
+          <button type="button" onClick={() => signInWithGoogle()} className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-white font-bold text-[#1A0505] shadow hover:bg-slate-100">
+            <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/></svg>
+            {language === "ar" ? (mode === "login" ? "تسجيل الدخول بـ Google" : "إنشاء حساب بـ Google") : "Continue with Google"}
+          </button>
+          <p className="mt-3 text-center text-[12.5px] leading-5 text-slate-400">{language === "ar" ? "لو عندك حساب عندنا بالإيميل وكلمة المرور، ادخل بيه هو عشان رصيدك ومحادثاتك يفضلوا معاك." : "Already have an email & password account with us? Sign in with it to keep your balance and chats."}</p>
+          <div className="mt-5 flex items-center gap-3" aria-hidden="true"><span className="h-px flex-1 bg-white/10" /><span className="text-xs text-slate-500">{language === "ar" ? "أو بالإيميل" : "or with email"}</span><span className="h-px flex-1 bg-white/10" /></div>
+        </>}
         {!recoveryMode && inviteCode && (
           <div className="mt-5 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-start">
             <p className="text-sm font-bold text-amber-200">{language === "ar" ? <>حضرتك وصلت عن طريق كود الدعوة: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></> : <>You arrived via an invite code: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></>}</p>
