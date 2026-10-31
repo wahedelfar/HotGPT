@@ -195,6 +195,18 @@ export async function setTokenBalanceByEmail(email: string, balance: number) {
   return wallet ? { id: profile.id, name: profile.display_name, email: profile.email, tokenBalance: Number(wallet.token_balance), freeAnswersUsed: Number(wallet.free_answers_used) } : null;
 }
 
+export async function findProfileByEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  const rows = await rest(`profiles?email=eq.${encodeURIComponent(normalized)}&select=id,email&limit=1`);
+  const profile = rows?.[0];
+  return profile ? { id: String(profile.id), email: String(profile.email) } : null;
+}
+
+export async function hasPendingPaymentRequest(userId: string): Promise<boolean> {
+  const rows = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&status=eq.pending&select=id&limit=1`);
+  return Boolean(rows?.length);
+}
+
 export async function listPaymentRequests() {
   const rows = await rest("payment_requests?select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,status,created_at,reviewed_at,reviewed_by,bridge_status,review_source,notify_on_approval,auto_check,auto_reference&order=created_at.desc&limit=200");
   return (rows || []).map((row: any) => ({
