@@ -1625,13 +1625,16 @@ export default async function handler(req: any, res: any) {
       if (apinexKey && liveSearchStatus === "active") providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexDarkLiveModel, openRouter: true, apiNex: true });
       providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (useOpenRouterDefault) {
-      if (apinexKey) {
-        providers.push({ name: "primary", endpoint: apinexEndpoint, key: apinexKey, model: apinexDefaultModel, openRouter: true, apiNex: true });
-        providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "deepseek/deepseek-v4-flash").trim(), openRouter: true, reasoningEffort: "low" });
-      } else {
-        providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "deepseek/deepseek-v4-flash").trim(), openRouter: true, reasoningEffort: "low" });
-        providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
-      }
+      // Default primary (owner decision, 2026-10-31): GLM 5.3 on OpenRouter —
+      // it won the same-day restriction probe (full pentest code with
+      // extraction, answered instantly, no reasoning sink), while the APInex
+      // free route refused the same prompt that morning. The free first
+      // experience is the priority, so the strongest model leads the default
+      // mode; the APInex free model stays as the cost-hedge backup and Qwen
+      // behind it. Override: OPENROUTER_DEFAULT_MODEL.
+      providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "z-ai/glm-5.3").trim(), openRouter: true });
+      if (apinexKey) providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexDefaultModel, openRouter: true, apiNex: true });
+      providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (endpoint && apiKey) {
       providers.push({ name: "primary", endpoint, key: apiKey, model: primaryModel });
       // Smart-backup pair (user design, 2026-10-25): the two DadGPT models watch
