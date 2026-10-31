@@ -24,8 +24,8 @@ const PRIZES: Array<{ tokens: number; weight: number }> = [
 const PAYPAL_BUNDLES: Record<number, string> = { 2: "2.00", 5: "5.00" };
 const VODAFONE_CASH_NUMBER = "01063537686";
 const VODAFONE_CASH_URL = "https://vf.eg/vfcash?id=mt&qrId=G0gO2O";
-const INSTAPAY_ADDRESS = "wahedelfar1@instapay";
-const INSTAPAY_URL = "https://ipn.eg/S/wahedelfar1/instapay/5hwGuZ";
+const INSTAPAY_ADDRESS = "wahedelfar@instapay";
+const INSTAPAY_URL = "https://ipn.eg/S/wahedelfar/instapay/4LnUCo";
 
 const supabaseUrl = () => (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
 const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";

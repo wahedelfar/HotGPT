@@ -252,8 +252,8 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({
       vodafoneCashNumber: "01063537686",
       vodafoneCashUrl: "https://vf.eg/vfcash?id=mt&qrId=G0gO2O",
-      instapayAddress: "wahedelfar1@instapay",
-      instapayUrl: "https://ipn.eg/S/wahedelfar1/instapay/5hwGuZ",
+      instapayAddress: "wahedelfar@instapay",
+      instapayUrl: "https://ipn.eg/S/wahedelfar/instapay/4LnUCo",
       paypalPaymentUrl: process.env.PAYPAL_PAYMENT_URL ?? "",
       paypalClientId: process.env.PAYPAL_CLIENT_ID ?? "",
       packages: [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }],
