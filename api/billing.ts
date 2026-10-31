@@ -369,6 +369,24 @@ export default async function handler(req: any, res: any) {
   }
   if (action === "paypal-webhook") return await handlePaypalWebhook(req, res);
   if (action === "telegram-webhook") return await handleTelegramWebhook(req, res);
+  // THROWAWAY preview-gate probe (branch ocr-preview-gate only — never merge):
+  // proves tesseract.js bundles and runs inside this existing function slot.
+  if (action === "ocr-probe") {
+    if (req.headers?.["x-probe-secret"] !== "gate-probe-2026") return res.status(401).json({ error: "unauthorized" });
+    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const started = Date.now();
+    try {
+      const { createWorker } = await import("tesseract.js");
+      const bytes = Buffer.from(String((req.body ?? {}).imageBase64 || ""), "base64");
+      if (!bytes.length) return res.status(400).json({ error: "imageBase64_required" });
+      const worker = await createWorker(["ara", "eng"], 1, { cachePath: "/tmp" });
+      const { data } = await worker.recognize(bytes);
+      await worker.terminate();
+      return res.status(200).json({ ok: true, ms: Date.now() - started, text: data.text.slice(0, 2000) });
+    } catch (error) {
+      return res.status(500).json({ ok: false, ms: Date.now() - started, error: error instanceof Error ? error.message : "unknown" });
+    }
+  }
   if (action === "auth") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
     const token = String(req.headers?.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
