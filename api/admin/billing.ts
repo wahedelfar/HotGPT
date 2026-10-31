@@ -54,9 +54,9 @@ export default async function handler(req: any, res: any) {
     if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
     const id = String(Array.isArray(req.query.id) ? req.query.id[0] : req.query.id || "");
     const decision = Array.isArray(req.query.decision) ? req.query.decision[0] : req.query.decision;
-    if (!/^[0-9a-f-]{36}$/i.test(id) || !["approve", "reject"].includes(decision)) return res.status(400).json({ error: "invalid_payment_decision" });
+    if (!/^[0-9a-f-]{36}$/i.test(id) || !["approve", "reject_fake", "reject_unclear"].includes(decision)) return res.status(400).json({ error: "invalid_payment_decision" });
     try {
-      const payment = await db.reviewPaymentRequest(id, decision === "approve", admin.email ?? "admin");
+      const payment = await db.reviewPaymentRequestShared({ paymentId: id, decision, source: "panel", reviewer: admin.email ?? "admin" });
       return res.status(200).json({ success: true, payment: { id: payment.id, status: payment.status } });
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown";
