@@ -1625,14 +1625,16 @@ export default async function handler(req: any, res: any) {
       if (apinexKey && liveSearchStatus === "active") providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexDarkLiveModel, openRouter: true, apiNex: true });
       providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (useOpenRouterDefault) {
-      // Default primary (owner decision, 2026-10-31): GLM 5.3 on OpenRouter —
-      // it won the same-day restriction probe (full pentest code with
-      // extraction, answered instantly, no reasoning sink), while the APInex
-      // free route refused the same prompt that morning. The free first
-      // experience is the priority, so the strongest model leads the default
-      // mode; the APInex free model stays as the cost-hedge backup and Qwen
-      // behind it. Override: OPENROUTER_DEFAULT_MODEL.
-      providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "z-ai/glm-5.3").trim(), openRouter: true });
+      // Default primary (owner decision, 2026-11-01, supersedes the GLM 5.3
+      // swap of 2026-10-31): the Dark mode model — Dolphin Mistral 24B Venice
+      // Edition — leads the default mode. In the owner's field test the same
+      // evening, GLM 5.3 refused his hardest code request while the Dark
+      // model answered it, and the free first experience is the priority.
+      // GLM 5.3 stays as the strong first backup, the APInex free model as
+      // the cost hedge, and Qwen behind them. Beast routing is untouched.
+      // Override: OPENROUTER_DEFAULT_MODEL.
+      providers.push({ name: "primary", endpoint: openRouterEndpoint, key: openRouterKey, model: (process.env.OPENROUTER_DEFAULT_MODEL || "cognitivecomputations/dolphin-mistral-24b-venice-edition").trim(), openRouter: true });
+      providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: "z-ai/glm-5.3", openRouter: true });
       if (apinexKey) providers.push({ name: "backup", endpoint: apinexEndpoint, key: apinexKey, model: apinexDefaultModel, openRouter: true, apiNex: true });
       providers.push({ name: "backup", endpoint: openRouterEndpoint, key: openRouterKey, model: orQwenModel, openRouter: true });
     } else if (endpoint && apiKey) {
