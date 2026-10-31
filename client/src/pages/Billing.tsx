@@ -249,6 +249,9 @@ export default function BillingPage() {
         <img src="/brand/logo.png" alt="HotGPT" className="mx-auto h-24 w-24 object-contain" />
         <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
       </div>
+      <div className="mt-2 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-center text-base font-bold leading-7 text-amber-200">
+        {t("رجاءً: لو واجهتك مشكلة أو صعوبة في الدفع، تواصل مع الدعم الفني ", "Please note: if you face any problem or difficulty while paying, contact technical support ")}<a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="text-amber-300 underline decoration-2 underline-offset-4 hover:text-amber-200">{t("من هنا", "here")}</a>{t(" وسيتم حلها فورًا.", " and it will be resolved immediately.")}
+      </div>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">{t("الباقات ورصيد التوكينات", "Packs & token balance")}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{t("كل فعل بسعر ثابت تعرفه قبل ما تبدأ — مفيش فواتير مفاجئة. وعضويتك بدأت بهدية ترحيب: 5 توكينات وصلت رصيدك تلقائيًا عند أول دخول.", "Every action has one flat price you know before you start — no surprise bills. And your membership began with a welcome gift: 5 tokens landed in your balance automatically on your first visit.")}</p></div>
         {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{account.tokenBalance} {t("توكين", "tokens")}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{t("🎁 أُضيفت هدية الترحيب (5 توكينات) إلى رصيدك", "🎁 The welcome gift (5 tokens) was added to your balance")}</div>}</div>}
