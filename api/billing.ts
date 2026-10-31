@@ -214,6 +214,151 @@ async function handlePaypalWebhook(req: any, res: any) {
   return res.status(200).json({ received: true });
 }
 
+// --- Telegram payment gateway (v1): every manual payment submission is
+// forwarded to the admin's Telegram chat (@HOT_GPTPaybot) with the proof
+// photo and approve / reject buttons, and the buttons' callbacks land
+// back here as action "telegram-webhook" — no new serverless file (the
+// 12-function cap). No member session exists on webhook calls;
+// authenticity comes from the shared secret Telegram echoes in the
+// x-telegram-bot-api-secret-token header (set at setWebhook time).
+function telegramPayConfig() {
+  const token = process.env.TELEGRAM_PAY_BOT_TOKEN || "";
+  const adminChatId = process.env.TELEGRAM_PAY_ADMIN_CHAT_ID || "";
+  if (!token || !adminChatId) return null;
+  return { token, adminChatId };
+}
+async function telegramPayApi(method: string, body: FormData | Record<string, unknown>) {
+  const cfg = telegramPayConfig();
+  if (!cfg) return { ok: false, payload: null as any };
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+  const response = await fetch(`https://api.telegram.org/bot${cfg.token}/${method}`, {
+    method: "POST",
+    body: isForm ? (body as FormData) : JSON.stringify(body),
+    headers: isForm ? undefined : { "content-type": "application/json" },
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null);
+  return { ok: Boolean((payload as any)?.ok), payload };
+}
+async function sendTelegramPaymentAlert(args: {
+  request: { id: string; email: string; paymentMethod: string; packageTokens: number; amountEgp: number; transferReference: string | null; proofPath: string };
+  bridge: string;
+}) {
+  try {
+    const cfg = telegramPayConfig();
+    if (!cfg) return;
+    const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
+    if (!url || !key) { console.error("[Telegram] Supabase storage not configured for proof fetch"); return; }
+    const proofResponse = await fetch(`${url}/storage/v1/object/hotgpt-payment-proofs/${args.request.proofPath}`, {
+      headers: { apikey: key, authorization: `Bearer ${key}` },
+      cache: "no-store",
+    });
+    if (!proofResponse.ok) { console.error("[Telegram] Proof fetch failed", proofResponse.status); return; }
+    const bytes = await proofResponse.arrayBuffer();
+    const bridgeText = args.bridge === "granted" ? "مُنحت (٥ توكين)"
+      : args.bridge === "blocked" ? "محظورة"
+      : args.bridge === "duplicate" ? "مكررة — عنده جسر قائم" : "لم تُمنح";
+    const caption = [
+      "طلب دفع جديد — HotGPT",
+      `العضو: ${args.request.email}`,
+      `الباقة: ${args.request.packageTokens} توكين — ${args.request.amountEgp} جنيه`,
+      `الوسيلة: ${args.request.paymentMethod === "instapay" ? "إنستا باي" : "فودافون كاش"}`,
+      `رقم العملية: ${args.request.transferReference || "—"}`,
+      `هدية الجسر: ${bridgeText}`,
+    ].join("\n");
+    const form = new FormData();
+    form.append("chat_id", cfg.adminChatId);
+    form.append("photo", new Blob([bytes]), "proof.jpg");
+    form.append("caption", caption);
+    form.append("reply_markup", JSON.stringify({
+      inline_keyboard: [
+        [{ text: "✅ موافقة وإضافة التوكنات", callback_data: `pay:approve:${args.request.id}` }],
+        [{ text: "❌ رفض – إثبات غير صحيح", callback_data: `pay:reject_fake:${args.request.id}` }],
+        [{ text: "🔁 رفض – صورة غير واضحة", callback_data: `pay:reject_unclear:${args.request.id}` }],
+      ],
+    }));
+    const { ok, payload } = await telegramPayApi("sendPhoto", form);
+    if (ok && payload?.result?.message_id) {
+      await db.setPaymentRequestTelegramMessageId(args.request.id, Number(payload.result.message_id)).catch(() => {});
+    } else {
+      console.error("[Telegram] sendPhoto failed", payload?.description || "unknown");
+    }
+  } catch (error) {
+    // The request itself is the record and the admin panel is the
+    // reference — a Telegram outage must never fail a submission.
+    console.error("[Telegram] Payment alert failed", error instanceof Error ? error.message : "unknown");
+  }
+}
+async function handleTelegramWebhook(req: any, res: any) {
+  if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+  const secret = process.env.TELEGRAM_PAY_WEBHOOK_SECRET || "";
+  if (!secret) {
+    console.error("[Telegram Webhook] TELEGRAM_PAY_WEBHOOK_SECRET is not configured");
+    return res.status(503).json({ error: "telegram_webhook_not_configured" });
+  }
+  const given = typeof req.headers?.["x-telegram-bot-api-secret-token"] === "string" ? req.headers["x-telegram-bot-api-secret-token"] : "";
+  if (given !== secret) return res.status(401).json({ error: "invalid_secret" });
+  let update: any = null;
+  try {
+    update = typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
+  } catch { update = null; }
+  const callback = update?.callback_query;
+  if (!callback) return res.status(200).json({ ok: true });
+  const cfg = telegramPayConfig();
+  const chatId = String(callback?.message?.chat?.id ?? "");
+  const messageId = Number(callback?.message?.message_id || 0);
+  const answer = async (text: string, alert = false) => {
+    await telegramPayApi("answerCallbackQuery", { callback_query_id: String(callback.id), text, show_alert: alert }).catch(() => {});
+  };
+  if (!cfg || chatId !== cfg.adminChatId) {
+    console.error("[Telegram Webhook] Callback from unexpected chat", chatId || "unknown");
+    await answer("غير مصرّح", true);
+    return res.status(200).json({ ok: true });
+  }
+  const match = String(callback.data || "").match(/^pay:(approve|reject_fake|reject_unclear):([0-9a-f-]{36})$/i);
+  if (!match) {
+    await answer("بيانات غير صالحة", true);
+    return res.status(200).json({ ok: true });
+  }
+  const decision = match[1] as "approve" | "reject_fake" | "reject_unclear";
+  const paymentId = match[2];
+  try {
+    const result = await db.reviewPaymentRequestShared({ paymentId, decision, source: "telegram", reviewer: "telegram-admin" });
+    const answerText = decision === "approve" ? "تمت الموافقة ✔" : decision === "reject_fake" ? "تم الرفض ❌" : "تم الرفض 🔁";
+    await answer(answerText);
+    const time = new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" });
+    const resultLine = decision === "approve"
+      ? `تمت الموافقة ✔ أُضيفت ${result.packageTokens} توكين — ${time}`
+      : decision === "reject_fake"
+        ? "تم الرفض ❌ إثبات غير صحيح — سُحبت هدية الجسر وحُظر العضو منها"
+        : "تم الرفض 🔁 صورة غير واضحة — العضو يقدر يعيد الإرسال";
+    const originalCaption = typeof callback?.message?.caption === "string" ? callback.message.caption : "";
+    if (messageId) {
+      await telegramPayApi("editMessageCaption", {
+        chat_id: cfg.adminChatId, message_id: messageId,
+        caption: originalCaption ? `${originalCaption}\n${resultLine}` : resultLine,
+        reply_markup: { inline_keyboard: [] },
+      }).catch(() => {});
+    }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "unknown";
+    if (code === "payment_already_reviewed") {
+      await answer("الطلب ده اتحسم قبل كده");
+      if (messageId) {
+        await telegramPayApi("editMessageReplyMarkup", {
+          chat_id: cfg.adminChatId, message_id: messageId, reply_markup: { inline_keyboard: [] },
+        }).catch(() => {});
+      }
+    } else if (code === "payment_not_found") {
+      await answer("الطلب غير موجود", true);
+    } else {
+      console.error("[Telegram Webhook] Review failed", code);
+    }
+  }
+  return res.status(200).json({ ok: true });
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = typeof req.query?.action === "string" ? req.query.action : "";
@@ -223,6 +368,7 @@ export default async function handler(req: any, res: any) {
     return res.status(200).send(publicPlatformScript());
   }
   if (action === "paypal-webhook") return await handlePaypalWebhook(req, res);
+  if (action === "telegram-webhook") return await handleTelegramWebhook(req, res);
   if (action === "auth") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
     const token = String(req.headers?.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
@@ -333,12 +479,52 @@ export default async function handler(req: any, res: any) {
         transferReference: typeof body.transferReference === "string" ? body.transferReference.slice(0, 200) : "",
         screenshotData,
       });
-      return res.status(201).json({ success: true, requestId: request.id, status: request.status });
+      // Bridge gift + Telegram admin alert: both best-effort, neither may
+      // ever fail the submission itself.
+      let bridge = "none";
+      try {
+        bridge = await db.grantBridgeGiftIfEligible(request.id, user.id);
+      } catch (error) {
+        console.error("[Billing] Bridge gift failed", error instanceof Error ? error.message : "unknown");
+      }
+      const full = await db.getPaymentRequestById(request.id).catch(() => null);
+      if (full) await sendTelegramPaymentAlert({ request: full, bridge });
+      return res.status(201).json({ success: true, requestId: request.id, status: request.status, bridge });
     } catch (error) {
       const code = error instanceof Error ? error.message : "unknown";
       console.error("[Billing] Payment submission failed", code);
       const known = ["invalid_screenshot", "screenshot_too_large", "proof_upload_failed", "payment_insert_failed", "supabase_server_not_configured"];
       return res.status(code === "invalid_screenshot" || code === "screenshot_too_large" ? 400 : 503).json({ error: known.includes(code) ? code : "payment_submission_failed" });
+    }
+  }
+  if (action === "payment-notify") {
+    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const user = await requireMember(req, res);
+    if (!user) return;
+    const requestId = String((req.body ?? {}).requestId || "");
+    const notify = (req.body ?? {}).notify;
+    if (!/^[0-9a-f-]{36}$/i.test(requestId) || typeof notify !== "boolean") return res.status(400).json({ error: "invalid_notify_request" });
+    try {
+      const updated = await db.setNotifyOnApproval(user.id, requestId, notify);
+      if (!updated) return res.status(409).json({ error: "request_not_pending_or_not_owned" });
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("[Billing] Notify preference failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "notify_unavailable" });
+    }
+  }
+  if (action === "notice-seen") {
+    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const user = await requireMember(req, res);
+    if (!user) return;
+    const requestId = String((req.body ?? {}).requestId || "");
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) return res.status(400).json({ error: "invalid_request_id" });
+    try {
+      await db.markApprovalNoticeSeen(user.id, requestId);
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("[Billing] Notice-seen failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "notice_unavailable" });
     }
   }
   if (action === "paypal-create") {
