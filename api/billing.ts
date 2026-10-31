@@ -620,6 +620,14 @@ export default async function handler(req: any, res: any) {
       freeAnswers: 0, welcomeGiftTokens: 5, creditsPerAnswer: 1,
     });
   }
+  if (action === "public-requests") {
+    if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
+    try { return res.status(200).json({ requests: await db.listPublicPaymentRequests() }); }
+    catch (error) {
+      console.error("[Billing] Public payment requests failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "payment_requests_unavailable" });
+    }
+  }
   if (action === "me") {
     if (req.method !== "GET") { res.setHeader("Allow", "GET"); return res.status(405).json({ error: "method_not_allowed" }); }
     const user = await requireMember(req, res);

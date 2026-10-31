@@ -59,6 +59,7 @@ export default function BillingPage() {
   const [packageTokens, setPackageTokens] = useState(500);
   const [paymentMethod, setPaymentMethod] = useState<"vodafone_cash" | "instapay" | "paypal">("vodafone_cash");
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
+  const [publicRequests, setPublicRequests] = useState<PaymentRequest[]>([]);
   const [screenshotData, setScreenshotData] = useState("");
   const [message, setMessage] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -89,6 +90,7 @@ export default function BillingPage() {
     } else setAccount(null);
   }
   useEffect(() => { trackFunnelEvent({ name: "billing_view" }); void load().catch(() => setMessage(t("تعذر تحميل بيانات الباقات. أعد المحاولة.", "Could not load the pack data. Please try again."))); }, []);
+  useEffect(() => { fetch("/api/billing?action=public-requests").then(r => (r.ok ? r.json() : null)).then(d => { if (Array.isArray(d?.requests)) setPublicRequests(d.requests); }).catch(() => {}); }, []);
 
   const packages = config?.packages ?? [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }];
   const selected = packages.find(item => item.tokens === packageTokens);
@@ -333,6 +335,12 @@ export default function BillingPage() {
           </div>
         </div>}
       </section>
+      {publicRequests.length > 0 && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
+        <p className="text-xs font-bold tracking-[.2em] text-amber-400">PLATFORM ACTIVITY</p>
+        <h2 className="mt-2 text-xl font-bold">{t("أحدث عمليات الدفع على المنصة", "Latest payment activity on the platform")}</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-400">{t("عمليات دفع من أعضاء المنصة مرت بنظام المراجعة عندنا زي ما هي: اللي إثباته سليم اتفعّل، واللي إثباته مش سليم اترفض.", "Payment operations from platform members, shown exactly as they passed through our review system: valid proof was activated, faulty proof was rejected.")}</p>
+        <div className="mt-4 space-y-3">{publicRequests.map(request => <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-4"><div><div className="font-bold">{request.packageTokens.toLocaleString("en-US")} {t("توكين", "tokens")} · {request.amountEgp} {t("جنيه", "EGP")}</div><div className="mt-1 text-xs text-slate-500">{methodLabel(request.paymentMethod)} · #{request.id.slice(0, 8)} · {formatRequestDate(request.createdAt)}</div></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${request.status === "approved" ? "bg-emerald-400/15 text-emerald-300" : request.status === "rejected" ? "bg-red-400/15 text-red-300" : "bg-amber-400/15 text-amber-200"}`}>{statusLabel(request.status)}</span></div>)}</div>
+      </section>}
       {account && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.2em] text-amber-400">PAYMENT ACTIVITY</p><h2 className="mt-2 text-xl font-bold">{t("طلبات الدفع الأخيرة", "Recent payment requests")}</h2></div><button type="button" onClick={() => void load().catch(() => {})} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">{t("تحديث الحالة", "Refresh status")}</button></div>
         {(() => { const notice = requests.find(r => r.status === "approved" && r.notifyOnApproval && !r.approvalNoticeSeenAt); return notice ? <div role="status" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#C9A227]/50 bg-[#1A0505] p-4 text-sm"><span>{t(`تمت الموافقة على طلبك وأُضيف ${notice.packageTokens} توكين إلى رصيدك. بالتوفيق!`, `Your request was approved and ${notice.packageTokens} tokens were added to your balance.`)}</span><button type="button" onClick={() => void dismissApprovalNotice(notice.id)} className="rounded-lg bg-[#FBBF24] px-3 py-1.5 text-xs font-black text-[#1A0505]">{t("تمام", "Got it")}</button></div> : null; })()}
