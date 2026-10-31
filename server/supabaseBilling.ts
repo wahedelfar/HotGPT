@@ -239,21 +239,22 @@ export async function listUserPaymentRequests(userId: string) {
 }
 
 // Public activity feed (Billing page): anonymized latest payment operations
-// — package, amount, method, status, time only; never email or user id. The
-// owner's own accounts are excluded in code so the feed only ever shows
-// genuine member operations (owner decision + review, 2026-11-01).
-const PUBLIC_FEED_EXCLUDED_EMAILS = ["damietta4@gmail.com", "hotgpt.pro@gmail.com", "waheid0@gmail.com", "wawavip@proton.me"];
+// — package, amount, method, status, time only; never email or user id.
+// Operations from the owner's test accounts are flagged `test` (list below);
+// the page prints a small «تجريبي» note under the list while any flagged
+// operation is displayed, and the note disappears on its own once the
+// latest-10 list is all genuine member operations (owner's design,
+// 2026-11-01: title unchanged, all operations shown, test ones disclosed).
+const PUBLIC_FEED_TEST_EMAILS = ["damietta4@gmail.com", "akardomiat@gmail.com", "hotgpt.pro@gmail.com", "waheid0@gmail.com", "wawavip@proton.me"];
 
 export async function listPublicPaymentRequests() {
-  const rows = await rest(`payment_requests?select=id,email,payment_method,package_tokens,amount_egp,status,created_at&order=created_at.desc&limit=30`);
-  return (rows || [])
-    .filter((row: any) => !PUBLIC_FEED_EXCLUDED_EMAILS.includes(String(row.email || "").toLowerCase()))
-    .slice(0, 10)
-    .map((row: any) => ({
-      id: String(row.id), paymentMethod: row.payment_method,
-      packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp),
-      status: String(row.status), createdAt: row.created_at,
-    }));
+  const rows = await rest(`payment_requests?select=id,email,payment_method,package_tokens,amount_egp,status,created_at&order=created_at.desc&limit=10`);
+  return (rows || []).map((row: any) => ({
+    id: String(row.id), paymentMethod: row.payment_method,
+    packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp),
+    status: String(row.status), createdAt: row.created_at,
+    test: PUBLIC_FEED_TEST_EMAILS.includes(String(row.email || "").toLowerCase()),
+  }));
 }
 
 export async function listConversations(userId: string) {

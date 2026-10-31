@@ -5,7 +5,7 @@ import { trackFunnelEvent } from "@/lib/analytics";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type PackageOption = { tokens: number; priceEgp: number };
-type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null; notifyOnApproval?: boolean; approvalNoticeSeenAt?: string | null; memberNoticeText?: string | null };
+type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null; notifyOnApproval?: boolean; approvalNoticeSeenAt?: string | null; memberNoticeText?: string | null; test?: boolean };
 type BillingConfig = {
   vodafoneCashNumber: string;
   vodafoneCashUrl?: string;
@@ -338,8 +338,9 @@ export default function BillingPage() {
       {publicRequests.length > 0 && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
         <p className="text-xs font-bold tracking-[.2em] text-amber-400">PLATFORM ACTIVITY</p>
         <h2 className="mt-2 text-xl font-bold">{t("أحدث عمليات الدفع على المنصة", "Latest payment activity on the platform")}</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">{t("عمليات دفع من أعضاء المنصة مرت بنظام المراجعة عندنا زي ما هي: اللي إثباته سليم اتفعّل، واللي إثباته مش سليم اترفض.", "Payment operations from platform members, shown exactly as they passed through our review system: valid proof was activated, faulty proof was rejected.")}</p>
+        <p className="mt-2 text-sm leading-6 text-slate-400">{t("عمليات مرت بنظام الدفع والمراجعة عندنا زي ما هي: اللي إثباته سليم اتفعّل، واللي إثباته مش سليم اترفض.", "Operations shown exactly as they passed through our payment and review system: valid proof was activated, faulty proof was rejected.")}</p>
         <div className="mt-4 space-y-3">{publicRequests.map(request => <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-4"><div><div className="font-bold">{request.packageTokens.toLocaleString("en-US")} {t("توكين", "tokens")} · {request.amountEgp} {t("جنيه", "EGP")}</div><div className="mt-1 text-xs text-slate-500">{methodLabel(request.paymentMethod)} · #{request.id.slice(0, 8)} · {formatRequestDate(request.createdAt)}</div></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${request.status === "approved" ? "bg-emerald-400/15 text-emerald-300" : request.status === "rejected" ? "bg-red-400/15 text-red-300" : "bg-amber-400/15 text-amber-200"}`}>{statusLabel(request.status)}</span></div>)}</div>
+        {publicRequests.some(request => request.test) && <p className="mt-3 text-center text-[11px] text-slate-500">{t("تجريبي", "Test operations")}</p>}
       </section>}
       {account && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.2em] text-amber-400">PAYMENT ACTIVITY</p><h2 className="mt-2 text-xl font-bold">{t("طلبات الدفع الأخيرة", "Recent payment requests")}</h2></div><button type="button" onClick={() => void load().catch(() => {})} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">{t("تحديث الحالة", "Refresh status")}</button></div>
