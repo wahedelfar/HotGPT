@@ -5,7 +5,7 @@ import { trackFunnelEvent } from "@/lib/analytics";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type PackageOption = { tokens: number; priceEgp: number };
-type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null };
+type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null; notifyOnApproval?: boolean; approvalNoticeSeenAt?: string | null; memberNoticeText?: string | null };
 type BillingConfig = {
   vodafoneCashNumber: string;
   vodafoneCashUrl?: string;
@@ -62,6 +62,8 @@ export default function BillingPage() {
   const [screenshotData, setScreenshotData] = useState("");
   const [message, setMessage] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [lastSubmission, setLastSubmission] = useState<{ requestId: string; bridge: string } | null>(null);
+  const [notifyChoice, setNotifyChoice] = useState(false);
   // Deep link from the low-balance offer: /billing?pack=100 preselects that pack.
   useEffect(() => {
     try {
@@ -154,6 +156,8 @@ export default function BillingPage() {
         if (payload.error === "invalid_package_or_method") throw new Error(t("اختر باقة وطريقة دفع صحيحتين.", "Choose a valid pack and payment method."));
         throw new Error(t("تعذر إرسال طلب الدفع. تحقق من اتصالك وحاول مرة أخرى.", "Could not send the payment request. Check your connection and try again."));
       }
+      setLastSubmission({ requestId: String(payload.requestId || ""), bridge: String(payload.bridge || "none") });
+      setNotifyChoice(false);
       setMessage(""); setPaymentSuccess(true);
       trackFunnelEvent({ name: "manual_payment_proof_submitted", metadata: { packageTokens, paymentMethod } });
       setScreenshotData("");
@@ -171,6 +175,32 @@ export default function BillingPage() {
   const formatRequestDate = (value: string) => { try { return new Intl.DateTimeFormat(language === "ar" ? "ar-EG" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); } catch { return value; } };
   async function copyValue(key: string, value: string) {
     try { await navigator.clipboard.writeText(value); setCopiedKey(key); setTimeout(() => setCopiedKey(""), 2000); } catch {}
+  }
+
+  async function toggleNotify() {
+    if (!lastSubmission?.requestId) return;
+    const next = !notifyChoice;
+    setNotifyChoice(next);
+    try {
+      const response = await authFetch("/api/billing?action=payment-notify", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: lastSubmission.requestId, notify: next }),
+      });
+      if (!response.ok) throw new Error("notify_failed");
+    } catch {
+      setNotifyChoice(!next);
+      setMessage(t("تعذر حفظ اختيار التنبيه. حاول مرة أخرى.", "Could not save your notification choice. Try again."));
+    }
+  }
+
+  async function dismissApprovalNotice(requestId: string) {
+    try {
+      await authFetch("/api/billing?action=notice-seen", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+    } catch {}
+    void load().catch(() => {});
   }
 
   // PayPal Buttons: the browser only starts and approves the order; our
@@ -290,11 +320,19 @@ export default function BillingPage() {
           <Button className="mt-5 h-12 w-full bg-[#FBBF24] font-black text-[#1A0505] hover:bg-[#FBBF24]" style={{ backgroundColor: "#FBBF24", color: "#1A0505" }} disabled={busy || !screenshotData} onClick={() => void submitPayment()}>{busy ? t("جارٍ إرسال الطلب...", "Sending your request...") : t("إرسال إثبات الدفع للمراجعة", "Send payment proof for review")}</Button>
           <p className="mt-3 text-xs leading-5 text-slate-500">{t("للتأكيد السريع يمكنك أيضًا إرسال صورة التحويل عبر", "For faster confirmation you can also send the transfer screenshot via")} <a className="text-amber-400 underline" href="https://wa.me/201063537686" target="_blank" rel="noreferrer">WhatsApp</a>.</p>
         </div>}
-        {message ? <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p> : paymentSuccess && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{language === "ar" ? <>تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة. سيصلك تنبيه خلال دقائق. يمكنك العودة إلى <a href="/" className="font-bold text-amber-300 underline underline-offset-4">رئيسية الموقع</a>.</> : <>Your payment proof was sent for review. Tokens are added after admin approval. You&apos;ll receive a notification within minutes. You can return to the <a href="/" className="font-bold text-amber-300 underline underline-offset-4">site homepage</a>.</>}</p>}
+        {message ? <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">{message}</p> : paymentSuccess && lastSubmission && <div role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
+          <p>{t("تم استلام طلبك وهو الآن قيد المراجعة، وسيتم التفعيل خلال دقائق", "Your request has been received and is now under review — it will be activated within minutes.")}</p>
+          {lastSubmission.bridge === "granted" && <p className="mt-2 font-bold text-amber-300">{t("نزلناك ٥ توكين هدية تشتغل بيهم دلوقتي لحد ما طلبك يتفعّل", "We've added 5 gift tokens to your balance — start working with them now until your request is activated.")}</p>}
+          <div className="mt-3 flex flex-wrap gap-3">
+            <a href="/" className="inline-flex items-center justify-center rounded-lg bg-[#FBBF24] px-4 py-2 text-sm font-black text-[#1A0505]">{t("العودة للرئيسية", "Back to home")}</a>
+            <button type="button" aria-pressed={notifyChoice} onClick={() => void toggleNotify()} className={`inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-bold ${notifyChoice ? "border-amber-400 bg-amber-400/15 text-amber-300" : "border-white/15 text-slate-300 hover:bg-white/10"}`}>{t("نبّهني بعد الموافقة", "Notify me after approval")}</button>
+          </div>
+        </div>}
       </section>
       {account && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-[.2em] text-amber-400">PAYMENT ACTIVITY</p><h2 className="mt-2 text-xl font-bold">{t("طلبات الدفع الأخيرة", "Recent payment requests")}</h2></div><button type="button" onClick={() => void load().catch(() => {})} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">{t("تحديث الحالة", "Refresh status")}</button></div>
-        {requests.length === 0 ? <p className="mt-4 text-sm text-slate-500">{t("لا توجد طلبات دفع سابقة.", "No previous payment requests.")}</p> : <div className="mt-4 space-y-3">{requests.map(request => <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-4"><div><div className="font-bold">{request.packageTokens.toLocaleString("en-US")} {t("توكين", "tokens")} · {request.amountEgp} {t("جنيه", "EGP")}</div><div className="mt-1 text-xs text-slate-500">{methodLabel(request.paymentMethod)} · #{request.id.slice(0, 8)} · {formatRequestDate(request.createdAt)}</div></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${request.status === "approved" ? "bg-emerald-400/15 text-emerald-300" : request.status === "rejected" ? "bg-red-400/15 text-red-300" : "bg-amber-400/15 text-amber-200"}`}>{statusLabel(request.status)}</span></div>)}</div>}
+        {(() => { const notice = requests.find(r => r.status === "approved" && r.notifyOnApproval && !r.approvalNoticeSeenAt); return notice ? <div role="status" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#C9A227]/50 bg-[#1A0505] p-4 text-sm"><span>{t(`تمت الموافقة على طلبك وأُضيف ${notice.packageTokens} توكين إلى رصيدك. بالتوفيق!`, `Your request was approved and ${notice.packageTokens} tokens were added to your balance.`)}</span><button type="button" onClick={() => void dismissApprovalNotice(notice.id)} className="rounded-lg bg-[#FBBF24] px-3 py-1.5 text-xs font-black text-[#1A0505]">{t("تمام", "Got it")}</button></div> : null; })()}
+        {requests.length === 0 ? <p className="mt-4 text-sm text-slate-500">{t("لا توجد طلبات دفع سابقة.", "No previous payment requests.")}</p> : <div className="mt-4 space-y-3">{requests.map(request => <div key={request.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-4"><div><div className="font-bold">{request.packageTokens.toLocaleString("en-US")} {t("توكين", "tokens")} · {request.amountEgp} {t("جنيه", "EGP")}</div><div className="mt-1 text-xs text-slate-500">{methodLabel(request.paymentMethod)} · #{request.id.slice(0, 8)} · {formatRequestDate(request.createdAt)}</div>{request.status === "pending" && request.memberNoticeText && <p className="mt-2 text-xs font-bold text-amber-300">{request.memberNoticeText}</p>}</div><span className={`rounded-full px-3 py-1 text-xs font-bold ${request.status === "approved" ? "bg-emerald-400/15 text-emerald-300" : request.status === "rejected" ? "bg-red-400/15 text-red-300" : "bg-amber-400/15 text-amber-200"}`}>{statusLabel(request.status)}</span></div>)}</div>}
       </section>}
       <footer className="mt-10 pb-4 text-center text-xs leading-6 text-slate-500">
         <p className="text-sm font-black tracking-wide text-slate-300">{t("HotGPT — نماذج حرة للمطورين والمسوقين وشركات تطوير المواقع · حرية الإنترنت", "HotGPT — free models for developers, marketers & web development companies · Internet freedom")}</p>
