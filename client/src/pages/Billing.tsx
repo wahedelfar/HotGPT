@@ -287,6 +287,7 @@ export default function BillingPage() {
       </div>
       <section className="mt-8 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
         <h2 className="text-xl font-bold">{t("طريقة الدفع", "Payment method")}</h2>
+        <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/5 p-3 text-sm leading-6 text-amber-200">{t("ملحوظة مهمة: سواء دفعت بفودافون كاش أو إنستا باي، التفعيل بيتم بعد ما تبعت اسكرين شوت للتحويل يظهر فيها الرقم اللي حوّلت عليه والمبلغ ووقت التحويل — ابعت الإثبات بعد التحويل على طول عشان باقتك تتفعّل.", "Important: whether you pay by Vodafone Cash or InstaPay, activation happens after you send a transfer screenshot clearly showing the number you paid to, the amount and the transfer time — send the proof right after paying so your pack gets activated.")}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <button onClick={() => setPaymentMethod("vodafone_cash")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "vodafone_cash" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
             <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e60000] text-sm font-black text-white">VF</span><span><strong className="block">{t("فودافون كاش", "Vodafone Cash")}</strong><span className="text-xs text-slate-400">{t("جنيه مصري · تحويل من محفظتك", "EGP · transfer from your wallet")}</span></span></span>
@@ -338,6 +339,10 @@ export default function BillingPage() {
         <p className="text-sm font-black tracking-wide text-slate-300">{t("HotGPT — نماذج حرة للمطورين والمسوقين وشركات تطوير المواقع · حرية الإنترنت", "HotGPT — free models for developers, marketers & web development companies · Internet freedom")}</p>
         <p className="mx-auto mt-2 max-w-2xl">{t("باستخدامك HotGPT وشرائك أي باقة، أنت وحدك المسؤول قانونيًا عن طلباتك وعن أي استخدام لمخرجات الخدمة، وليست المنصة. التفاصيل في", "By using HotGPT and buying any pack, you alone are legally responsible for your requests and for any use of the service's outputs — not the platform. Details in the")} <a className="text-amber-400 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a>.</p>
       </footer>
+      <a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" aria-label={t("الدعم الفني على تليجرام", "Technical support on Telegram")} className="fixed bottom-5 start-5 z-40 flex items-center gap-2 rounded-full border border-amber-300/40 bg-[#1A0505]/95 px-4 py-2.5 shadow-lg shadow-black/50 backdrop-blur transition hover:border-amber-300 hover:bg-[#2B0000]">
+        <svg viewBox="0 0 24 24" className="h-6 w-6 fill-amber-400" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+        <span className="text-sm font-black text-amber-300">{t("الدعم الفني", "Support")}</span>
+      </a>
     </div>
   </main></LocalizedText>;
 }
