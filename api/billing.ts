@@ -1,6 +1,7 @@
 import { publicPlatformScript } from "../server/_core/publicConfig.ts";
 import { requireMember } from "../server/_core/vercelAuth.ts";
 import * as db from "../server/supabaseBilling.ts";
+import { TEST_CARD_B64 } from "../server/ocrTestCard.ts";
 import { usdForEgp } from "../server/fxRate.ts";
 
 export const PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 500, 1000: 700 };
@@ -378,7 +379,6 @@ export default async function handler(req: any, res: any) {
     const started = Date.now();
     try {
       const { createWorker } = await import("tesseract.js");
-      const { TEST_CARD_B64 } = await import("../server/ocrTestCard");
       const bytes = viaGet
         ? Buffer.from(TEST_CARD_B64, "base64")
         : Buffer.from(String((req.body ?? {}).imageBase64 || ""), "base64");
