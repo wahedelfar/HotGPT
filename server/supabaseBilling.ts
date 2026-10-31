@@ -128,6 +128,10 @@ export async function submitPaymentRequest(input: {
   if (!match) throw new Error("invalid_screenshot");
   const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
   if (bytes.byteLength > 1_200_000) throw new Error("screenshot_too_large");
+  // Proof fingerprint for the auto-approval duplicate check (build part D):
+  // computed from the exact uploaded bytes, before storage.
+  const proofHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
+    .map(b => b.toString(16).padStart(2, "0")).join("");
   const ext = match[1] === "jpeg" ? "jpg" : match[1];
   const path = `${input.userId}/${crypto.randomUUID()}.${ext}`;
   const { url, key } = config();
@@ -142,16 +146,18 @@ export async function submitPaymentRequest(input: {
     throw new Error("proof_upload_failed");
   }
   try {
-    const rows = await rest("payment_requests?select=id,status", {
+    const rows = await rest("payment_requests?select=id,status,proof_path", {
       method: "POST",
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
         user_id: input.userId, email: input.email.toLowerCase(), payment_method: input.paymentMethod,
         package_tokens: input.packageTokens, amount_egp: input.amountEgp,
         transfer_reference: input.transferReference?.trim() || null, proof_path: path, status: "pending",
+        proof_hash: proofHash,
       }),
     });
-    return rows?.[0] || (() => { throw new Error("payment_insert_failed"); })();
+    const inserted = rows?.[0] || (() => { throw new Error("payment_insert_failed"); })();
+    return { id: inserted.id, status: inserted.status, proofPath: inserted.proof_path };
   } catch (error) {
     await fetch(`${url}/storage/v1/object/hotgpt-payment-proofs/${path}`, {
       method: "DELETE", headers: { apikey: key, authorization: `Bearer ${key}` },
@@ -190,12 +196,14 @@ export async function setTokenBalanceByEmail(email: string, balance: number) {
 }
 
 export async function listPaymentRequests() {
-  const rows = await rest("payment_requests?select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,status,created_at,reviewed_at,reviewed_by&order=created_at.desc&limit=200");
+  const rows = await rest("payment_requests?select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,status,created_at,reviewed_at,reviewed_by,bridge_status,review_source,notify_on_approval,auto_check,auto_reference&order=created_at.desc&limit=200");
   return (rows || []).map((row: any) => ({
     id: row.id, userId: row.user_id, email: row.email, paymentMethod: row.payment_method,
     packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp),
     transferReference: row.transfer_reference, status: row.status, createdAt: row.created_at,
     reviewedAt: row.reviewed_at, reviewedBy: row.reviewed_by,
+    bridgeStatus: row.bridge_status, reviewSource: row.review_source,
+    notifyOnApproval: row.notify_on_approval, autoCheck: row.auto_check, autoReference: row.auto_reference,
   }));
 }
 
@@ -208,11 +216,13 @@ export async function recordFunnelEvent(input: { userId: string; name: string; p
 }
 
 export async function listUserPaymentRequests(userId: string) {
-  const rows = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&select=id,payment_method,package_tokens,amount_egp,status,created_at,reviewed_at&order=created_at.desc&limit=20`);
+  const rows = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&select=id,payment_method,package_tokens,amount_egp,status,created_at,reviewed_at,notify_on_approval,approval_notice_seen_at,bridge_status,member_notice_text&order=created_at.desc&limit=20`);
   return (rows || []).map((row: any) => ({
     id: String(row.id), paymentMethod: row.payment_method,
     packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp),
     status: String(row.status), createdAt: row.created_at, reviewedAt: row.reviewed_at,
+    notifyOnApproval: row.notify_on_approval, approvalNoticeSeenAt: row.approval_notice_seen_at,
+    bridgeStatus: row.bridge_status, memberNoticeText: row.member_notice_text,
   }));
 }
 
@@ -312,6 +322,163 @@ export async function reviewPaymentRequest(paymentId: string, approve: boolean, 
   return await rest("rpc/hotgpt_review_payment", {
     method: "POST",
     body: JSON.stringify({ p_payment_id: paymentId, p_approve: approve, p_reviewer: reviewedBy }),
+  });
+}
+
+// --- Telegram payment gateway (v1): the 5-token bridge gift granted the
+// moment a manual payment request is submitted, and the single shared
+// review entry point used by the admin panel, the Telegram admin buttons
+// and (later) the auto-approval checker. The hotgpt_review_payment RPC
+// stays the untouchable core: it alone flips the status and credits the
+// pack, exactly once, under its row lock. Everything below wraps it.
+export const BRIDGE_GIFT_TOKENS = 5;
+
+export async function getPaymentRequestById(requestId: string) {
+  const rows = await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}&select=id,user_id,email,payment_method,package_tokens,amount_egp,transfer_reference,proof_path,status,bridge_status,proof_hash,auto_reference,auto_check,telegram_message_id,notify_on_approval&limit=1`);
+  const row = rows?.[0];
+  if (!row) return null;
+  return {
+    id: String(row.id), userId: String(row.user_id), email: row.email, paymentMethod: row.payment_method,
+    packageTokens: Number(row.package_tokens), amountEgp: Number(row.amount_egp),
+    transferReference: row.transfer_reference, proofPath: row.proof_path, status: String(row.status),
+    bridgeStatus: String(row.bridge_status || "none"), proofHash: row.proof_hash,
+    autoReference: row.auto_reference, autoCheck: row.auto_check,
+    telegramMessageId: row.telegram_message_id, notifyOnApproval: row.notify_on_approval,
+  };
+}
+
+export async function grantBridgeGiftIfEligible(requestId: string, userId: string): Promise<"granted" | "blocked" | "duplicate" | "none"> {
+  const patchIfNone = async (bridgeStatus: string) => {
+    await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}&bridge_status=eq.none`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ bridge_status: bridgeStatus }),
+    });
+  };
+  const wallets = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&select=token_balance,bridge_blocked&limit=1`);
+  const wallet = wallets?.[0];
+  if (!wallet) return "none";
+  if (wallet.bridge_blocked === true) {
+    await patchIfNone("blocked");
+    return "blocked";
+  }
+  const existing = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&status=eq.pending&bridge_status=eq.granted&id=neq.${encodeURIComponent(requestId)}&select=id&limit=1`);
+  if (existing?.[0]) {
+    await patchIfNone("duplicate");
+    return "duplicate";
+  }
+  // Atomic claim, mirroring the welcome-gift pattern: the PATCH only
+  // matches while this request still has bridge_status 'none'.
+  const claimed = await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}&status=eq.pending&bridge_status=eq.none`, {
+    method: "PATCH", headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ bridge_status: "granted" }),
+  });
+  if (!Array.isArray(claimed) || claimed.length === 0) return "none";
+  // Oldest pending granted request wins: if an earlier one exists, this
+  // claim raced in second and steps back to 'duplicate'.
+  const grantedRows = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&status=eq.pending&bridge_status=eq.granted&select=id,created_at&order=created_at.asc`);
+  const oldest = grantedRows?.[0];
+  if (oldest && String(oldest.id) !== String(requestId)) {
+    await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}&bridge_status=eq.granted`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ bridge_status: "duplicate" }),
+    });
+    return "duplicate";
+  }
+  const credited = await addTokensGuarded(userId, BRIDGE_GIFT_TOKENS);
+  if (!credited) {
+    await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}&bridge_status=eq.granted`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ bridge_status: "none" }),
+    });
+    console.error("[Billing] Bridge gift credit failed for request", requestId);
+    return "none";
+  }
+  try {
+    await recordFunnelEvent({
+      userId, name: "bridge_gift", path: "/api/billing?action=payment",
+      metadata: { payment_request_id: requestId, tokens: BRIDGE_GIFT_TOKENS },
+    });
+  } catch (error) {
+    console.error("[Billing] Bridge gift audit failed", error instanceof Error ? error.message : "unknown");
+  }
+  return "granted";
+}
+
+export async function reviewPaymentRequestShared(input: {
+  paymentId: string;
+  decision: "approve" | "reject_fake" | "reject_unclear";
+  source: "panel" | "telegram" | "auto";
+  reviewer: string;
+}) {
+  // The steps after the RPC are sequential, not one transaction. The
+  // RPC's row lock guarantees the status flip + pack credit happen
+  // exactly once, and the clawback below is guarded by the row still
+  // reading bridge_status 'granted', so a retry can never double-claw.
+  const before = await getPaymentRequestById(input.paymentId);
+  if (!before) throw new Error("payment_not_found");
+  if (before.status !== "pending") throw new Error("payment_already_reviewed");
+  try {
+    await reviewPaymentRequest(input.paymentId, input.decision === "approve", input.reviewer);
+  } catch (error) {
+    // If a human decided the request between our read and the RPC, the
+    // RPC's own guard fired; surface that as already-reviewed, not a 503.
+    const after = await getPaymentRequestById(input.paymentId).catch(() => null);
+    if (after && after.status !== "pending") throw new Error("payment_already_reviewed");
+    throw error;
+  }
+  const row = await getPaymentRequestById(input.paymentId);
+  if (!row) throw new Error("payment_not_found");
+  await rest(`payment_requests?id=eq.${encodeURIComponent(input.paymentId)}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ review_source: input.source }),
+  });
+  let bridgeStatus = row.bridgeStatus;
+  if (input.decision === "reject_fake") {
+    await rest(`wallets?user_id=eq.${encodeURIComponent(row.userId)}`, {
+      method: "PATCH", headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ bridge_blocked: true, updated_at: new Date().toISOString() }),
+    });
+    if (row.bridgeStatus === "granted") {
+      const { deducted } = await clawbackTokens(row.userId, BRIDGE_GIFT_TOKENS);
+      if (deducted > 0) {
+        await rest(`payment_requests?id=eq.${encodeURIComponent(input.paymentId)}&bridge_status=eq.granted`, {
+          method: "PATCH", headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({ bridge_status: "clawed_back" }),
+        });
+        bridgeStatus = "clawed_back";
+        try {
+          await recordFunnelEvent({
+            userId: row.userId, name: "bridge_clawback", path: "/api/billing?action=payment",
+            metadata: { payment_request_id: input.paymentId, tokens: deducted },
+          });
+        } catch (error) {
+          console.error("[Billing] Bridge clawback audit failed", error instanceof Error ? error.message : "unknown");
+        }
+      }
+    }
+  }
+  return { id: row.id, status: row.status, packageTokens: row.packageTokens, bridgeStatus };
+}
+
+export async function setPaymentRequestTelegramMessageId(requestId: string, messageId: number) {
+  await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ telegram_message_id: messageId }),
+  });
+}
+
+export async function setNotifyOnApproval(userId: string, requestId: string, value: boolean): Promise<boolean> {
+  const updated = await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}&user_id=eq.${encodeURIComponent(userId)}&status=eq.pending`, {
+    method: "PATCH", headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ notify_on_approval: value }),
+  });
+  return Array.isArray(updated) && updated.length > 0;
+}
+
+export async function markApprovalNoticeSeen(userId: string, requestId: string) {
+  await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}&user_id=eq.${encodeURIComponent(userId)}&approval_notice_seen_at=is.null`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ approval_notice_seen_at: new Date().toISOString() }),
   });
 }
 
