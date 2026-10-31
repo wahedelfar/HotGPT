@@ -64,6 +64,13 @@ const SECTIONS: Section[] = [
       "We apply reasonable safeguards (encrypted connections, access restricted by row-level security rules). Conversations are retained while the account is active, and users can delete their own conversations at any time from within the service.",
     ],
   },
+  {
+    h: ["٩. تسجيل الدخول عبر Google", "9. Signing in with Google"],
+    p: [
+      "عند اختيارك تسجيل الدخول عبر Google، نتلقى من Google اسمك وبريدك الإلكتروني وصورة ملفك الشخصي ومعرّف حسابك، ونستخدمها فقط لإنشاء حسابك وتسجيل دخولك والتعرف عليك داخل الخدمة. لا نبيع هذه البيانات ولا نشاركها لأغراض إعلانية، ولا تُستخدم في توليد أي محتوى أو في تدريب نماذج ذكاء اصطناعي، ولا تصل إلى مزودي النماذج. يخضع استخدامنا لبيانات مستخدمي Google لسياسة بيانات مستخدمي خدمات Google API بما فيها متطلبات الاستخدام المحدود (Limited Use). وتُحفظ بيانات حسابك ما دام حسابك نشطًا، وتُحذف عند حذف الحساب وفق قسم «حقوقك» أعلاه.",
+      "When you choose to sign in with Google, we receive from Google your name, email address, profile picture, and account ID, and we use them solely to create your account, sign you in, and identify you within the service. We do not sell this data or share it for advertising, and it is never used to generate content or to train AI models, nor is it sent to model providers. Our use of Google user data complies with the Google API Services User Data Policy, including its Limited Use requirements. Your account data is retained while your account is active and is deleted when you delete your account, as described in the 'Your rights' section above.",
+    ],
+  },
 ];
 
 export default function PrivacyPage() {
