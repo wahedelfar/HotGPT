@@ -372,12 +372,16 @@ export default async function handler(req: any, res: any) {
   // THROWAWAY preview-gate probe (branch ocr-preview-gate only — never merge):
   // proves tesseract.js bundles and runs inside this existing function slot.
   if (action === "ocr-probe") {
-    if (req.headers?.["x-probe-secret"] !== "gate-probe-2026") return res.status(401).json({ error: "unauthorized" });
-    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const viaGet = req.method === "GET" && String(req.query?.k || "") === "gate-probe-2026";
+    if (!viaGet && req.headers?.["x-probe-secret"] !== "gate-probe-2026") return res.status(401).json({ error: "unauthorized" });
+    if (!viaGet && req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
     const started = Date.now();
     try {
       const { createWorker } = await import("tesseract.js");
-      const bytes = Buffer.from(String((req.body ?? {}).imageBase64 || ""), "base64");
+      const { TEST_CARD_B64 } = await import("../server/ocrTestCard");
+      const bytes = viaGet
+        ? Buffer.from(TEST_CARD_B64, "base64")
+        : Buffer.from(String((req.body ?? {}).imageBase64 || ""), "base64");
       if (!bytes.length) return res.status(400).json({ error: "imageBase64_required" });
       const worker = await createWorker(["ara", "eng"], 1, { cachePath: "/tmp" });
       const { data } = await worker.recognize(bytes);
