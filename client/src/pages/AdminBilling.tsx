@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 
 type Member = { id: string; name: string | null; email: string | null; role: string; tokenBalance: number; freeAnswersUsed: number; createdAt: string };
-type Payment = { id: string; userId: string; email: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string };
+type Payment = { id: string; userId: string; email: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; transferReference: string | null; status: "pending" | "approved" | "rejected"; createdAt: string; bridgeStatus?: string; reviewSource?: string; notifyOnApproval?: boolean; autoCheck?: string | null; autoReference?: string | null };
 
 function AdminDashboard() {
   const { language } = useAppLanguage();
@@ -69,15 +69,15 @@ function AdminDashboard() {
     finally { setProofLoadingId(null); }
   }
 
-  async function review(payment: Payment, decision: "approve" | "reject") {
-    const action = decision === "approve" ? "الموافقة وإضافة التوكينات" : "رفض الطلب";
+  async function review(payment: Payment, decision: "approve" | "reject_fake" | "reject_unclear") {
+    const action = decision === "approve" ? "الموافقة وإضافة التوكينات" : decision === "reject_fake" ? "رفض الطلب كإثبات غير صحيح" : "رفض الطلب لصورة غير واضحة";
     if (!window.confirm(`هل تريد ${action} للطلب #${payment.id.slice(0, 8)}؟`)) return;
     setBusyId(payment.id); setMessage("");
     try {
       const response = await fetch(`/api/admin/billing?action=review&id=${encodeURIComponent(payment.id)}&decision=${decision}`, { method: "POST" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error === "payment_already_reviewed" ? "تمت مراجعة الطلب بالفعل." : "تعذرت مراجعة طلب الدفع.");
-      setMessage(decision === "approve" ? `تمت الموافقة وإضافة ${payment.packageTokens} توكين إلى ${payment.email}.` : "تم رفض طلب الدفع.");
+      setMessage(decision === "approve" ? `تمت الموافقة وإضافة ${payment.packageTokens} توكين إلى ${payment.email}.` : decision === "reject_fake" ? "تم الرفض كإثبات غير صحيح — تُسحب هدية الجسر إن وُجدت ويُحظر العضو منها." : "تم الرفض لصورة غير واضحة — العضو يقدر يعيد الإرسال.");
       await load();
     } catch (error) { setMessage(error instanceof Error ? error.message : "فشلت المراجعة."); }
     finally { setBusyId(null); }
@@ -115,9 +115,9 @@ function AdminDashboard() {
         <h2 className="text-xl font-bold">طلبات الدفع وإثباتات التحويل</h2>
         {loading ? <p className="py-8 text-slate-400">جارٍ تحميل البيانات...</p> : payments.length === 0 ? <p className="py-8 text-slate-400">لا توجد طلبات دفع حتى الآن.</p> :
           <div className="mt-4 grid gap-4 lg:grid-cols-2">{payments.map(payment => <article key={payment.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-bold">طلب #{payment.id.slice(0, 8)} · {payment.packageTokens} توكين</h3><p className="mt-1 text-sm text-slate-400">{payment.email}</p><p className="mt-1 text-sm">{payment.amountEgp} جنيه · {payment.paymentMethod === "vodafone_cash" ? "فودافون كاش" : payment.paymentMethod === "instapay" ? "إنستاباي" : "PayPal"}</p>{payment.transferReference && <p className="mt-1 text-xs text-slate-400">رقم العملية: {payment.transferReference}</p>}</div><span className={`rounded-full px-3 py-1 text-xs ${payment.status === "pending" ? "bg-amber-300/10 text-amber-200" : payment.status === "approved" ? "bg-emerald-300/10 text-emerald-200" : "bg-red-300/10 text-red-200"}`}>{payment.status === "pending" ? "قيد المراجعة" : payment.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span></div>
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-bold">طلب #{payment.id.slice(0, 8)} · {payment.packageTokens} توكين</h3><p className="mt-1 text-sm text-slate-400">{payment.email}</p><p className="mt-1 text-sm">{payment.amountEgp} جنيه · {payment.paymentMethod === "vodafone_cash" ? "فودافون كاش" : payment.paymentMethod === "instapay" ? "إنستاباي" : "PayPal"}</p>{payment.transferReference && <p className="mt-1 text-xs text-slate-400">رقم العملية: {payment.transferReference}</p>}{payment.bridgeStatus && payment.bridgeStatus !== "none" && <span className="mt-2 inline-block rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">{payment.bridgeStatus === "granted" ? "جسر: مُنحت ٥" : payment.bridgeStatus === "clawed_back" ? "جسر: اتسحبت" : payment.bridgeStatus === "blocked" ? "جسر: محظور" : "جسر: مكررة"}</span>}{payment.autoCheck && <span className="mt-2 inline-block rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">{payment.autoCheck === "passed" ? "فحص آلي: مرّ ✔" : payment.autoCheck === "failed:not_successful" ? "فحص آلي: فشل — عملية غير ناجحة" : payment.autoCheck === "failed:amount_mismatch" ? "فحص آلي: فشل — المبلغ" : payment.autoCheck === "failed:recipient_mismatch" ? "فحص آلي: فشل — المستلم" : payment.autoCheck === "failed:reference_unreadable" ? "فحص آلي: فشل — المرجع غير مقروء" : payment.autoCheck === "failed:reference_used" ? "فحص آلي: فشل — مرجع مستخدم" : payment.autoCheck === "failed:duplicate_screenshot" ? "فحص آلي: فشل — لقطة مكررة" : payment.autoCheck === "failed:layout_mismatch" ? "فحص آلي: فشل — التخطيط" : "فحص آلي: لم يكتمل"}</span>}{payment.autoReference && <p className="mt-1 text-xs text-slate-400">رقم العملية المقروء: {payment.autoReference}</p>}</div><span className={`rounded-full px-3 py-1 text-xs ${payment.status === "pending" ? "bg-amber-300/10 text-amber-200" : payment.status === "approved" ? "bg-emerald-300/10 text-emerald-200" : "bg-red-300/10 text-red-200"}`}>{payment.status === "pending" ? "قيد المراجعة" : payment.status === "approved" ? "تمت الموافقة" : "مرفوض"}</span></div>
             {proofs[payment.id] ? <img src={proofs[payment.id]} alt={`إثبات الدفع للطلب ${payment.id}`} className="mt-4 max-h-80 w-full rounded-lg border border-white/10 bg-black/30 object-contain" /> : <Button variant="outline" className="mt-4" disabled={proofLoadingId === payment.id} onClick={() => void loadProof(payment.id)}>{proofLoadingId === payment.id ? "جارٍ تحميل الصورة..." : "عرض صورة إثبات الدفع"}</Button>}
-            {payment.status === "pending" && <div className="mt-4 flex gap-3"><Button disabled={busyId === payment.id} onClick={() => void review(payment, "approve")}>موافقة وإضافة التوكينات</Button><Button variant="outline" disabled={busyId === payment.id} onClick={() => void review(payment, "reject")}>رفض الطلب</Button></div>}
+            {payment.status === "pending" && <div className="mt-4 flex flex-wrap gap-3"><Button disabled={busyId === payment.id} onClick={() => void review(payment, "approve")}>موافقة وإضافة التوكينات</Button><Button variant="outline" disabled={busyId === payment.id} onClick={() => void review(payment, "reject_fake")}>رفض – إثبات غير صحيح</Button><Button variant="outline" disabled={busyId === payment.id} onClick={() => void review(payment, "reject_unclear")}>رفض – صورة غير واضحة</Button></div>}
             <div className="mt-3 flex justify-end"><Button variant="outline" className="border-red-300/30 text-red-200 hover:bg-red-400/10" disabled={busyId === payment.id} onClick={() => void deletePayment(payment)}>حذف الطلب</Button></div>
           </article>)}</div>}
       </section>
