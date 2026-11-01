@@ -12,15 +12,15 @@ const SECTIONS: Section[] = [
   {
     h: ["١. البيانات التي نجمعها", "1. Data we collect"],
     p: [
-      "بيانات الحساب (البريد الإلكتروني وبيانات الدخول عبر مزود المصادقة)، محادثاتك ورسائلك التي تنشئها داخل الخدمة، سجلات المحفظة والطلبات، وصور إثبات التحويل التي ترفعها عند الدفع اليدوي. لا نطلب ولا نجمع بيانات بطاقات الدفع — مدفوعات البطاقات تتم لدى PayPal مباشرة.",
-      "Account data (email and sign-in data via the authentication provider), the conversations and messages you create in the service, wallet and order records, and the transfer-proof screenshots you upload for manual payments. We never request or collect payment-card data — card payments are processed by PayPal directly.",
+      "نجمع فقط ما يلزم لتشغيل الخدمة: (أ) بيانات الحساب — بريدك الإلكتروني وبيانات تسجيل الدخول عبر مزود المصادقة، وعند دخولك عبر Google نتلقى اسمك وبريدك الإلكتروني وصورة ملفك الشخصي ومعرّف حساب Google الخاص بك؛ (ب) بيانات المحتوى — محادثاتك ورسائلك التي تنشئها داخل الخدمة والملفات التي ترفعها للتحليل وطلبات الخدمات التي تنفذها؛ (ج) بيانات المعاملات — سجلات المحفظة والطلبات، وصور إثبات التحويل التي ترفعها عند الدفع اليدوي؛ (د) بيانات تقنية محدودة — نوع المتصفح والجهاز وسجلات الأخطاء اللازمة للأمان ومنع الاحتيال. لا نطلب ولا نجمع بيانات بطاقات الدفع — مدفوعات البطاقات تتم لدى PayPal مباشرة.",
+      "We collect only what is needed to operate the service: (a) account data — your email address and sign-in data via the authentication provider, and, when you sign in with Google, we receive your name, email address, profile picture, and Google account ID; (b) content data — the conversations and messages you create in the service, files you upload for analysis, and the service requests you run; (c) transaction data — wallet and order records, and the transfer-proof screenshots you upload for manual payments; (d) limited technical data — browser and device type and error logs needed for security and fraud prevention. We never request or collect payment-card data — card payments are processed by PayPal directly.",
     ],
   },
   {
     h: ["٢. كيف تُستخدم البيانات", "2. How data is used"],
     p: [
-      "تُستخدم البيانات لتشغيل الخدمة فقط: تنفيذ طلباتك، احتساب التوكنات وإضافتها، مراجعة المدفوعات واعتمادها، ومنع إساءة الاستخدام والتحايل. لا نبيع بيانات المستخدمين ولا نستخدم محادثاتك في إعلانات.",
-      "Data is used solely to operate the service: executing your requests, metering and crediting tokens, reviewing and approving payments, and preventing abuse and fraud. We do not sell user data and do not use your conversations for advertising.",
+      "تُستخدم البيانات لتشغيل الخدمة فقط: إنشاء حسابك وتسجيل دخولك، تنفيذ طلباتك وتوليد الإجابات والخدمات، احتساب التوكنات وإضافتها، مراجعة المدفوعات واعتمادها، الرد على طلبات الدعم، والحفاظ على أمان الخدمة ومنع إساءة الاستخدام والتحايل، والامتثال للالتزامات القانونية. لا نبيع بيانات المستخدمين لأي طرف، ولا نشاركها لأغراض تسويقية أو إعلانية، ولا نستخدم محادثاتك أو بيانات Google الخاصة بك في تدريب نماذج ذكاء اصطناعي.",
+      "Data is used solely to operate the service: creating your account and signing you in, executing your requests and generating answers and services, metering and crediting tokens, reviewing and approving payments, responding to support requests, keeping the service secure and preventing abuse and fraud, and meeting legal obligations. We do not sell user data to anyone, do not share it for marketing or advertising purposes, and do not use your conversations or your Google user data to train AI models.",
     ],
   },
   {
@@ -68,8 +68,15 @@ const SECTIONS: Section[] = [
   {
     h: ["٩. تسجيل الدخول عبر Google", "9. Signing in with Google"],
     p: [
-      "عند اختيارك تسجيل الدخول عبر Google، نتلقى من Google اسمك وبريدك الإلكتروني وصورة ملفك الشخصي ومعرّف حسابك، ونستخدمها فقط لإنشاء حسابك وتسجيل دخولك والتعرف عليك داخل الخدمة. لا نبيع هذه البيانات ولا نشاركها لأغراض إعلانية، ولا تُستخدم في توليد أي محتوى أو في تدريب نماذج ذكاء اصطناعي، ولا تصل إلى مزودي النماذج. يخضع استخدامنا لبيانات مستخدمي Google لسياسة بيانات مستخدمي خدمات Google API بما فيها متطلبات الاستخدام المحدود (Limited Use). وتُحفظ بيانات حسابك ما دام حسابك نشطًا، وتُحذف عند حذف الحساب وفق قسم «حقوقك» أعلاه.",
-      "When you choose to sign in with Google, we receive from Google your name, email address, profile picture, and account ID, and we use them solely to create your account, sign you in, and identify you within the service. We do not sell this data or share it for advertising, and it is never used to generate content or to train AI models, nor is it sent to model providers. Our use of Google user data complies with the Google API Services User Data Policy, including its Limited Use requirements. Your account data is retained while your account is active and is deleted when you delete your account, as described in the 'Your rights' section above.",
+      "عند اختيارك تسجيل الدخول عبر Google، نتلقى من Google اسمك وبريدك الإلكتروني وصورة ملفك الشخصي ومعرّف حسابك، ونستخدمها فقط لإنشاء حسابك وتسجيل دخولك والتعرف عليك داخل الخدمة. لا نبيع هذه البيانات ولا نشاركها لأغراض إعلانية، ولا تُستخدم في توليد أي محتوى أو في تدريب نماذج ذكاء اصطناعي، ولا تصل إلى مزودي النماذج. يخضع استخدامنا لبيانات مستخدمي Google لسياسة بيانات مستخدمي خدمات Google API بما فيها متطلبات الاستخدام المحدود (Limited Use). وتُحفظ بيانات حسابك ما دام حسابك نشطًا، وتُحذف عند حذف الحساب وفق قسم «حقوقك» أعلاه. ويمكنك في أي وقت مراجعة وصولنا إلى بيانات Google أو إلغاؤه من إعدادات حساب Google الخاص بك، كما يمكنك طلب حذف بيانات حسابك نهائيًا عبر hotgpt.pro@gmail.com.",
+      "When you choose to sign in with Google, we receive from Google your name, email address, profile picture, and account ID, and we use them solely to create your account, sign you in, and identify you within the service. We do not sell this data or share it for advertising, and it is never used to generate content or to train AI models, nor is it sent to model providers. Our use of Google user data complies with the Google API Services User Data Policy, including its Limited Use requirements. Your account data is retained while your account is active and is deleted when you delete your account, as described in the 'Your rights' section above. You can review or revoke our access to your Google data at any time from your Google Account settings, and you can request permanent deletion of your account data via hotgpt.pro@gmail.com.",
+    ],
+  },
+  {
+    h: ["١٠. الامتثال لسياسات Google API", "10. Compliance with Google API policies"],
+    p: [
+      "يلتزم استخدام HotGPT لبيانات مستخدمي Google — وأي نقل لها إلى تطبيق آخر — بسياسة بيانات مستخدمي خدمات Google API، بما فيها متطلبات الاستخدام المحدود (Limited Use): تُستخدم بيانات Google حصرًا في تسجيل الدخول وإدارة الحساب داخل HotGPT، ولا تُنقل إلى مزودي نماذج الذكاء الاصطناعي، ولا تُستخدم في توليد أي محتوى — بما في ذلك أي محتوى حميمي مولّد بالذكاء الاصطناعي دون موافقة (AI NCII) — ولا في الإعلانات أو في بناء ملفات تعريف للمستخدمين.",
+      "HotGPT's use of Google user data, and any transfer of it to another app, complies with the Google API Services User Data Policy, including the Limited Use requirements: Google user data is used exclusively for sign-in and account management within HotGPT; it is never transferred to AI model providers, never used to generate any content — including any AI-generated non-consensual intimate imagery (AI NCII) — and never used for advertising or for building user profiles.",
     ],
   },
 ];

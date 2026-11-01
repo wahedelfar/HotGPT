@@ -741,9 +741,6 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onSite, 
   onImage: () => void;
 }) {
   const { language } = useLanguage();
-  const [hotLuckyBannerVisible, setHotLuckyBannerVisible] = useState(false);
-  useEffect(() => { try { const until = Number(localStorage.getItem("hotlucky-banner-dismissed-until") || 0); setHotLuckyBannerVisible(Date.now() >= until); } catch { setHotLuckyBannerVisible(true); } }, []);
-  const dismissHotLuckyBanner = () => { try { localStorage.setItem("hotlucky-banner-dismissed-until", String(Date.now() + 24 * 60 * 60 * 1000)); } catch {} setHotLuckyBannerVisible(false); };
   // Unified welcome grid (Wahid, 2026-10-27): slightly smaller cards,
   // free starters interleaved with Premium services — every row pairs
   // one of each, Premium carries a badge (+ lock under 20 tokens).
@@ -795,16 +792,6 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onSite, 
   };
   return (
     <div className="welcome-state hotgpt-welcome">
-      {hotLuckyBannerVisible && (
-        <div className="hotlucky-slim-banner" dir={language === "ar" ? "rtl" : "ltr"} role="region" aria-label="HotLucky">
-                  <button type="button" className="hotlucky-slim-close" onClick={dismissHotLuckyBanner} aria-label={tr(language, "إخفاء العرض لمدة 24 ساعة", "Dismiss for 24 hours")}>×</button>
-          <span className="hotlucky-slim-copy">
-            <span className="hotlucky-slim-desktop">{tr(language, "🎁 HotLucky — لفة بـ 50 جنيه: اكسب من 25 لـ 100 توكن", "🎁 HotLucky — spin for 50 EGP: win 25–100 tokens")}</span>
-            <span className="hotlucky-slim-mobile">{tr(language, "🎁 HotLucky — لفّ واكسب توكنات", "🎁 HotLucky — spin & win tokens")}</span>
-          </span>
-          <a className="hotlucky-slim-cta" href="/hotlucky">{tr(language, "ادخل لصفحة الجوائز ›", "Prizes ›")}</a>
-        </div>
-      )}
       <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit" aria-hidden="true">
         <BrandMark compact />
       </div>
@@ -2643,6 +2630,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <a href="/privacy">{tr(language, "سياسة الخصوصية", "Privacy policy")}</a>
             <a href="/refund">{tr(language, "سياسة الاسترداد", "Refund policy")}</a>
           </nav>
+          <p className="home-footer-copy">{tr(language, "تسجيل الدخول عبر Google يُستخدم لإنشاء حسابك وتسجيل دخولك فقط، ولا تُستخدم بيانات Google في توليد المحتوى أو تدريب نماذج الذكاء الاصطناعي.", "Google sign-in is used only to create and sign in to your account; Google data is never used to generate content or train AI models.")}</p>
           <p className="home-footer-copy">© {new Date().getFullYear()} HotGPT — {tr(language, "جميع الحقوق محفوظة", "All rights reserved")}</p>
         </footer>
       </main>
