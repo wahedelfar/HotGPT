@@ -13,7 +13,6 @@ import {
   CircleHelp,
   FileText,
   FolderOpen,
-  Globe,
   Menu,
   MessageSquare,
   Moon,
@@ -560,7 +559,6 @@ function RenderedMessageContent({ content, language }: { content: string; langua
 function isSiteHtml(content: string) { return /<!DOCTYPE html/i.test(content.slice(0, 300)); }
 
 function SiteCard({ html, language, onContinue, continueDisabled }: { html: string; language: Language; onContinue?: () => void; continueDisabled?: boolean }) {
-  const [showGuide, setShowGuide] = useState(false);
   const complete = /<\/html>/i.test(html);
   const usesDefaults = html.includes("hotgpt.pro/site-defaults/");
   const downloadSite = () => {
@@ -589,20 +587,11 @@ function SiteCard({ html, language, onContinue, continueDisabled }: { html: stri
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
         <button type="button" style={btnStyle} onClick={downloadSite}>{tr(language, "⬇ تحميل الموقع", "⬇ Download site")}</button>
         <button type="button" style={btnStyle} onClick={openFull}>{tr(language, "فتح بملء الشاشة", "Open fullscreen")}</button>
-        <button type="button" style={btnStyle} onClick={() => setShowGuide(value => !value)}>{tr(language, "انشر موقعك", "Publish your site")}</button>
         {!complete && onContinue && <button type="button" style={{ ...btnStyle, background: "#FBBF24", color: "#1A0505" }} disabled={continueDisabled} onClick={onContinue}>{tr(language, "أكمل الموقع — مجانًا", "Complete the site — free")}</button>}
       </div>
       {!complete && <p style={{ marginTop: 8, fontSize: 12.5, color: "#FCA5A5" }}>{tr(language, "الموقع لسه مكملش للآخر — اضغط «أكمل الموقع» وهنكمله من حيث وقف من غير أي خصم.", "The site did not finish — tap Complete the site and we will finish it from where it stopped, free of charge.")}</p>}
       {usesDefaults && <p style={{ marginTop: 8, fontSize: 12.5, color: "#FCD34D" }}>{tr(language, "الصور المستخدمة افتراضية من HOT GPT — استبدل روابطها بصورك الحقيقية قبل النشر.", "The images used are HOT GPT defaults — replace their URLs with your real images before publishing.")}</p>}
-      {showGuide && <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.9, border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, padding: "10px 14px", background: "rgba(255,255,255,.03)" }}>
-        <strong>{tr(language, "انشر موقعك مجانًا في دقيقة:", "Publish your site free in a minute:")}</strong>
-        <ol style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
-          <li>{tr(language, "حمّل ملف الموقع من الزرار اللي فوق.", "Download the site file from the button above.")}</li>
-          <li>{tr(language, "افتح Netlify Drop واسحب الملف وارميه في الصفحة — هيديك رابطًا حيًا فورًا:", "Open Netlify Drop and drag the file onto the page — you get a live link instantly:")} <a href="https://app.netlify.com/drop" target="_blank" rel="noreferrer" style={{ color: "#FBBF24" }}>app.netlify.com/drop</a></li>
-          <li>{tr(language, "بدائل مجانية كمان: GitHub Pages وCloudflare Pages.", "More free alternatives: GitHub Pages and Cloudflare Pages.")}</li>
-        </ol>
-      </div>}
-    </div>
+          </div>
   );
 }
 
@@ -2400,7 +2389,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onScan={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
+                      setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2413,7 +2402,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onSeo={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
+                      setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2426,7 +2415,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onSite={() => {
                     if (walletBalance < 10) {
-                      setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج 20 توكن والتعديل 10. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Website building is Premium: a new build needs 20 tokens and an edit 10. Top up from Plans or grab the HotLucky pack."));
+                      setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج 20 توكن والتعديل 10. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Website building is Premium: a new build needs 20 tokens and an edit 10. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2442,7 +2431,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onLeads={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
+                      setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2477,7 +2466,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onDarkLive={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack."));
+                      setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
                       return;
                     }
                     if (!requireProFeature("darkweb")) return;
@@ -2574,9 +2563,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 ))}
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
-                    <Globe size={18} /><span>PRO</span>
+                    <span>{tr(language, "بحث", "Search")}</span><span>PRO</span>
                   </button>
-                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
+                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
                   <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
@@ -2609,13 +2598,13 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
-                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
+                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
                     <Radio size={16} /><span>{tr(language, "دارك لايف", "Dark Live")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
+                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
                     <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
+                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
                     <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
