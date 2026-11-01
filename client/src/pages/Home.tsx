@@ -557,7 +557,56 @@ function RenderedMessageContent({ content, language }: { content: string; langua
   </>;
 }
 
-function MessageBubble({ message, onContinue, onExtractMore }: { message: ChatMessage; onContinue?: () => void; onExtractMore?: () => void }) {
+function isSiteHtml(content: string) { return /<!DOCTYPE html/i.test(content.slice(0, 300)); }
+
+function SiteCard({ html, language, onContinue, continueDisabled }: { html: string; language: Language; onContinue?: () => void; continueDisabled?: boolean }) {
+  const [showGuide, setShowGuide] = useState(false);
+  const complete = /<\/html>/i.test(html);
+  const usesDefaults = html.includes("hotgpt.pro/site-defaults/");
+  const downloadSite = () => {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "index.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
+  const openFull = () => {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+  const btnStyle = { padding: "8px 14px", borderRadius: 10, border: "1px solid rgba(251,191,36,.55)", background: "rgba(251,191,36,.12)", color: "#FCD34D", fontWeight: 700, fontSize: 13, cursor: "pointer" } as const;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ border: "1px solid rgba(255,255,255,.14)", borderRadius: 14, overflow: "hidden", background: "#0b0f16" }}>
+        <iframe title={tr(language, "معاينة الموقع", "Website preview")} sandbox="allow-scripts" srcDoc={html} style={{ width: "100%", height: 430, border: "none", display: "block", background: "#ffffff" }} />
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+        <button type="button" style={btnStyle} onClick={downloadSite}>{tr(language, "⬇ تحميل الموقع", "⬇ Download site")}</button>
+        <button type="button" style={btnStyle} onClick={openFull}>{tr(language, "فتح بملء الشاشة", "Open fullscreen")}</button>
+        <button type="button" style={btnStyle} onClick={() => setShowGuide(value => !value)}>{tr(language, "انشر موقعك", "Publish your site")}</button>
+        {!complete && onContinue && <button type="button" style={{ ...btnStyle, background: "#FBBF24", color: "#1A0505" }} disabled={continueDisabled} onClick={onContinue}>{tr(language, "أكمل الموقع — مجانًا", "Complete the site — free")}</button>}
+      </div>
+      {!complete && <p style={{ marginTop: 8, fontSize: 12.5, color: "#FCA5A5" }}>{tr(language, "الموقع لسه مكملش للآخر — اضغط «أكمل الموقع» وهنكمله من حيث وقف من غير أي خصم.", "The site did not finish — tap Complete the site and we will finish it from where it stopped, free of charge.")}</p>}
+      {usesDefaults && <p style={{ marginTop: 8, fontSize: 12.5, color: "#FCD34D" }}>{tr(language, "الصور المستخدمة افتراضية من HOT GPT — استبدل روابطها بصورك الحقيقية قبل النشر.", "The images used are HOT GPT defaults — replace their URLs with your real images before publishing.")}</p>}
+      {showGuide && <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.9, border: "1px solid rgba(255,255,255,.12)", borderRadius: 12, padding: "10px 14px", background: "rgba(255,255,255,.03)" }}>
+        <strong>{tr(language, "انشر موقعك مجانًا في دقيقة:", "Publish your site free in a minute:")}</strong>
+        <ol style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
+          <li>{tr(language, "حمّل ملف الموقع من الزرار اللي فوق.", "Download the site file from the button above.")}</li>
+          <li>{tr(language, "افتح Netlify Drop واسحب الملف وارميه في الصفحة — هيديك رابطًا حيًا فورًا:", "Open Netlify Drop and drag the file onto the page — you get a live link instantly:")} <a href="https://app.netlify.com/drop" target="_blank" rel="noreferrer" style={{ color: "#FBBF24" }}>app.netlify.com/drop</a></li>
+          <li>{tr(language, "بدائل مجانية كمان: GitHub Pages وCloudflare Pages.", "More free alternatives: GitHub Pages and Cloudflare Pages.")}</li>
+        </ol>
+      </div>}
+    </div>
+  );
+}
+
+function MessageBubble({ message, onContinue, onExtractMore, onSiteContinue, siteContinueDisabled }: { message: ChatMessage; onContinue?: () => void; onExtractMore?: () => void; onSiteContinue?: () => void; siteContinueDisabled?: boolean }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const codeContainerRef = useRef<HTMLDivElement>(null);
@@ -630,7 +679,7 @@ function MessageBubble({ message, onContinue, onExtractMore }: { message: ChatMe
         <div className="message-content" ref={codeContainerRef}>
           {message.imageUrl && <img src={message.imageUrl} alt={tr(language, "صورة مولّدة", "Generated image")} style={{ maxWidth: "100%", borderRadius: 12, marginBottom: 8 }} />}
           {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span></div>}
-          {message.leadsData && message.leadsData.length > 0 ? <LeadCards leads={message.leadsData} language={language} startIndex={message.leadsOffset ?? 0} onMore={onExtractMore} moreDisabled={message.leadsMoreDisabled === true} /> : message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
+          {message.leadsData && message.leadsData.length > 0 ? <LeadCards leads={message.leadsData} language={language} startIndex={message.leadsOffset ?? 0} onMore={onExtractMore} moreDisabled={message.leadsMoreDisabled === true} /> : message.role === "assistant" && isSiteHtml(message.content) ? <SiteCard html={message.content} language={language} onContinue={onSiteContinue} continueDisabled={siteContinueDisabled} /> : message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
         </div>
         <div className="message-actions">
           <button
@@ -688,12 +737,13 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeads, onImage }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onSite, onLeads, onImage }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
   onDarkLive: () => void;
   onSeo: () => void;
+  onSite: () => void;
   onLeads: () => void;
   onImage: () => void;
 }) {
@@ -771,7 +821,10 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeads,
         <p style={{ margin: 0, fontWeight: 800, fontSize: "clamp(16px, 2.2vw, 20px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>نحلّ مشاكل <span style={{ color: "#FBBF24" }}>البرمجة</span> ونراجع <span style={{ color: "#FBBF24" }}>أمان موقعك</span> ونقوّيه بنتائج وتوصيات عملية.</> : <>We solve <span style={{ color: "#FBBF24" }}>coding problems</span> and review and harden <span style={{ color: "#FBBF24" }}>your site's security</span> with practical results and recommendations.</>}</p>
         <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "clamp(16px, 2.2vw, 20px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>ابدأ مجانًا بـ<span style={{ color: "#FBBF24" }}>5 توكنات</span> ثم أكمل بباقة البداية: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 توكن</span> مقابل <span style={{ color: "#FBBF24" }}>100 جنيه</span>.</> : <>Start free with <span style={{ color: "#FBBF24" }}>5 tokens</span> then continue with the Starter pack: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 tokens</span> for <span style={{ color: "#FBBF24" }}>100 EGP</span>.</>}</p>
       </div>
-      <div style={{ textAlign: "center", marginTop: 18 }}>
+      <div style={{ textAlign: "center", marginTop: 20 }}>
+        <button type="button" onClick={onSite} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "بناء موقع إحترافي", "Build a professional website")}</button>
+      </div>
+      <div style={{ textAlign: "center", marginTop: 12 }}>
         <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "ابدأ بباقة 100 توكن", "Start with the 100-token pack")}</a>
       </div>
       <p style={{ textAlign: "center", fontSize: 12.5, margin: "12px 0 26px", opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 صورة", "The pack covers roughly 100 regular messages or 20 images")}<br />{tr(language, "الدفع بفودافون كاش وإنستاباي بصورة التحويل فقط.", "Pay by Vodafone Cash or InstaPay with just a transfer screenshot.")}</p>
@@ -1156,6 +1209,7 @@ export default function Home() {
   // dark-web search add-on toggle for Dark mode.
   const [scanMode, setScanMode] = useState(false);
   const [seoMode, setSeoMode] = useState(false);
+  const [siteMode, setSiteMode] = useState(false);
   const [darkLiveMode, setDarkLiveMode] = useState(false);
   const [leadsMode, setLeadsMode] = useState(false);
   // One image icon, two kinds (owner decision, 2026-10-29): the icon
@@ -1254,7 +1308,7 @@ export default function Home() {
   // Staged progress for the premium URL reports (scan / SEO): the server
   // builds the whole report before replying, so instead of a silent
   // «يجهز الرد» the waiting bubble walks through the real phases.
-  const [reportWait, setReportWait] = useState<"scan" | "seo" | "leads" | null>(null);
+  const [reportWait, setReportWait] = useState<"scan" | "seo" | "leads" | "site" | null>(null);
   const [reportWaitSecs, setReportWaitSecs] = useState(0);
   useEffect(() => {
     if (!reportWait) { setReportWaitSecs(0); return; }
@@ -1671,6 +1725,39 @@ export default function Home() {
         }
         return;
       }
+      if (siteMode) {
+        // Website builder (premium, 2026-11-01): the draft is the site
+        // description or an edit request. The server classifies from
+        // history — new build 20 tokens, edit of a completed site 10,
+        // completing a cut build free — and returns the finished
+        // single-file site; total failures refund in full. The mode
+        // stays ON after sending so follow-ups keep editing this site.
+        setReportWait("site");
+        try {
+          const siteResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ siteMode: true, prompt: trimmed, conversationId }) });
+          const sitePayload = await siteResponse.json().catch(() => ({}));
+          if (!siteResponse.ok || !sitePayload.content) {
+            const siteErrors: Record<string, string> = {
+              invalid_site_request: tr(language, "اكتب وصف الموقع أو طلب التعديل بشكل أوضح ثم أعد المحاولة.", "Describe the site or the edit more clearly, then try again."),
+              insufficient_credits: tr(language, "رصيدك غير كافٍ: بناء موقع جديد يحتاج 20 توكن، وتعديل موقع موجود يحتاج 10. اشحن أو خد باقة HotLucky.", "Your balance is not enough: a new build costs 20 tokens and an edit costs 10. Top up or grab the HotLucky pack."),
+              site_not_configured: tr(language, "خدمة بناء المواقع غير مُعدّة على الخادم بعد.", "The website builder is not configured on the server yet."),
+              site_failed: tr(language, "تعذر بناء الموقع الآن. لم يُخصم من رصيدك — حاول مرة أخرى.", "The site could not be built now. Nothing was charged — please try again."),
+              login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+              auth_unavailable: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+            };
+            throw new Error(siteErrors[String(sitePayload.error || "")] || tr(language, "تعذر بناء الموقع الآن. لم يُخصم من رصيدك.", "The site could not be built now. Nothing was charged."));
+          }
+          if (typeof sitePayload.tokenBalance === "number") setWalletBalance(sitePayload.tokenBalance);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(sitePayload.content), timestamp: formatTime() }]);
+        } catch (siteError) {
+          setRequestError(siteError instanceof Error ? siteError.message : tr(language, "تعذر بناء الموقع الآن.", "The site could not be built now."));
+        } finally {
+          setReportWait(null);
+          setIsSending(false);
+          setIsSearchingWeb(false);
+        }
+        return;
+      }
       if (leadsMode) {
         // Lead extraction (premium, 2026-10-29): the draft is the
         // business type + area. The server charges a flat 20 tokens,
@@ -1977,6 +2064,27 @@ export default function Home() {
       setReportWait(null);
       setIsSending(false);
       setIsSearchingWeb(false);
+    }
+  };
+
+  const continueSite = async (target: ChatMessage) => {
+    if (!activeConversation || isSending) return;
+    setIsSending(true);
+    setRequestError(null);
+    setReportWait("site");
+    try {
+      const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ siteMode: true, continueSite: true, conversationId: activeConversation }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.content) {
+        throw new Error(tr(language, "تعذر إكمال الموقع الآن — لم يُخصم شيء. حاول مرة أخرى.", "Could not complete the site now — nothing was charged. Please try again."));
+      }
+      if (typeof payload.tokenBalance === "number") setWalletBalance(payload.tokenBalance);
+      setMessages(current => current.map(item => item.id === target.id ? { ...item, content: String(payload.content) } : item));
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : tr(language, "تعذر إكمال الموقع الآن.", "Could not complete the site now."));
+    } finally {
+      setReportWait(null);
+      setIsSending(false);
     }
   };
 
@@ -2299,6 +2407,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setScanMode(true);
                     setSeoMode(false);
                     setImageMode(false);
+                    setSiteMode(false);
                     setDraft("");
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
@@ -2311,8 +2420,25 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setSeoMode(true);
                     setScanMode(false);
                     setImageMode(false);
+                    setSiteMode(false);
                     setDraft("");
                     setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
+                  onSite={() => {
+                    if (walletBalance < 10) {
+                      setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج 20 توكن والتعديل 10. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Website building is Premium: a new build needs 20 tokens and an edit 10. Top up from Plans or grab the HotLucky pack."));
+                      return;
+                    }
+                    setRequestError(null);
+                    startNew();
+                    setSiteMode(true);
+                    setScanMode(false);
+                    setSeoMode(false);
+                    setImageMode(false);
+                    setLeadsMode(false);
+                    setDarkWebEnabled(false);
+                    setDarkLiveMode(false);
+                    setAttachment(null);
                   }}
                   onLeads={() => {
                     if (walletBalance < 20) {
@@ -2324,6 +2450,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setScanMode(false);
                     setSeoMode(false);
                     setImageMode(false);
+                    setSiteMode(false);
                     setDarkWebEnabled(false);
                     setDarkLiveMode(false);
                     setDraft("");
@@ -2372,7 +2499,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel,leadsMoreDisabled:isSending}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined} onExtractMore={message.leadsData&&message.leadsData.length?()=>{void extractMoreLeads(message)}:undefined}/>;})}
+                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel,leadsMoreDisabled:isSending}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined} onExtractMore={message.leadsData&&message.leadsData.length?()=>{void extractMoreLeads(message)}:undefined} onSiteContinue={message.role==="assistant"&&index===messages.length-1&&isSiteHtml(message.content)&&!/<\/html>/i.test(message.content)?()=>{void continueSite(message)}:undefined} siteContinueDisabled={isSending}/>;})}
                   {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
@@ -2383,7 +2510,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                         <i />
                         <i />
                       </span>
-                      <span>{reportWait ? (reportWaitSecs < 12 ? tr(language, reportWait === "seo" ? "جارٍ فحص الموقع وجمع بيانات SEO..." : reportWait === "leads" ? "جارٍ استخراج بيانات الشركات من خرائط جوجل..." : "جارٍ فحص الموقع وجمع البيانات...", reportWait === "seo" ? "Auditing the site and collecting SEO data..." : reportWait === "leads" ? "Extracting business data from Google Maps..." : "Scanning the site and collecting data...") : reportWaitSecs < 30 ? tr(language, "جارٍ تحليل النتائج...", "Analyzing the results...") : tr(language, "جارٍ كتابة التقرير...", "Writing the report...")) : isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
+                      <span>{reportWait ? (reportWaitSecs < 12 ? tr(language, reportWait === "site" ? "جارٍ بناء موقعك وكتابة الكود..." : reportWait === "seo" ? "جارٍ فحص الموقع وجمع بيانات SEO..." : reportWait === "leads" ? "جارٍ استخراج بيانات الشركات من خرائط جوجل..." : "جارٍ فحص الموقع وجمع البيانات...", reportWait === "site" ? "Building your website and writing the code..." : reportWait === "seo" ? "Auditing the site and collecting SEO data..." : reportWait === "leads" ? "Extracting business data from Google Maps..." : "Scanning the site and collecting data...") : reportWaitSecs < 30 ? tr(language, "جارٍ تحليل النتائج...", "Analyzing the results...") : tr(language, "جارٍ كتابة التقرير...", "Writing the report...")) : isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
                     </div>
                   )}
                 </div>
@@ -2429,7 +2556,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
@@ -2449,7 +2576,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <Globe size={18} /><span>PRO</span>
                   </button>
-                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setLeadsMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
+                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
                   <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
@@ -2485,16 +2612,20 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
                     <Radio size={16} /><span>{tr(language, "دارك لايف", "Dark Live")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
+                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
                     <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
+                  <button type="button" className={siteMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (siteMode) { setSiteMode(false); return; } if (walletBalance < 10) { setRequestError(tr(language, "بناء المواقع خدمة Premium تحتاج رصيد 10 توكنات على الأقل (بناء جديد 20 وتعديل 10). اشحن من صفحة الباقات أو خد باقة HotLucky.", "Website building is a Premium service that needs at least 10 tokens (new build 20, edit 10). Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSiteMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={siteMode} title={tr(language, "بناء موقع إحترافي — موقع كامل من وصفك · بناء 20 توكن · تعديل 10", "Build a professional website — a full site from your description · build 20 tokens · edit 10")} style={{ color: "#38BDF8", ...(siteMode ? { borderColor: "#38BDF8", background: "rgba(56,189,248,.12)", boxShadow: "0 0 10px rgba(56,189,248,.28)" } : {}) }}>
+                    <Globe size={16} /><span>{tr(language, "موقع", "Site")}</span>
+                  </button>
+                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
                     <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
               </div>
               {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص. الأداة للأغراض الدفاعية والبحثية فقط على المواقع التي تملكها أو مصرح لك بفحصها.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only, on sites you own or are authorized to scan.")}</div>}
               {seoMode && <div className="attachment-cost-note">{tr(language, "📈 وضع فحص SEO: الصق رابط موقعك واضغط إرسال — تقرير SEO كامل بخطة نمو عملية من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "📈 SEO audit mode: paste your website URL and press send — a full SEO report with a practical growth plan from real collected data for 20 tokens, fully refunded if the audit cannot run.")}</div>}
+              {siteMode && <div className="attachment-cost-note">{tr(language, "🏗️ وضع بناء المواقع: صف موقعك بالتفصيل (النشاط والاسم، الأقسام، الألوان) واضغط إرسال — بناء جديد 20 توكن، وتعديل على موقع موجود في نفس المحادثة 10، وإكمال موقع انقطع مجاني. لو عندك صور الصق روابطها في الوصف وهنستخدمها، وإلا هنستخدم صورًا افتراضية من عندنا تقدر تستبدلها بعد التحميل.", "🏗️ Website builder mode: describe your site in detail (business and name, sections, colors) and press send — a new build is 20 tokens, an edit to the site in this same conversation is 10, and completing a cut-off build is free. Paste your own image URLs in the description to use them; otherwise we use our default images, which you can replace after downloading.")}</div>}
               {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 وضع استخراج العملاء: اكتب نوع النشاط والمنطقة (مثال: عيادات أسنان في التجمع الخامس) واضغط إرسال — بيانات لحد 30 شركة من خرائط جوجل (الاسم والتليفون والعنوان والموقع والتقييم) مقابل 20 توكن، واسترداد كامل إذا تعذر الاستخراج.", "📇 Lead extraction mode: type the business type and area (e.g. dental clinics in New Cairo) and press send — data for up to 30 businesses from Google Maps (name, phone, address, website, rating) for 20 tokens, fully refunded if the extraction cannot run.")}</div>}
               {(darkWebEnabled || darkLiveMode) && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}

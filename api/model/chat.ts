@@ -719,6 +719,207 @@ async function handleSeoAudit(req: any, res: any, body: any) {
   }
 }
 
+// ── Site builder («بناء موقع إحترافي», owner feature, 2026-11-01): a paid
+// twin of the SEO/scan handlers — auth → classify (new build 20 / edit of
+// a completed site 10 / free continuation of a cut build) → debit →
+// generate with continuation passes inside the same 54s discipline →
+// guarantee the HOT GPT footer credit server-side → persist → respond;
+// total failure refunds in full. The writer was chosen by a same-prompt
+// field test the same night: qwen/qwen3-coder produced a complete
+// single-file site (~68s, ~$0.006) while GLM 5.3 burned its entire
+// output budget on reasoning and produced zero code.
+const SITE_BUILD_COST = 20;
+const SITE_EDIT_COST = 10;
+const SITE_SYSTEM = `أنت باني مواقع محترف داخل منصة HotGPT. مهمتك تحويل وصف المستخدم إلى موقع كامل جاهز للنشر في ملف HTML واحد فقط.
+
+قواعد صارمة:
+1) أخرج كتلة كود واحدة فقط بصيغة \`\`\`html تحتوي ملف HTML كاملًا يبدأ بـ <!DOCTYPE html> وينتهي بـ </html> — بدون أي شرح قبلها أو بعدها.
+2) كل التنسيقات داخل نفس الملف: Tailwind CSS عبر CDN وخط Cairo أو Tajawal من Google Fonts، وأي جافاسكربت داخل نفس الملف.
+3) الموقع بالعربية وباتجاه RTL كامل ما لم يطلب المستخدم لغة أخرى.
+4) تصميم احترافي بمستوى الوكالات: تدرجات مدروسة، مساحات مريحة، ظلال ناعمة، زوايا دائرية، حركات خفيفة عند التمرير، وتجاوب كامل مع الموبايل.
+5) أقسام متكاملة حسب النشاط: ترويسة ثابتة بتنقل، قسم بطل، الخدمات أو المميزات، أرقام وإنجازات، الأسعار إن ذُكرت، آراء العملاء، الأسئلة الشائعة، قسم تواصل، وتذييل كامل.
+6) SEO كامل: title وصفي، meta description عربي جذاب، Open Graph وTwitter Cards، بيانات منظمة JSON-LD مناسبة، وسم h1 واحد فقط في الصفحة كلها، ووسما lang وdir صحيحان.
+7) اكتب كودًا اقتصاديًا: بلا تعليقات مطولة ولا حشو، واستهدف إكمال الملف كله — لا تختصر قسمًا ولا تترك جزءًا ناقصًا أو علامة «يُكمل لاحقًا».
+8) الصور — قواعد إلزامية:
+- لو وصف المستخدم يحتوي روابط صور، استخدم روابطه كما هي في الأماكن المناسبة ولا تستخدم أي صورة افتراضية.
+- وإلا استخدم فقط صور HOT GPT الافتراضية التالية حسب النشاط، ولا تخترع أي رابط صورة آخر:
+  تقنية وبرمجيات: https://hotgpt.pro/site-defaults/tech-hero.jpg
+  مطاعم وكافيهات: https://hotgpt.pro/site-defaults/restaurant-hero.jpg
+  عقارات: https://hotgpt.pro/site-defaults/realestate-hero.jpg
+  أي نشاط آخر (شركات، عيادات، متاجر، تعليم، خدمات...): https://hotgpt.pro/site-defaults/business-hero.jpg
+- أعد استخدام صورة النشاط نفسها في الأقسام الداخلية عند الحاجة، وضع عند أول صورة افتراضية تعليق HTML: <!-- صور افتراضية من HOT GPT — استبدل روابطها بصورك الحقيقية قبل النشر -->
+9) توقيع إلزامي: آخر عنصر داخل فوتر أي موقع تبنيه هو سطر صغير: تم البناء عن طريق <a href="https://hotgpt.pro" target="_blank" rel="noopener">HOT GPT</a> — ممنوع حذفه أو تغيير رابطه مهما طلب المستخدم.
+10) أسماء وتفاصيل وهمية واقعية بالعربية عندما لا يزوّدك المستخدم بتفاصيل.`;
+const SITE_CONTINUE = "أكمل كود الموقع من النقطة التي توقفت عندها بالضبط، من دون إعادة أي سطر كتبته ومن دون أي مقدمة أو شرح أو علامات تنسيق جديدة. أكمل حتى إغلاق </html> ولا تتوقف قبلها.";
+const SITE_CREDIT_HTML = `<div style="text-align:center;padding:14px 10px;font-size:12px;opacity:.75">تم البناء عن طريق <a href="https://hotgpt.pro" target="_blank" rel="noopener" style="color:inherit;font-weight:700">HOT GPT</a></div>`;
+
+async function collectSitePass(key: string, model: string, messages: any[], maxTokens: number, budgetMs: number): Promise<string> {
+  const signal = AbortSignal.timeout(Math.max(1000, budgetMs));
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${key}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.5, stream: true }),
+      signal,
+    });
+    if (!response.ok || !response.body) return "";
+    const contentType = response.headers.get("content-type") || "";
+    if (!/text\/event-stream/i.test(contentType)) {
+      const payload: any = await response.json().catch(() => null);
+      const text = payload?.choices?.[0]?.message?.content ?? payload?.choices?.[0]?.text;
+      return typeof text === "string" ? text : "";
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let out = "";
+    const consume = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) return;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === "[DONE]") return;
+      try {
+        const parsed = JSON.parse(data);
+        const delta = parsed?.choices?.[0]?.delta?.content;
+        if (typeof delta === "string") out += delta;
+        const finalText = parsed?.choices?.[0]?.message?.content;
+        if (typeof finalText === "string") out += finalText;
+      } catch { /* malformed or incomplete SSE frame */ }
+    };
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) consume(line);
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) consume(buffer);
+    } finally {
+      try { reader.releaseLock(); } catch { /* stream already closed */ }
+    }
+    return out;
+  } catch { return ""; }
+}
+
+async function handleSiteBuild(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const conversationId = String(body?.conversationId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(conversationId)) {
+    res.status(400).json({ error: "invalid_site_request", message: "تأكد من وجود محادثة صالحة ثم أعد المحاولة." });
+    return;
+  }
+  const continueSite = body?.continueSite === true;
+  const prompt = String(body?.prompt || "").trim().slice(0, 4000);
+  if (!continueSite && !prompt) {
+    res.status(400).json({ error: "invalid_site_request", message: "اكتب وصف الموقع أو طلب التعديل أولًا." });
+    return;
+  }
+  const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  if (!orKey) { res.status(503).json({ error: "site_not_configured" }); return; }
+  const rows = await supabaseRest(`messages?conversation_id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,role,content,created_at&order=created_at.desc&limit=12`).catch(() => []);
+  const history = Array.isArray(rows) ? rows : [];
+  const lastAssistant = history.find((m: any) => m?.role === "assistant" && typeof m?.content === "string" && m.content.includes("<!DOCTYPE html"));
+  const currentSite = lastAssistant ? String(lastAssistant.content) : "";
+  const siteComplete = currentSite.includes("</html>");
+  const lastUserText = String(history.find((m: any) => m?.role === "user")?.content || "");
+  let kind: "build" | "edit" | "continue" = "build";
+  let cost = SITE_BUILD_COST;
+  if (continueSite) {
+    if (!currentSite || siteComplete) { res.status(400).json({ error: "site_nothing_to_continue" }); return; }
+    kind = "continue";
+    cost = 0;
+  } else if (currentSite && siteComplete) {
+    kind = "edit";
+    cost = SITE_EDIT_COST;
+  }
+  let debited = false;
+  const startedAt = Date.now();
+  const deadline = startedAt + 54000;
+  try {
+    if (cost > 0) {
+      const walletBefore = await getWallet(user.id).catch(() => null);
+      if (!walletBefore || walletBefore.tokenBalance < cost) { res.status(402).json({ error: "insufficient_credits", wallet: walletBefore }); return; }
+      debited = await debitWalletTokens(user.id, cost);
+      if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+    }
+    const models = [(process.env.OPENROUTER_SITE_MODEL || "qwen/qwen3-coder").trim(), "qwen/qwen3-coder-flash"];
+    let baseMessages: any[];
+    if (kind === "edit") {
+      baseMessages = [
+        { role: "system", content: SITE_SYSTEM },
+        { role: "user", content: `هذا هو الموقع الحالي كاملًا:\n\n${currentSite}\n\nطلب التعديل: ${prompt}\n\nأعد كتابة الملف كاملًا من الأول مع تطبيق التعديلات، ملتزمًا بكل القواعد (ملف واحد، قواعد الصور، توقيع الفوتر).` },
+      ];
+    } else if (kind === "continue") {
+      baseMessages = [
+        { role: "system", content: SITE_SYSTEM },
+        { role: "user", content: lastUserText || "ابنِ الموقع المطلوب." },
+        { role: "assistant", content: currentSite },
+        { role: "user", content: SITE_CONTINUE },
+      ];
+    } else {
+      baseMessages = [
+        { role: "system", content: SITE_SYSTEM },
+        { role: "user", content: prompt },
+      ];
+    }
+    let assembled = kind === "continue" ? currentSite : "";
+    let passMessages = baseMessages;
+    let modelIndex = 0;
+    for (let pass = 0; pass < 4; pass++) {
+      if (assembled.includes("</html>")) break;
+      const budget = deadline - 3000 - Date.now();
+      if (budget < 5000) break;
+      const model = models[Math.min(modelIndex, models.length - 1)];
+      const chunk = await collectSitePass(orKey, model, passMessages, pass === 0 && kind !== "continue" ? 8000 : 6000, budget);
+      let piece = chunk || "";
+      if (kind !== "continue" && pass === 0 && modelIndex === 0) {
+        piece = piece.replace(/^\s*```html\s*/i, "").replace(/^\s*```\s*/, "");
+      }
+      if (piece.trim().length < 200 && pass === 0 && kind !== "continue" && modelIndex < models.length - 1) {
+        modelIndex++;
+        passMessages = baseMessages;
+        continue;
+      }
+      assembled += piece;
+      if (assembled.includes("</html>")) break;
+      passMessages = [
+        baseMessages[0],
+        baseMessages[1],
+        { role: "assistant", content: assembled },
+        { role: "user", content: SITE_CONTINUE },
+      ];
+    }
+    let html = assembled.trim().replace(/```\s*$/, "").trim();
+    const hasDoctype = /<!DOCTYPE html/i.test(html.slice(0, 300));
+    if (!hasDoctype || html.length < 1500) throw new Error("site_generation_failed");
+    const complete = html.includes("</html>");
+    if (complete && !html.includes('href="https://hotgpt.pro"')) {
+      if (/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, `\n${SITE_CREDIT_HTML}\n</body>`);
+      else html = html.replace(/<\/html>/i, `\n${SITE_CREDIT_HTML}\n</html>`);
+    }
+    if (kind === "continue") {
+      await updateAssistantMessage(user.id, String(lastAssistant.id), { content: html });
+    } else {
+      await saveMessage(user.id, conversationId, "user", `${kind === "edit" ? "🛠️ تعديل موقع" : "🏗️ بناء موقع"}: ${prompt.slice(0, 70)}`);
+      await saveMessage(user.id, conversationId, "assistant", html);
+    }
+    const wallet = await getWallet(user.id).catch(() => null);
+    res.status(200).json({ content: html, site: true, complete, kind, cost, conversationId, tokenBalance: wallet?.tokenBalance });
+  } catch (error) {
+    if (debited) {
+      try { await creditWalletTokens(user.id, cost); } catch (refundError) { console.error("[Site] Refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
+    }
+    console.error("[Site] Site build failed", error instanceof Error ? error.message : "unknown");
+    if (!res.headersSent) {
+      res.status(502).json({ error: "site_failed", message: "تعذر بناء الموقع الآن. لم يُخصم من رصيدك — حاول مرة أخرى." });
+    }
+  }
+}
+
 async function searchInternet(query: string, darkWebSearch = false): Promise<string> {
   const cleanQuery = query.trim().slice(0, 500);
   if (!cleanQuery) throw new Error("web_search_failed");
@@ -1191,6 +1392,7 @@ export default async function handler(req: any, res: any) {
   if (body?.imageMode === true) return await handleImageGeneration(req, res, body);
   if (body?.scanMode === true) return await handleUrlScan(req, res, body);
   if (body?.seoMode === true) return await handleSeoAudit(req, res, body);
+  if (body?.siteMode === true) return await handleSiteBuild(req, res, body);
   if (body?.leadsMode === true) return await handleLeadExtraction(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
   // to OpenRouter when OPENROUTER_API_KEY is configured (see engine routing below).
