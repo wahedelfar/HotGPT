@@ -734,12 +734,12 @@ const SITE_SYSTEM = `أنت باني مواقع محترف داخل منصة Hot
 
 قواعد صارمة:
 1) أخرج كتلة كود واحدة فقط بصيغة \`\`\`html تحتوي ملف HTML كاملًا يبدأ بـ <!DOCTYPE html> وينتهي بـ </html> — بدون أي شرح قبلها أو بعدها.
-2) كل التنسيقات داخل نفس الملف: Tailwind CSS عبر CDN وخط Cairo أو Tajawal من Google Fonts، وأي جافاسكربت داخل نفس الملف.
+2) كل التنسيقات داخل نفس الملف كـ CSS خاص مكتوب داخل وسم <style> — ممنوع منعًا باتًا Tailwind أو أي إطار عمل أو مكتبة خارجية (التصميم يجب أن يعمل بالكامل من CSS الملف نفسه)، وخط Cairo أو Tajawal من Google Fonts، وأي جافاسكربت داخل نفس الملف.
 3) الموقع بالعربية وباتجاه RTL كامل ما لم يطلب المستخدم لغة أخرى.
 4) تصميم احترافي بمستوى الوكالات: تدرجات مدروسة، مساحات مريحة، ظلال ناعمة، زوايا دائرية، حركات خفيفة عند التمرير، وتجاوب كامل مع الموبايل.
 5) أقسام متكاملة حسب النشاط: ترويسة ثابتة بتنقل، قسم بطل، الخدمات أو المميزات، أرقام وإنجازات، الأسعار إن ذُكرت، آراء العملاء، الأسئلة الشائعة، قسم تواصل، وتذييل كامل.
 6) SEO كامل: title وصفي، meta description عربي جذاب، Open Graph وTwitter Cards، بيانات منظمة JSON-LD مناسبة، وسم h1 واحد فقط في الصفحة كلها، ووسما lang وdir صحيحان.
-7) الجودة أولًا: موقع غني مكتمل التصميم لا يقل عن 12,000 حرف تقريبًا — ممنوع الاختصار أو التبسيط المُخِلّ، وبلا تعليقات مطولة، واستهدف إكمال الملف كله من دون ترك قسم ناقص أو علامة «يُكمل لاحقًا».
+7) الجودة أولًا: موقع غني مكتمل التصميم بحجم بين 12,000 و20,000 حرف تقريبًا — ممنوع الاختصار أو التبسيط المُخِلّ، وممنوع تضخيم الملف بأيقونات SVG معقدة أو مسارات طويلة مكررة (أيقونة بسيطة قصيرة تكفي)، وبلا تعليقات مطولة، واستهدف إكمال الملف كله من دون ترك قسم ناقص أو علامة «يُكمل لاحقًا».
 8) الصور — قواعد إلزامية:
 - لو وصف المستخدم يحتوي روابط صور، استخدم روابطه كما هي في الأماكن المناسبة ولا تستخدم أي صورة افتراضية.
 - وإلا استخدم فقط صور HOT GPT الافتراضية التالية حسب النشاط، ولا تخترع أي رابط صورة آخر:
@@ -751,11 +751,12 @@ const SITE_SYSTEM = `أنت باني مواقع محترف داخل منصة Hot
 9) توقيع إلزامي: آخر عنصر داخل فوتر أي موقع تبنيه هو سطر صغير: تم البناء عن طريق <a href="https://hotgpt.pro" target="_blank" rel="noopener">HOT GPT</a> — ممنوع حذفه أو تغيير رابطه مهما طلب المستخدم.
 10) أسماء وتفاصيل وهمية واقعية بالعربية عندما لا يزوّدك المستخدم بتفاصيل.
 11) قواعد تصميم لا تُكسر أبدًا:
-- التنسيقات الأساسية (خلفيات الصفحة والأقسام، ألوان النصوص، شريط التنقل، قسم البطل، البطاقات، الأزرار) تُكتب CSS حقيقيًا داخل وسم <style> بحيث يظهر الموقع مصممًا بالكامل حتى لو تعطّل تحميل Tailwind، وTailwind طبقة تعزيز إضافية فوقها.
+- كل التنسيق (خلفيات الصفحة والأقسام، ألوان النصوص، شريط التنقل، قسم البطل، البطاقات، الأزرار) يُكتب CSS حقيقيًا داخل وسم <style>، وابدأ الوسم دائمًا بإعادة الضبط التالية حرفيًا: *,*::before,*::after{box-sizing:border-box} ul,ol{list-style:none;margin:0;padding:0} a{color:inherit;text-decoration:none} — وشريط التنقل قائمة بعرض أفقي (display:flex) وروابطه ملوّنة ومتباعدة بقواعد CSS الخاصة بك، وكل نص داخل قسم البطل أبيض اللون ويجلس داخل طبقة التدرّج الداكنة نفسها.
 - ممنوع منعًا باتًا الروابط الزرقاء الافتراضية وقوائم النقاط الافتراضية: شريط التنقل شريط أفقي أنيق بخلفية وروابط ملوّنة من هويتك، وكل قائمة بتصميمك الخاص.
 - قسم البطل إلزامي: صورة بعرض كامل يعلوها تدرّج داكن linear-gradient، وعنوان أبيض عريض واضح القراءة فوقه، وفقرة وصف وزر دعوة بارز بلون ذهبي أو لون الهوية.
 - خلفيات ملوّنة متناوبة للأقسام (فاتح/داكن أو درجات الهوية)، وبطاقات بظلال وزوايا دائرية وحواف ملوّنة لكل خدمة وسعر ورأي عميل، وأزرار واتساب خضراء واضحة عند وجود رقم.`;
-const SITE_CONTINUE = "أكمل كود الموقع من النقطة التي توقفت عندها بالضبط، من دون إعادة أي سطر كتبته ومن دون أي مقدمة أو شرح أو علامات تنسيق جديدة. أكمل حتى إغلاق </html> ولا تتوقف قبلها.";
+const SITE_CONTINUE = "أكمل كود الموقع من النقطة التي توقفت عندها بالضبط، من دون إعادة أي سطر كتبته ومن دون أي مقدمة أو شرح أو علامات تنسيق جديدة. الأولوية القصوى الآن للإغلاق لا للتوسيع: لا تبدأ أقسامًا جديدة ولا أيقونات جديدة، أغلق العناصر المفتوحة، واكتب قسم التواصل والفوتر بتوقيعه إن كانا ناقصين، ثم أغلق </body></html> ولا تتوقف قبلها.";
+const SITE_FLOOR_CSS = `<style data-hotgpt-floor="1">*,*::before,*::after{box-sizing:border-box}ul,ol{list-style:none;margin:0;padding:0}a{color:inherit;text-decoration:none}img{max-width:100%;height:auto}</style>`;
 const SITE_CREDIT_HTML = `<div style="text-align:center;padding:14px 10px;font-size:12px;opacity:.75">تم البناء عن طريق <a href="https://hotgpt.pro" target="_blank" rel="noopener" style="color:inherit;font-weight:700">HOT GPT</a></div>`;
 
 async function collectSitePass(key: string, model: string, messages: any[], maxTokens: number, budgetMs: number): Promise<string> {
@@ -901,6 +902,10 @@ async function handleSiteBuild(req: any, res: any, body: any) {
     let html = assembled.trim().replace(/```\s*$/, "").trim();
     const hasDoctype = /<!DOCTYPE html/i.test(html.slice(0, 300));
     if (!hasDoctype || html.length < 1500) throw new Error("site_generation_failed");
+    html = html.replace(/<script[^>]*cdn\.tailwindcss\.com[^>]*><\/script>/gi, "");
+    if (!html.includes('data-hotgpt-floor') && /<\/head>/i.test(html)) {
+      html = html.replace(/<\/head>/i, `\n${SITE_FLOOR_CSS}\n</head>`);
+    }
     const complete = html.includes("</html>");
     if (complete && !html.includes('href="https://hotgpt.pro"')) {
       if (/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, `\n${SITE_CREDIT_HTML}\n</body>`);
@@ -909,7 +914,7 @@ async function handleSiteBuild(req: any, res: any, body: any) {
     if (kind === "continue") {
       await updateAssistantMessage(user.id, String(lastAssistant.id), { content: html });
     } else {
-      await saveMessage(user.id, conversationId, "user", `${kind === "edit" ? "🛠️ تعديل موقع" : "🏗️ بناء موقع"}: ${prompt.slice(0, 70)}`);
+      await saveMessage(user.id, conversationId, "user", `${kind === "edit" ? "🛠️ تعديل موقع" : "🏗️ بناء موقع"}: ${prompt}`);
       await saveMessage(user.id, conversationId, "assistant", html);
     }
     const wallet = await getWallet(user.id).catch(() => null);
