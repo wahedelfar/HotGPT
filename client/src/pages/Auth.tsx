@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { readSession, signIn, signInWithGoogle, signUp } from "@/lib/auth";
-import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import { LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
 
 function messageFor(error: unknown) {
   const code = error instanceof Error ? error.message : "";
@@ -19,6 +19,7 @@ function messageFor(error: unknown) {
 
 export default function AuthPage() {
   const { language } = useAppLanguage();
+  const { egEgp } = useAudience();
   const [mode, setMode] = useState<"login" | "signup">(() => new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login");
   // Invite code shown on the form: from this link's ?ref= first, else the
   // code stored when an invite link was opened earlier. Always the code
@@ -198,7 +199,7 @@ export default function AuthPage() {
         <div className="text-center">
           <img src="/brand/logo.png" alt="HotGPT" className="mx-auto h-20 w-20 object-contain" />
           <p className="mt-3 text-4xl font-black tracking-wide text-amber-400">HotGPT</p>
-          <p className="mt-2 text-[13px] font-bold leading-6 text-amber-200">{language === "ar" ? "أول منصة مصرية بدون قيود على البحث والبرمجة" : "No limits on research & programming"}</p>
+          <p className="mt-2 text-[13px] font-bold leading-6 text-amber-200">{language === "ar" ? "منصة عربية بدون قيود على البحث والبرمجة" : "No limits on research & programming"}</p>
         </div>
         <h1 className="mt-2 text-2xl font-bold">{mode === "login" ? "مرحبًا بعودتك" : "أنشئ حسابك"}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">{mode === "login" ? "سجّل الدخول لحفظ محادثاتك ومتابعة رصيدك من أي جهاز." : "أنشئ حسابك لحفظ محادثاتك ومتابعة رصيدك من أي جهاز."}</p>
@@ -213,7 +214,7 @@ export default function AuthPage() {
         {!recoveryMode && inviteCode && (
           <div className="mt-5 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-start">
             <p className="text-sm font-bold text-amber-200">{language === "ar" ? <>حضرتك وصلت عن طريق كود الدعوة: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></> : <>You arrived via an invite code: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></>}</p>
-            <p className="mt-1.5 text-sm leading-7 text-amber-100/90">{language === "ar" ? "أهلا بيك في موقعنا. استمتع بـ٥ محادثات مجانية، ولتفعيل جائزة الإحالة ليك ولصاحبك اشترك في أي باقة في الموقع" : "Welcome to our site. Enjoy 5 free conversations, and to activate the referral reward for you and your friend, subscribe to any plan on the site."}</p>
+            <p className="mt-1.5 text-sm leading-7 text-amber-100/90">{language === "en" ? "Welcome to our site. Enjoy your 20 free welcome tokens, and to activate the referral reward for you and your friend (25 tokens each), subscribe to any plan on the site." : egEgp ? "أهلا بيك في موقعنا. استمتع بهدية اشتراك ٢٠ جنيه، ولتفعيل جائزة الإحالة ليك ولصاحبك — ٢٥ جنيه لكل واحد — اشترك في أي باقة في الموقع" : "أهلا بيك في موقعنا. استمتع بـ٢٠ توكين هدية، ولتفعيل جائزة الإحالة ليك ولصاحبك — ٢٥ توكين لكل واحد — اشترك في أي باقة في الموقع"}</p>
           </div>
         )}
         {!recoveryMode && mode === "signup" && <label className="mt-6 block text-sm">الاسم

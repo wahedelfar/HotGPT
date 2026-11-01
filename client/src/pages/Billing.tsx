@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth";
 import { trackFunnelEvent } from "@/lib/analytics";
-import { LanguageFlag, LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import { LanguageFlag, LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
 
 type PackageOption = { tokens: number; priceEgp: number };
 type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null; notifyOnApproval?: boolean; approvalNoticeSeenAt?: string | null; memberNoticeText?: string | null; test?: boolean };
@@ -66,6 +66,7 @@ const PACK_CAPACITY_EN: Record<number, string> = {
 
 export default function BillingPage() {
   const { language } = useAppLanguage();
+  const { egEgp } = useAudience();
   const t = (ar: string, en: string) => (language === "ar" ? ar : en);
   const [config, setConfig] = useState<BillingConfig | null>(null);
   const [account, setAccount] = useState<{ email: string; tokenBalance: number; welcomeGiftGranted?: boolean } | null>(null);
@@ -265,14 +266,14 @@ export default function BillingPage() {
       <div className="mb-6 text-center">
         <img src="/brand/logo.png" alt="HotGPT" className="mx-auto h-24 w-24 object-contain" />
         <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
-        <p className="mt-2 text-sm font-bold text-amber-200">{t("أول منصة مصرية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
+        <p className="mt-2 text-sm font-bold text-amber-200">{t("منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
       </div>
       <div className="mt-2 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-center text-base font-bold leading-7 text-amber-200">
         {t("رجاءً: لو واجهتك مشكلة أو صعوبة في الدفع، تواصل مع الدعم الفني ", "Please note: if you face any problem or difficulty while paying, contact technical support ")}<a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="text-amber-300 underline decoration-2 underline-offset-4 hover:text-amber-200">{t("من هنا", "here")}</a>{t(" وسيتم حلها فورًا.", " and it will be resolved immediately.")}
       </div>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">{t("الباقات ورصيد التوكينات", "Packs & token balance")}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{t("كل فعل بسعر ثابت تعرفه قبل ما تبدأ — مفيش فواتير مفاجئة. وعضويتك بدأت بهدية ترحيب: 5 توكينات وصلت رصيدك تلقائيًا عند أول دخول.", "Every action has one flat price you know before you start — no surprise bills. And your membership began with a welcome gift: 5 tokens landed in your balance automatically on your first visit.")}</p></div>
-        {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{account.tokenBalance} {t("توكين", "tokens")}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{t("🎁 أُضيفت هدية الترحيب (5 توكينات) إلى رصيدك", "🎁 The welcome gift (5 tokens) was added to your balance")}</div>}</div>}
+        <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">{t("الباقات ورصيد التوكينات", "Packs & token balance")}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{t("كل فعل بسعر ثابت تعرفه قبل ما تبدأ — مفيش فواتير مفاجئة. وعضويتك بدأت بهدية ترحيب: 20 توكين وصلت رصيدك تلقائيًا عند أول دخول.", "Every action has one flat price you know before you start — no surprise bills. And your membership began with a welcome gift: 20 tokens landed in your balance automatically on your first visit.")}</p></div>
+        {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{account.tokenBalance} {t("توكين", "tokens")}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{language === "en" ? "🎁 The welcome gift (20 tokens) was added to your balance" : egEgp ? "🎁 أُضيفت هدية الاشتراك (٢٠ جنيه) إلى رصيدك" : "🎁 أُضيفت هدية الترحيب (٢٠ توكين) إلى رصيدك"}</div>}</div>}
       </div>
       <div className="mt-8 flex flex-wrap gap-3">
         <a href="/models" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("اعرف نماذجنا", "Meet our models")}</a>
@@ -288,6 +289,10 @@ export default function BillingPage() {
         </div>
       </section>
       <p className="mt-10 text-sm font-bold text-amber-300">{t("اضغط على كارت الباقة المناسبة لك", "Tap the pack card that suits you")}</p>
+      <a href="/hotlucky" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/60 bg-amber-400/[.07] p-5 transition hover:border-amber-300">
+        <span><strong className="block text-lg">{t("باقة HotLucky", "HotLucky pack")}</strong><span className="mt-1 block text-sm text-slate-300">{t("بـ 50 جنيه خد من 25 لـ 100 رسالة", "For $1, get 25 to 100 messages")}</span></span>
+        <span className="rounded-lg bg-[#FBBF24] px-4 py-2 text-sm font-black text-[#1A0505]">{t("ادخل لصفحة الجوائز", "Go to the prizes page")}</span>
+      </a>
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {packages.map(item => {
           const perToken = item.priceEgp / item.tokens;
@@ -312,14 +317,14 @@ export default function BillingPage() {
         <h2 className="text-xl font-bold">{t("طريقة الدفع", "Payment method")}</h2>
         <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/5 p-3 text-sm leading-6 text-amber-200">{t("ملحوظة مهمة: سواء دفعت بفودافون كاش أو إنستا باي، التفعيل بيتم بعد ما تبعت اسكرين شوت للتحويل يظهر فيها الرقم اللي حوّلت عليه والمبلغ ووقت التحويل — ابعت الإثبات بعد التحويل على طول عشان باقتك تتفعّل.", "Important: whether you pay by Vodafone Cash or InstaPay, activation happens after you send a transfer screenshot clearly showing the number you paid to, the amount and the transfer time — send the proof right after paying so your pack gets activated.")}</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <button onClick={() => setPaymentMethod("paypal")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "paypal" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
+            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#012169] text-sm font-black italic text-white">P</span><span><strong className="block">PayPal</strong><span className="text-xs text-slate-400">{t("دولار أمريكي · إضافة فورية تلقائية", "USD · instant automatic credit")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-300"><span aria-hidden="true">🌐</span><span className="rounded bg-white px-1.5 py-px text-[9px] font-black italic tracking-wide text-[#1a1f71]">VISA</span><span className="flex items-center" aria-hidden="true"><span className="h-3.5 w-3.5 rounded-full bg-[#eb001b]/90"></span><span className="-ms-1.5 h-3.5 w-3.5 rounded-full bg-[#f79e1b]/90"></span></span>Mastercard</span></span>
+          </button>
           <button onClick={() => setPaymentMethod("vodafone_cash")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "vodafone_cash" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
             <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e60000] text-sm font-black text-white">VF</span><span><strong className="block">{t("فودافون كاش", "Vodafone Cash")}</strong><span className="text-xs text-slate-400">{t("جنيه مصري · تحويل من محفظتك", "EGP · transfer from your wallet")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-300/90"><LanguageFlag lang="ar" />{t("خاص بالمصريين فقط", "Egyptians only")}</span></span>
           </button>
           <button onClick={() => setPaymentMethod("instapay")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "instapay" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
             <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d4ed8] text-sm font-black text-white">IP</span><span><strong className="block">{t("انستا باي", "InstaPay")}</strong><span className="text-xs text-slate-400">{t("جنيه مصري · تحويل بنكي لحظي", "EGP · instant bank transfer")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-300/90"><LanguageFlag lang="ar" />{t("خاص بالمصريين فقط", "Egyptians only")}</span></span>
-          </button>
-          <button onClick={() => setPaymentMethod("paypal")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "paypal" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
-            <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#012169] text-sm font-black italic text-white">P</span><span><strong className="block">PayPal</strong><span className="text-xs text-slate-400">{t("دولار أمريكي · إضافة فورية تلقائية", "USD · instant automatic credit")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-300"><span aria-hidden="true">🌐</span><span className="rounded bg-white px-1.5 py-px text-[9px] font-black italic tracking-wide text-[#1a1f71]">VISA</span><span className="flex items-center" aria-hidden="true"><span className="h-3.5 w-3.5 rounded-full bg-[#eb001b]/90"></span><span className="-ms-1.5 h-3.5 w-3.5 rounded-full bg-[#f79e1b]/90"></span></span>Mastercard</span></span>
           </button>
         </div>
         {paymentMethod === "vodafone_cash" && <div className="mt-5">

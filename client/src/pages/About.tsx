@@ -5,10 +5,10 @@ type Section = { hAr: string; hEn: string; bAr: string; bEn: string };
 
 const SECTIONS: Section[] = [
   {
-    hAr: "أول منصة مصرية من نوعها",
-    hEn: "The first Egyptian platform of its kind",
-    bAr: "HotGPT أول منصة مصرية بتجمع في مكان واحد نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة، وباني مواقع احترافي، واستخراج عملاء، وفحص أمان وSEO للمواقع — بباقات بالجنيه المصري تبدأ من 100 جنيه، والدفع فودافون كاش - إنستاباي أو PayPal، من غير فيزا ولا اشتراكات بالدولار.",
-    bEn: "HotGPT is the first Egyptian platform to bring together, in one place, AI models with no limits on research and programming, a professional website builder, lead extraction, and website security & SEO audits — with packs in Egyptian pounds starting at 100 EGP, paying by Vodafone Cash - InstaPay or PayPal, with no Visa and no dollar subscriptions needed.",
+    hAr: "منصة عربية من نوعها",
+    hEn: "An Arabic platform of its kind",
+    bAr: "HotGPT منصة عربية بتجمع في مكان واحد نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة، وباني مواقع احترافي، واستخراج عملاء، وفحص أمان وSEO للمواقع — بباقات بالجنيه المصري تبدأ من 100 جنيه، والدفع فودافون كاش - إنستاباي أو PayPal، من غير فيزا ولا اشتراكات بالدولار.",
+    bEn: "HotGPT is an Arabic platform that brings together, in one place, AI models with no limits on research and programming, a professional website builder, lead extraction, and website security & SEO audits — with packs in Egyptian pounds starting at 100 EGP, paying by Vodafone Cash - InstaPay or PayPal, with no Visa and no dollar subscriptions needed.",
   },
   {
     hAr: "ما هو HotGPT؟",
@@ -37,8 +37,8 @@ const SECTIONS: Section[] = [
   {
     hAr: "تواصل معنا",
     hEn: "Contact us",
-    bAr: "الدعم الفني: hotgpt.pro@gmail.com — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: 5 محادثات مجانية، وجرّب بنفسك قبل ما تدفع أي حاجة.",
-    bEn: "Technical support: hotgpt.pro@gmail.com — Administration: wawavip@proton.me. Create your account and claim the welcome gift: 5 free conversations, and try everything yourself before paying anything.",
+    bAr: "الدعم الفني: hotgpt.pro@gmail.com — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: 20 توكين هدية، وجرّب بنفسك قبل ما تدفع أي حاجة.",
+    bEn: "Technical support: hotgpt.pro@gmail.com — Administration: wawavip@proton.me. Create your account and claim the welcome gift: 20 free tokens, and try everything yourself before paying anything.",
   },
 ];
 
@@ -77,7 +77,7 @@ export default function AboutPage() {
               href="/auth?mode=signup"
               className="inline-block rounded-xl bg-gradient-to-l from-amber-300 to-amber-500 px-8 py-3 text-base font-black text-[#1A0505] hover:brightness-110"
             >
-              {ar ? "ابدأ مجانًا — ٥ محادثات هدية" : "Start free — 5 free conversations"}
+              {ar ? "ابدأ مجانًا — ٢٠ توكين هدية" : "Start free — 20 gift tokens"}
             </a>
           </div>
         </div>

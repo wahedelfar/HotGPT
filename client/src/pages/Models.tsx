@@ -111,7 +111,7 @@ export default function ModelsPage() {
           <div className="mb-6 text-center">
             <img src="/brand/logo.png" alt="HotGPT" className="mx-auto h-24 w-24 object-contain" />
             <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
-        <p className="mt-2 text-sm font-bold text-amber-200">{t("أول منصة مصرية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
+        <p className="mt-2 text-sm font-bold text-amber-200">{t("منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
           </div>
 
           <div className="mt-6 text-center">
@@ -141,8 +141,8 @@ export default function ModelsPage() {
             <h2 className="text-xl font-bold">{t("جاهز تبدأ؟", "Ready to start?")}</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
               {t(
-                "التسجيل مجاني وبيبدأ بـ5 توكينات هدية ترحيب — وباقة البداية 100 توكين مقابل 100 جنيه تكفي تقريبًا 100 رسالة أو 20 صورة.",
-                "Registration is free and starts with a 5-token welcome gift — and the Starter pack of 100 tokens for 100 EGP covers roughly 100 messages or 20 images."
+                "التسجيل مجاني وبيبدأ بـ20 توكين هدية ترحيب — وباقة البداية 100 توكين مقابل 100 جنيه تكفي تقريبًا 100 رسالة أو 20 صورة.",
+                "Registration is free and starts with a 20-token welcome gift — and the Starter pack of 100 tokens for 100 EGP covers roughly 100 messages or 20 images."
               )}
             </p>
             <a href="/billing" className="mt-5 inline-block rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-8 py-3 font-black text-[#231300] shadow-[0_10px_28px_rgba(232,160,32,.35)] transition hover:brightness-110">

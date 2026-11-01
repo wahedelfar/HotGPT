@@ -621,7 +621,7 @@ export default async function handler(req: any, res: any) {
       packages: [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }],
       packagesUsd,
       usdEgpRate,
-      freeAnswers: 0, welcomeGiftTokens: 5, creditsPerAnswer: 1,
+      freeAnswers: 0, welcomeGiftTokens: 20, creditsPerAnswer: 1,
     });
   }
   if (action === "public-requests") {

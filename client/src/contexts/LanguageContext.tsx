@@ -6,14 +6,15 @@ export type AppLanguage = "ar" | "en";
 // Arabic for Arab countries, English elsewhere. A manual toggle is stored
 // as source "manual" and always wins afterwards.
 const ARAB_COUNTRIES = new Set(["EG", "SA", "AE", "KW", "QA", "BH", "OM", "JO", "LB", "SY", "IQ", "YE", "PS", "SD", "LY", "TN", "DZ", "MA", "MR", "SO", "DJ", "KM"]);
-type LanguageContextValue = { language: AppLanguage; toggleLanguage: () => void };
-const LanguageContext = createContext<LanguageContextValue>({ language: "ar", toggleLanguage: () => {} });
+type LanguageContextValue = { language: AppLanguage; toggleLanguage: () => void; country: string | null };
+const LanguageContext = createContext<LanguageContextValue>({ language: "ar", toggleLanguage: () => {}, country: null });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<AppLanguage>(() => {
     if (typeof window === "undefined") return "ar";
     return localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar";
   });
+  const [country, setCountry] = useState<string | null>(null);
   const toggleLanguage = useCallback(() => {
     try { localStorage.setItem("hotgpt-language-source", "manual"); } catch { /* storage unavailable */ }
     setLanguage(value => value === "ar" ? "en" : "ar");
@@ -28,6 +29,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch("/api/billing?action=geo");
         const data = response.ok ? await response.json() : null;
         const country = String(data?.country || "").toUpperCase();
+        if (country) setCountry(country);
         if (country) next = ARAB_COUNTRIES.has(country) ? "ar" : "en";
       } catch { /* geo unavailable — fall back to the browser language */ }
       if (!next) next = (navigator.language || "").toLowerCase().startsWith("ar") ? "ar" : "en";
@@ -43,9 +45,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
     window.dispatchEvent(new CustomEvent("hotgpt-language-change", { detail: language }));
   }, [language]);
-  return <LanguageContext.Provider value={{ language, toggleLanguage }}>{children}</LanguageContext.Provider>;
+  return <LanguageContext.Provider value={{ language, toggleLanguage, country }}>{children}</LanguageContext.Provider>;
 }
 export function useAppLanguage() { return useContext(LanguageContext); }
+// Audience for value-framing copy (owner rule, 2026-11-02): gift and referral
+// announcements are phrased in EGP only for the Egyptian Arabic audience;
+// other Arabic audiences get token/use wording, English gets token wording.
+// An unknown country falls back to the Egypt wording in Arabic (the site's
+// primary audience) — manual language toggles never trigger the geo fetch,
+// so country stays null for those visitors.
+export function useAudience() {
+  const { language, country } = useAppLanguage();
+  const egEgp = language === "ar" && (country === null || country === "EG");
+  return { language, country, egEgp };
+}
 
 const dictionary: Record<string, string> = {
   "العودة إلى HotGPT": "Back to HotGPT",

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { authFetch } from "@/lib/auth";
-import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import { LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
 import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket, Facebook, MessageCircle } from "lucide-react";
 
@@ -107,6 +107,7 @@ function PrizeWheel({ rotation, spinning }: { rotation: number; spinning: boolea
 
 function ReferralSection() {
   const { language } = useAppLanguage();
+  const { egEgp } = useAudience();
   const t = (ar: string, en: string) => (language === "ar" ? ar : en);
   const [info, setInfo] = useState<{ ready: boolean; code: string | null; invited: number; rewarded: number; earnedTokens: number; myStatus: string } | null>(null);
   const [guest, setGuest] = useState(false);
@@ -125,7 +126,7 @@ function ReferralSection() {
     return () => { alive = false; };
   }, []);
   const link = info?.code ? `https://hotgpt.pro/auth?mode=signup&ref=${info.code}` : "";
-  const shareText = t("جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد 25 توكين هدية.", "Try HotGPT — AI for developers, marketers & web development companies. Sign up with my link and buy your first pack, and we both get 25 free tokens.");
+  const shareText = language === "en" ? "Try HotGPT — AI for developers, marketers & web development companies. Sign up with my link and buy your first pack, and we both get 25 free tokens." : egEgp ? "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد ٢٥ جنيه هدية." : "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد ٢٥ توكين هدية.";
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { /* the link stays visible for manual copy */ }
   };
@@ -133,7 +134,7 @@ function ReferralSection() {
     <section className="hl-card mb-8 p-5 sm:p-6">
       <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-3 py-1 text-[11px] font-bold tracking-wide text-amber-200"><Users size={13} /> {t("برنامج الإحالة", "REFERRAL PROGRAM")}</span>
       <h2 className="mt-3 text-2xl font-black">{t("ادعُ صديقًا — واكسبا معًا", "Invite a friend — earn together")}</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">{t("شارك رابط الدعوة بتاعك. لما صديقك يشتري أول باقة، كل واحد فيكم ياخد 25 توكين هدية تنزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل.", "Share your invite link. When your friend buys their first pack, each of you gets 25 free tokens credited automatically — the reward unlocks on the first real purchase, not on signup alone.")}</p>
+      <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">{language === "en" ? "Share your invite link. When your friend buys their first pack, each of you gets 25 free tokens credited automatically — the reward unlocks on the first real purchase, not on signup alone." : egEgp ? "شارك رابط الدعوة بتاعك. لما صديقك يشتري أول باقة، كل واحد فيكم ياخد ٢٥ جنيه هدية تنزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل." : "شارك رابط الدعوة بتاعك. لما صديقك يشتري أول باقة، كل واحد فيكم ياخد ٢٥ توكين هدية تنزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل."}</p>
       {guest ? (
         <p className="mt-4 text-sm text-slate-300">{t("سجّل دخولك عشان يظهر رابط الدعوة الخاص بيك.", "Sign in to reveal your personal invite link.")} <a href="/auth?mode=signup" className="font-bold text-amber-300 underline underline-offset-4">{t("إنشاء حساب", "Create account")}</a></p>
       ) : info?.ready && info.code ? (
@@ -149,7 +150,7 @@ function ReferralSection() {
             <span>{t("أكملوا أول شراء", "Completed first purchase")}: <strong className="text-white">{info.rewarded}</strong></span>
             <span>{t("توكينات كسبتها", "Tokens earned")}: <strong className="hl-gold">{info.earnedTokens}</strong></span>
           </div>
-          {info.myStatus === "pending" && <p className="mt-3 text-sm text-amber-200">{t("انت سجلت عن طريق دعوة صديق — اشتري أول باقة وكلاكما يكسب 25 توكين.", "You joined through a friend's invite — buy your first pack and you both earn 25 tokens.")}</p>}
+          {info.myStatus === "pending" && <p className="mt-3 text-sm text-amber-200">{language === "en" ? "You joined through a friend's invite — buy your first pack and you both earn 25 tokens." : egEgp ? "انت سجلت عن طريق دعوة صديق — اشتري أول باقة وكلاكما يكسب ٢٥ جنيه." : "انت سجلت عن طريق دعوة صديق — اشتري أول باقة وكلاكما يكسب ٢٥ توكين."}</p>}
           {info.myStatus === "rewarded" && <p className="mt-3 text-sm text-emerald-300">{t("وصلتك مكافأة الإحالة: 25 توكين اتضافت لرصيدك.", "Your referral reward arrived: 25 tokens were added to your balance.")}</p>}
         </>
       ) : (

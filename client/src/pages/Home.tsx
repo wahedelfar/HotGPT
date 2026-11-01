@@ -49,7 +49,7 @@ import { authFetch } from "@/lib/auth";
 import { trackFunnelEvent } from "@/lib/analytics";
 
 type Language = "ar" | "en";
-const LanguageContext = createContext<{ language: Language; toggleLanguage: () => void }>({ language: "ar", toggleLanguage: () => {} });
+const LanguageContext = createContext<{ language: Language; toggleLanguage: () => void; egEgp: boolean }>({ language: "ar", toggleLanguage: () => {}, egEgp: true });
 function useLanguage() { return useContext(LanguageContext); }
 function tr(language: Language, ar: string, en: string) { return language === "ar" ? ar : en; }
 
@@ -796,7 +796,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onSite, 
         <BrandMark compact />
       </div>
       <h1>Hot<span>GPT</span></h1>
-      <p style={{ margin: "8px 0 0", textAlign: "center", color: "#FBBF24", fontSize: 12.5, fontWeight: 700 }}>{language === "ar" ? "أول منصة مصرية بدون قيود على البحث والبرمجة" : "No limits on research & programming"}</p>
+      <p style={{ margin: "8px 0 0", textAlign: "center", color: "#FBBF24", fontSize: 12.5, fontWeight: 700 }}>{language === "ar" ? "منصة عربية بدون قيود على البحث والبرمجة" : "No limits on research & programming"}</p>
       <div style={{ maxWidth: 580, margin: "10px auto 0", textAlign: "center", fontFamily: "'IBM Plex Sans Arabic', 'Space Grotesk', sans-serif" }}>
         <p style={{ margin: 0, fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>نحلّ مشاكل <span style={{ color: "#FBBF24" }}>البرمجة</span> ونراجع <span style={{ color: "#FBBF24" }}>أمان موقعك</span> ونقوّيه بتوصيات عملية.</> : <>We solve <span style={{ color: "#FBBF24" }}>coding problems</span> and review and harden <span style={{ color: "#FBBF24" }}>your site's security</span> with practical recommendations.</>}</p>
         <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>ابدأ مجانًا ثم أكمل بباقة صغيرة: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 توكن</span> مقابل <span style={{ color: "#FBBF24" }}>100 جنيه</span>.</> : <>Start free then continue with the small pack: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 tokens</span> for <span style={{ color: "#FBBF24" }}>100 EGP</span>.</>}</p>
@@ -1034,6 +1034,23 @@ export default function Home() {
   const routeConversationId = (() => { const m = /^\/chat\/([0-9a-f-]{36})\/?$/i.exec(location); return m ? m[1] : null; })();
   const [language, setLanguage] = useState<Language>(() => typeof window !== "undefined" && localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar");
   const toggleLanguage = () => setLanguage(current => current === "ar" ? "en" : "ar");
+  // Geo country for value-framing copy (owner rule, 2026-11-02): gift
+  // announcements are phrased in EGP only for the Egyptian Arabic audience.
+  // An unknown country falls back to the Egypt wording in Arabic.
+  const [geoCountry, setGeoCountry] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/billing?action=geo");
+        const data = response.ok ? await response.json() : null;
+        const country = String(data?.country || "").toUpperCase();
+        if (!cancelled && country) setGeoCountry(country);
+      } catch { /* geo unavailable — fall back per the rule above */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const egEgp = language === "ar" && (geoCountry === null || geoCountry === "EG");
 
   useEffect(() => {
     if (auth.loading || !auth.isAuthenticated) return;
@@ -2163,7 +2180,7 @@ export default function Home() {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, toggleLanguage }}>
+    <LanguageContext.Provider value={{ language, toggleLanguage, egEgp }}>
     <style>{`.visitor-modal-backdrop,.post-login-welcome-backdrop{background:rgba(0,0,0,.72)!important;backdrop-filter:blur(5px)}.visitor-modal-card,.post-login-welcome-card{background:#000000!important;border:1px solid #555!important;color:#FFFFFF!important}.visitor-modal-card .welcome-modal-close,.post-login-welcome-card .welcome-modal-close{left:12px!important;right:auto!important;color:#FFFFFF!important}.visitor-modal-card .welcome-modal-lead,.post-login-welcome-card .welcome-modal-lead{color:#FFFFFF!important}.visitor-modal-card .welcome-modal-cta{display:flex;align-items:center;justify-content:center;text-align:center;margin-top:10px;min-height:50px}.visitor-modal-card .visitor-signup-cta{background:transparent!important;border:1px solid #C9A227!important;color:#FFFFFF!important}.post-login-welcome-actions{display:flex;flex-direction:column;gap:10px;margin-top:22px}.post-login-welcome-actions a{display:block;border-radius:12px;padding:13px 16px;text-align:center;font-weight:900;text-decoration:none}.post-login-rewards-cta{background:#FBBF24!important;color:#1A0505!important}.post-login-plans-cta{background:#DC2626!important;color:#FFFFFF!important}html[data-theme="blood"] .visitor-modal-card .welcome-modal-cta{background:#FBBF24!important;color:#1A0505!important;border:1px solid #FBBF24!important}html[data-theme="blood"] .profile-menu{background:#1A0505!important;border-color:#C9A227!important}html[data-theme="blood"] .profile-token-badge{background:rgba(251,191,36,.12)!important;color:#FBBF24!important}html[data-theme="blood"] .rewards-sidebar-link{background:transparent!important;border:1px solid rgba(251,191,36,.45)!important;color:#FBBF24!important}html[data-theme="blood"] .visitor-modal-card,html[data-theme="blood"] .post-login-welcome-card{background:#1A0505!important;border-color:#C9A227!important;color:#FFFFFF!important}html[data-theme="blood"] .visitor-modal-card .welcome-modal-eyebrow,html[data-theme="blood"] .post-login-welcome-card .welcome-modal-eyebrow,html[data-theme="blood"] .visitor-modal-card h2,html[data-theme="blood"] .post-login-welcome-card h2{color:#FBBF24!important}html[data-theme="blood"] .visitor-modal-card .welcome-modal-close,html[data-theme="blood"] .post-login-welcome-card .welcome-modal-close{background:#2B0000!important;border-color:#C9A227!important;color:#FFFFFF!important}html[data-theme="dark"] .visitor-modal-card .welcome-modal-eyebrow,html[data-theme="dark"] .post-login-welcome-card .welcome-modal-eyebrow,html[data-theme="dark"] .visitor-modal-card h2,html[data-theme="dark"] .post-login-welcome-card h2{color:#FBBF24!important}html[data-theme="dark"] .visitor-modal-card .welcome-modal-close,html[data-theme="dark"] .post-login-welcome-card .welcome-modal-close{background:#111111!important;border-color:#555!important;color:#FFFFFF!important}html[data-theme="dark"] .visitor-modal-card .welcome-modal-cta{background:#DC2626!important;color:#FFFFFF!important}html[data-theme="dark"] .visitor-modal-card .visitor-signup-cta{background:#111111!important;border-color:#C9A227!important;color:#FFFFFF!important}`}</style>
       <style>{`html[data-theme="dark"]{--bg:#000000;--card:#111111;--text:#FFFFFF;--accent:#FFFFFF;color-scheme:dark}
 html[data-theme="blood"]{--bg:#2B0000;--card:#400000;--text:#FFFFFF;--accent:#FF1E2E;color-scheme:dark}
@@ -2661,7 +2678,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <p style={{ margin: "20px auto 0", maxWidth: 560, fontSize: 16, lineHeight: 2, color: "#E7E5E4" }}>{tr(language, "منصة HotGPT هي مساحة عمل ذكاء اصطناعي متكاملة: محادثات ذكية، كتابة وتصحيح أكواد، تحليل ملفات، توليد صور وCGI، فحص أمني وSEO للمواقع، بحث حي، واستخراج بيانات عملاء — كل الأدوات في مكان واحد.", "HotGPT is an all-in-one AI workspace: smart chat, code writing & debugging, file analysis, image & CGI generation, website security & SEO audits, live search, and customer lead extraction — every tool in one place.")}</p>
             <a href="/auth?mode=signup" style={{ display: "block", margin: "26px auto 0", maxWidth: 520, padding: "15px 20px", borderRadius: 16, background: "linear-gradient(135deg, #F6C453, #E8A020 55%, #B97A0F)", color: "#231300", fontWeight: 900, fontSize: 17, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35)" }}>{tr(language, "ابدأ مجانًا ↗", "Start free ↗")}</a>
             <ul style={{ listStyle: "none", margin: "24px 0 0", padding: 0, display: "grid", gap: 9, fontSize: 15, color: "#F5F5F4" }}>
-              <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "5 محادثات مجانًا عند أول تسجيل", "5 free conversations when you sign up")}</li>
+              <li><b style={{ color: "#FBBF24" }}>✓</b> {language === "en" ? "20 gift tokens when you sign up" : egEgp ? "هدية اشتراك ٢٠ جنيه عند أول تسجيل" : "٢٠ توكين هدية عند أول تسجيل"}</li>
               <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "واجهة محادثة كاملة بالعربي والإنجليزي", "Full chat interface in Arabic & English")}</li>
               <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "رد فوري خلال ثوانٍ", "Instant replies within seconds")}</li>
             </ul>
@@ -2678,7 +2695,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <h2 id="visitor-modal-title">{tr(language, "أهلًا بك في HOT GPT", "Welcome to HOT GPT")}</h2>
             <p className="welcome-modal-lead">{tr(language, "سجّل الدخول أو أنشئ حسابًا للمتابعة.", "Log in or create an account to continue.")}</p>
             <CheapestLine />
-            <p style={{ marginTop: 12, textAlign: "center", color: "#FFFFFF", fontSize: 13.5, fontWeight: 800 }}>{tr(language, "✅ التسجيل مجاني — ابدأ بـ 5 توكن هدية ترحيب", "✅ Registration is free — start with 5 welcome tokens")}</p>
+            <p style={{ marginTop: 12, textAlign: "center", color: "#FFFFFF", fontSize: 13.5, fontWeight: 800 }}>{language === "en" ? "✅ Registration is free — start with 20 welcome tokens" : egEgp ? "✅ التسجيل مجاني — ابدأ بهدية اشتراك ٢٠ جنيه" : "✅ التسجيل مجاني — ابدأ بـ ٢٠ توكين هدية ترحيب"}</p>
             <a href="/auth?mode=login" className="welcome-modal-cta">{tr(language, "تسجيل الدخول", "Log in")}</a>
             <a href="/auth?mode=signup" className="welcome-modal-cta visitor-signup-cta">{tr(language, "إنشاء حساب", "Create account")}</a>
           </section>
@@ -2707,7 +2724,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <div className="welcome-modal-brand"><BrandMark compact /></div>
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
             <h2 id="welcome-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
-            {welcomeGiftJustGranted && <p className="welcome-modal-lead">{tr(language, "🎁 ليك 5 توكين هدية وصلت رصيدك — جرّب بيهم أي وضع عندنا، حتى الوحش PRO أو توليد صورة.", "🎁 5 gift tokens just landed in your balance — try any mode with them, even Alwahsh PRO or an image.")}</p>}
+            {welcomeGiftJustGranted && <p className="welcome-modal-lead">{language === "en" ? "🎁 Congratulations! A 20-token welcome gift just landed in your balance — build a full website, scan your site's security, or have 20 chats." : egEgp ? "🎁 مبروك! كسبت هدية اشتراك ٢٠ جنيه — ٢٠ توكين وصلت رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة." : "🎁 مبروك! كسبت هدية اشتراك ٢٠ توكين — وصلت رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة."}</p>}
             <CheapestLine />
             <div className="post-login-welcome-actions">
               <a href="/rewards" className="post-login-rewards-cta">{tr(language, "🎁 صفحة الجوائز", "🎁 Rewards")}</a>
