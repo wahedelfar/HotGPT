@@ -292,6 +292,9 @@ function Sidebar({
         <a className="nav-item" href="/faq" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
           <HelpCircle size={16} /> {tr(language, "الأسئلة الشائعة", "FAQ")}
         </a>
+        <a className="nav-item" href="/payment-guide" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
+          <Coins size={16} /> {tr(language, "وسائل الدفع والاشتراك", "Payment & subscribing")}
+        </a>
       </nav>
 
       <div className="conversation-list-wrap">
@@ -2627,6 +2630,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <a href="/models">{tr(language, "نماذجنا", "Our models")}</a>
             <a href="/billing">{tr(language, "الباقات", "Plans")}</a>
             <a href="/faq">{tr(language, "الأسئلة الشائعة", "FAQ")}</a>
+            <a href="/payment-guide">{tr(language, "وسائل الدفع والاشتراك", "Payment & subscribing")}</a>
             <a href="/rewards">{tr(language, "الجوائز", "Rewards")}</a>
             <a href="/terms">{tr(language, "الشروط والأحكام", "Terms")}</a>
             <a href="/privacy">{tr(language, "سياسة الخصوصية", "Privacy policy")}</a>

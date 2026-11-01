@@ -273,8 +273,9 @@ export default function BillingPage() {
         <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT WALLET</p><h1 className="mt-2 text-3xl font-bold">{t("الباقات ورصيد التوكينات", "Packs & token balance")}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{t("كل فعل بسعر ثابت تعرفه قبل ما تبدأ — مفيش فواتير مفاجئة. وعضويتك بدأت بهدية ترحيب: 5 توكينات وصلت رصيدك تلقائيًا عند أول دخول.", "Every action has one flat price you know before you start — no surprise bills. And your membership began with a welcome gift: 5 tokens landed in your balance automatically on your first visit.")}</p></div>
         {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{account.tokenBalance} {t("توكين", "tokens")}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{t("🎁 أُضيفت هدية الترحيب (5 توكينات) إلى رصيدك", "🎁 The welcome gift (5 tokens) was added to your balance")}</div>}</div>}
       </div>
-      <div className="mt-8">
+      <div className="mt-8 flex flex-wrap gap-3">
         <a href="/models" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("اعرف نماذجنا", "Meet our models")}</a>
+        <a href="/payment-guide" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("وسائل الدفع وطريقة الاشتراك", "Payment methods & how to subscribe")}</a>
       </div>
       <section className="mt-4 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
         <h2 className="text-xl font-bold">{t("مقارنة سريعة — أي باقة تناسبك؟", "Quick comparison — which pack fits you?")}</h2>

@@ -19,6 +19,7 @@ import TermsPage from "./pages/Terms";
 import PrivacyPage from "./pages/Privacy";
 import RefundPage from "./pages/Refund";
 import FaqPage from "./pages/Faq";
+import PaymentGuidePage from "./pages/PaymentGuide";
 import AboutPage from "./pages/About";
 import AgeGate from "./components/AgeGate";
 import InstallAppButton from "@/components/InstallAppButton";
@@ -72,6 +73,10 @@ const PAGE_META: Record<string, { title: string; description: string }> = {
   "/faq": {
     title: "الأسئلة الشائعة | HotGPT",
     description: "إجابات مباشرة عن أسئلة الأمن السيبراني واختبار الاختراق وفحص الثغرات والبرمجة، وعن خدمات HotGPT وأسعاره.",
+  },
+  "/payment-guide": {
+    title: "وسائل الدفع وطريقة الاشتراك | HotGPT",
+    description: "شرح كامل لوسائل دفع HotGPT: فودافون كاش وإنستا باي وPayPal — من اختيار الباقة وتحويل المبلغ ورفع الإثبات حتى وصول التوكينات إلى رصيدك.",
   },
   "/about": {
     title: "من نحن | HotGPT",
@@ -134,6 +139,7 @@ function Router() {
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/refund" component={RefundPage} />
       <Route path="/faq" component={FaqPage} />
+      <Route path="/payment-guide" component={PaymentGuidePage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/admin/lucky.php" component={AdminLuckyPage} />
       <Route path="/admin" component={AdminBillingPage} />
