@@ -827,7 +827,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onSite, 
       <div style={{ textAlign: "center", marginTop: 10 }}>
         <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "ابدأ بباقة 100 توكن", "Start with the 100-token pack")}</a>
       </div>
-      <p style={{ textAlign: "center", fontSize: 12.5, margin: "10px 0 18px", opacity: 0.9 }}>{tr(language, "الباقة تكفي تقريبًا 100 رسالة عادية أو 20 صورة", "The pack covers roughly 100 regular messages or 20 images")}<br />{tr(language, "الدفع بفودافون كاش وإنستاباي بصورة التحويل فقط.", "Pay by Vodafone Cash or InstaPay with just a transfer screenshot.")}</p>
+      <p style={{ textAlign: "center", fontSize: 12.5, margin: "10px 0 18px", opacity: 0.9 }}>{tr(language, "باقة الـ100 = 100 محادثة - 20 صورة - 5 مواقع - 5 استخراج عملاء", "The 100 pack = 100 chats - 20 images - 5 websites - 5 lead extractions")}<br />{tr(language, "الدفع بفودافون كاش وإنستاباي بصورة التحويل فقط.", "Pay by Vodafone Cash or InstaPay with just a transfer screenshot.")}</p>
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
         {starterCard(starters[0])}
         {premiumCard("leads")}
