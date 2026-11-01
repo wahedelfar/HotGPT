@@ -51,6 +51,19 @@ function loadPaypalSdk(clientId: string): Promise<any> {
   return paypalSdkPromise;
 }
 
+const PACK_CAPACITY_AR: Record<number, string> = {
+  100: "100 محادثة - 20 صورة - 10 صور CGI - 5 مواقع - 5 استخراج عملاء - 10 أبحاث موجّهة",
+  500: "500 محادثة - 100 صورة - 50 صورة CGI - 25 موقع - 25 استخراج عملاء - 50 بحث موجّه",
+  800: "800 محادثة - 160 صورة - 80 صورة CGI - 40 موقع - 40 استخراج عملاء - 80 بحث موجّه",
+  1000: "1000 محادثة - 200 صورة - 100 صورة CGI - 50 موقع - 50 استخراج عملاء - 100 بحث موجّه",
+};
+const PACK_CAPACITY_EN: Record<number, string> = {
+  100: "100 chats - 20 images - 10 CGI images - 5 websites - 5 lead extractions - 10 guided searches",
+  500: "500 chats - 100 images - 50 CGI images - 25 websites - 25 lead extractions - 50 guided searches",
+  800: "800 chats - 160 images - 80 CGI images - 40 websites - 40 lead extractions - 80 guided searches",
+  1000: "1000 chats - 200 images - 100 CGI images - 50 websites - 50 lead extractions - 100 guided searches",
+};
+
 export default function BillingPage() {
   const { language } = useAppLanguage();
   const t = (ar: string, en: string) => (language === "ar" ? ar : en);
@@ -266,7 +279,7 @@ export default function BillingPage() {
       <section className="mt-4 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
         <h2 className="text-xl font-bold">{t("مقارنة سريعة — أي باقة تناسبك؟", "Quick comparison — which pack fits you?")}</h2>
         <div className="mt-4 divide-y divide-white/5">
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">100 {t("توكن", "tokens")} — {priceLabel(100, 100)}</span><span className="text-sm text-slate-400">{t("للتجربة", "For trying it out")}</span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">100 {t("توكن", "tokens")} — {priceLabel(100, 100)}</span><span className="text-sm text-slate-400">{t("الأرخص", "The cheapest")}</span></div>
           <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">500 {t("توكن", "tokens")} — {priceLabel(500, 300)}</span><span className="text-sm font-bold text-amber-300">{t("الأكثر توفيرًا", "Best value")}</span></div>
           <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">800 {t("توكن", "tokens")} — {priceLabel(800, 500)}</span><span className="text-sm text-slate-400">{t("للمستخدم النشط", "For the active user")}</span></div>
           <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">1000 {t("توكن", "tokens")} — {priceLabel(1000, 700)}</span><span className="text-sm text-slate-400">{t("للاستخدام المستمر", "For continuous use")}</span></div>
@@ -287,7 +300,7 @@ export default function BillingPage() {
             <div className="mt-3 text-3xl font-bold">{item.tokens.toLocaleString("en-US")} <span className="text-base font-normal text-amber-400">{t("توكين", "tokens")}</span></div>
             <div className="mt-2 text-xl font-semibold">{priceLabel(item.tokens, item.priceEgp)}{usd && <span className="text-sm font-normal text-slate-400"> · {language === "en" ? t(`أو ${item.priceEgp} جنيه بفودافون كاش أو انستا باي`, `or ${item.priceEgp} EGP via Vodafone Cash or InstaPay`) : t(`أو ما يعادل $${usd.priceUsd} بـ PayPal`, `or the equivalent of $${usd.priceUsd} via PayPal`)}</span>}</div>
             <div className="mt-2 text-xs text-slate-400">{language === "en" && usd ? `≈ $${(usd.priceUsd / item.tokens).toFixed(2)} per token` : t(`التوكين ≈ ${perToken.toFixed(2)} جنيه`, `≈ ${perToken.toFixed(2)} EGP per token`)}{saving > 0 ? t(` · أوفر ${saving}% من السعر الأساسي (1 جنيه)`, ` · save ${saving}% vs the base rate (1 EGP)`) : t(" · بالسعر الأساسي", " · at the base rate")}</div>
-            <div className="mt-3 text-xs leading-5 text-slate-400">{t(`تكفي تقريبًا: ${item.tokens.toLocaleString("en-US")} رسالة افتراضية · أو ${Math.floor(item.tokens / 5)} مرحلة وحش/Dark · أو ${Math.floor(item.tokens / 5)} صورة`, `Covers roughly: ${item.tokens.toLocaleString("en-US")} default messages · or ${Math.floor(item.tokens / 5)} Beast/Dark stages · or ${Math.floor(item.tokens / 5)} images`)}</div>
+            {(PACK_CAPACITY_AR[item.tokens] || PACK_CAPACITY_EN[item.tokens]) && <div className="mt-3 text-xs leading-5 text-slate-400">{t(`تكفي: ${PACK_CAPACITY_AR[item.tokens] ?? ""}`, `Covers: ${PACK_CAPACITY_EN[item.tokens] ?? ""}`)}</div>}
             {item.tokens === 500 && <div className="mt-3 rounded-lg bg-amber-400/15 px-3 py-2 text-xs font-bold text-amber-300">{t("الأفضل للمطورين الذين يستخدمون الموقع أسبوعيًا", "Best for developers who use the site weekly")}</div>}
           </button>
           );
