@@ -84,6 +84,14 @@ const MODELS: ModelCard[] = [
     ],
     price: ["استخراج كامل 20 توكين", "Full extraction, 20 tokens"],
   },
+  {
+    title: ["باني المواقع — بناء موقع إحترافي", "Website Builder — build a professional site"],
+    desc: [
+      "صف موقعك بالتفصيل (النشاط والاسم والأقسام والألوان) وهنبنيه لك موقعًا كاملًا في ملف واحد جاهز للنشر — معاينة حية فورية وتحميل بضغطة واحدة. لو عندك صور الصق روابطها في الوصف وهنستخدمها، وإلا هنستخدم صورًا افتراضية من عندنا تقدر تستبدلها بعد التحميل. وإكمال أي موقع انقطع في النص مجاني تمامًا.",
+      "Describe your site in detail (business and name, sections, colors) and we build you a complete single-file website ready to publish — instant live preview and one-tap download. Paste your own image URLs in the description to use them; otherwise we use our default images, which you can replace after downloading. And completing any site that got cut off is completely free.",
+    ],
+    price: ["بناء جديد 20 توكن · تعديل على موقع موجود 10", "New build 20 tokens · edit an existing site 10"],
+  },
 ];
 
 export default function ModelsPage() {

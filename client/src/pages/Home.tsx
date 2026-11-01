@@ -1199,7 +1199,6 @@ export default function Home() {
   const [approvalNotice, setApprovalNotice] = useState<{ totalTokens: number; count: number } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [extended, setExtended] = useState(false);
   const [writingAssist, setWritingAssist] = useState(true);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [darkWebEnabled, setDarkWebEnabled] = useState(false);
@@ -1516,6 +1515,7 @@ export default function Home() {
   const startNew = () => {
     setLocation("/");
     setActiveConversation(null);
+    setSiteMode(false);
     setMessages([]);
     setDraft("");
     setActiveView("chat");
@@ -1838,7 +1838,6 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: requestMessages,
-          extended,
           model: selectedModel,
           requestId: crypto.randomUUID(),
           conversationId,
@@ -2218,6 +2217,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           onSelect={id => {
             setLocation(`/chat/${id}`);
             setActiveConversation(id);
+            setSiteMode(false);
             setMessages([]);
             setRequestError(null);
             setActiveView("chat");
@@ -2605,7 +2605,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     <span>{tr(language, "الوحش", "Beast")}</span><span>PRO</span>
                   </button>
                 </div>
-                <div className="composer-mode-row" role="group" aria-label={tr(language, "خدمات إضافية", "Additional services")} style={{ marginTop: 6 }}>
+                <div className="composer-mode-row" role="group" aria-label={tr(language, "خدمات إضافية", "Additional services")} style={{ marginTop: 2 }}>
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
@@ -2615,9 +2615,6 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSeoMode(true); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
                     <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={siteMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (siteMode) { setSiteMode(false); return; } if (walletBalance < 10) { setRequestError(tr(language, "بناء المواقع خدمة Premium تحتاج رصيد 10 توكنات على الأقل (بناء جديد 20 وتعديل 10). اشحن من صفحة الباقات أو خد باقة HotLucky.", "Website building is a Premium service that needs at least 10 tokens (new build 20, edit 10). Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setSiteMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={siteMode} title={tr(language, "بناء موقع إحترافي — موقع كامل من وصفك · بناء 20 توكن · تعديل 10", "Build a professional website — a full site from your description · build 20 tokens · edit 10")} style={{ color: "#38BDF8", ...(siteMode ? { borderColor: "#38BDF8", background: "rgba(56,189,248,.12)", boxShadow: "0 0 10px rgba(56,189,248,.28)" } : {}) }}>
-                    <Globe size={16} /><span>{tr(language, "موقع", "Site")}</span>
-                  </button>
                   <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
                     <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
@@ -2625,23 +2622,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               </div>
               {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص. الأداة للأغراض الدفاعية والبحثية فقط على المواقع التي تملكها أو مصرح لك بفحصها.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only, on sites you own or are authorized to scan.")}</div>}
               {seoMode && <div className="attachment-cost-note">{tr(language, "📈 وضع فحص SEO: الصق رابط موقعك واضغط إرسال — تقرير SEO كامل بخطة نمو عملية من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "📈 SEO audit mode: paste your website URL and press send — a full SEO report with a practical growth plan from real collected data for 20 tokens, fully refunded if the audit cannot run.")}</div>}
-              {siteMode && <div className="attachment-cost-note">{tr(language, "🏗️ وضع بناء المواقع: صف موقعك بالتفصيل (النشاط والاسم، الأقسام، الألوان) واضغط إرسال — بناء جديد 20 توكن، وتعديل على موقع موجود في نفس المحادثة 10، وإكمال موقع انقطع مجاني. لو عندك صور الصق روابطها في الوصف وهنستخدمها، وإلا هنستخدم صورًا افتراضية من عندنا تقدر تستبدلها بعد التحميل.", "🏗️ Website builder mode: describe your site in detail (business and name, sections, colors) and press send — a new build is 20 tokens, an edit to the site in this same conversation is 10, and completing a cut-off build is free. Paste your own image URLs in the description to use them; otherwise we use our default images, which you can replace after downloading.")}</div>}
               {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 وضع استخراج العملاء: اكتب نوع النشاط والمنطقة (مثال: عيادات أسنان في التجمع الخامس) واضغط إرسال — بيانات لحد 30 شركة من خرائط جوجل (الاسم والتليفون والعنوان والموقع والتقييم) مقابل 20 توكن، واسترداد كامل إذا تعذر الاستخراج.", "📇 Lead extraction mode: type the business type and area (e.g. dental clinics in New Cairo) and press send — data for up to 30 businesses from Google Maps (name, phone, address, website, rating) for 20 tokens, fully refunded if the extraction cannot run.")}</div>}
               {(darkWebEnabled || darkLiveMode) && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>
-                <button
-                  className={
-                    extended ? "extended-toggle active" : "extended-toggle"
-                  }
-                  onClick={() => setExtended(value => !value)}
-                >
-                  <Sparkles size={14} /> {tr(language, "استجابة موسعة", "Extended response")} {extended && <strong className="extended-cost-label">{tr(language, "يستهلك توكن أكتر", "Uses more tokens")}</strong>} 
-                  <span className="toggle-track">
-                    <span />
-                  </span>
-                </button>
               </div>
             </div>
           </section>
