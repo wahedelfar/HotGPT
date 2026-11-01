@@ -265,7 +265,7 @@ export default function BillingPage() {
       <div className="mb-6 text-center">
         <img src="/brand/logo.png" alt="HotGPT" className="mx-auto h-24 w-24 object-contain" />
         <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
-        <p className="mt-2 text-sm font-bold text-amber-200">{t("أول منصة مصرية بدون قيود على البحث والبرمجة", "The first Egyptian AI platform with no limits on research & programming")}</p>
+        <p className="mt-2 text-sm font-bold text-amber-200">{t("أول منصة مصرية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
       </div>
       <div className="mt-2 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-center text-base font-bold leading-7 text-amber-200">
         {t("رجاءً: لو واجهتك مشكلة أو صعوبة في الدفع، تواصل مع الدعم الفني ", "Please note: if you face any problem or difficulty while paying, contact technical support ")}<a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="text-amber-300 underline decoration-2 underline-offset-4 hover:text-amber-200">{t("من هنا", "here")}</a>{t(" وسيتم حلها فورًا.", " and it will be resolved immediately.")}

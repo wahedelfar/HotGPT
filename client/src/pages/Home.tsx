@@ -808,8 +808,9 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onSite, 
       <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit" aria-hidden="true">
         <BrandMark compact />
       </div>
-      <p className="eyebrow" style={{ color: "#FBBF24", fontSize: 12.5, fontWeight: 700, letterSpacing: language === "ar" ? 0 : undefined }}>{language === "ar" ? "أول منصة مصرية بدون قيود على البحث والبرمجة" : "The first Egyptian AI platform with no limits on research & programming"}</p>
+      <p className="eyebrow">HOTGPT · AI WORKSPACE</p>
       <h1>Hot<span>GPT</span></h1>
+      <p style={{ margin: "8px 0 0", textAlign: "center", color: "#FBBF24", fontSize: 12.5, fontWeight: 700 }}>{language === "ar" ? "أول منصة مصرية بدون قيود على البحث والبرمجة" : "No limits on research & programming"}</p>
       <div style={{ maxWidth: 580, margin: "10px auto 0", textAlign: "center", fontFamily: "'IBM Plex Sans Arabic', 'Space Grotesk', sans-serif" }}>
         <p style={{ margin: 0, fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>نحلّ مشاكل <span style={{ color: "#FBBF24" }}>البرمجة</span> ونراجع <span style={{ color: "#FBBF24" }}>أمان موقعك</span> ونقوّيه بتوصيات عملية.</> : <>We solve <span style={{ color: "#FBBF24" }}>coding problems</span> and review and harden <span style={{ color: "#FBBF24" }}>your site's security</span> with practical recommendations.</>}</p>
         <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>ابدأ مجانًا ثم أكمل بباقة صغيرة: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 توكن</span> مقابل <span style={{ color: "#FBBF24" }}>100 جنيه</span>.</> : <>Start free then continue with the small pack: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 tokens</span> for <span style={{ color: "#FBBF24" }}>100 EGP</span>.</>}</p>

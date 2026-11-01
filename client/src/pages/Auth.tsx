@@ -198,7 +198,7 @@ export default function AuthPage() {
         <div className="text-center">
           <img src="/brand/logo.png" alt="HotGPT" className="mx-auto h-20 w-20 object-contain" />
           <p className="mt-3 text-4xl font-black tracking-wide text-amber-400">HotGPT</p>
-          <p className="mt-2 text-[13px] font-bold leading-6 text-amber-200">{language === "ar" ? "أول منصة مصرية بدون قيود على البحث والبرمجة" : "The first Egyptian AI platform with no limits on research & programming"}</p>
+          <p className="mt-2 text-[13px] font-bold leading-6 text-amber-200">{language === "ar" ? "أول منصة مصرية بدون قيود على البحث والبرمجة" : "No limits on research & programming"}</p>
         </div>
         <h1 className="mt-2 text-2xl font-bold">{mode === "login" ? "مرحبًا بعودتك" : "أنشئ حسابك"}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">{mode === "login" ? "سجّل الدخول لحفظ محادثاتك ومتابعة رصيدك من أي جهاز." : "أنشئ حسابك لحفظ محادثاتك ومتابعة رصيدك من أي جهاز."}</p>
