@@ -1,5 +1,6 @@
 import { ArrowRight, ShieldCheck, Coins, Gift, Users, Clock3 } from "lucide-react";
 import { LanguageToggle } from "@/contexts/LanguageContext";
+import BrandClaim from "@/components/BrandClaim";
 
 // HotLucky terms — rewritten for the spin game (2026-10-27). Section 8
 // (user liability) is kept verbatim: it is the site-wide clause.
@@ -10,7 +11,8 @@ export default function LuckyTermsPage() {
         <a href="/hotlucky" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white"><ArrowRight size={16} /> العودة إلى HotLucky</a>
         <LanguageToggle inline />
       </div>
-      <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
+      <BrandClaim />
+          <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
         <div className="flex items-center gap-3 text-amber-200"><ShieldCheck size={26} /><span className="text-xs font-bold tracking-widest">HOTLUCKY · TERMS</span></div>
         <h1 className="mt-4 text-3xl font-black sm:text-4xl">الشروط والأحكام — لعبة HotLucky</h1>
         <p className="mt-4 text-sm leading-7 text-slate-300">يرجى قراءة الشروط قبل شراء أي تذكرة لفة أو إرسال إثبات الدفع.</p>

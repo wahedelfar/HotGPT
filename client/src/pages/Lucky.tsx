@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { authFetch } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import BrandClaim from "@/components/BrandClaim";
 import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket, Facebook, MessageCircle } from "lucide-react";
 
 // HotLucky — spin game (restructured 2026-10-27).
@@ -359,6 +360,8 @@ export default function LuckyPage() {
           <LanguageToggle inline />
         </span>
       </nav>
+
+      <BrandClaim />
 
       <ReferralSection />
 

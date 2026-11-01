@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import BrandClaim from "@/components/BrandClaim";
 
 type FAQItem = { qAr: string; qEn: string; aAr: string; aEn: string };
 
@@ -157,6 +158,7 @@ export default function FaqPage() {
             </a>
             <LanguageToggle inline />
           </div>
+          <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <h1 className="text-3xl font-black sm:text-4xl">{language === "ar" ? "الأسئلة الشائعة" : "Frequently Asked Questions"}</h1>
             <p className="mt-4 text-sm leading-7 text-slate-300">

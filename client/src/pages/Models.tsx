@@ -111,6 +111,7 @@ export default function ModelsPage() {
           <div className="mb-6 text-center">
             <img src="/brand/logo.png" alt="HotGPT" className="mx-auto h-24 w-24 object-contain" />
             <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
+        <p className="mt-2 text-sm font-bold text-amber-200">{t("أول منصة مصرية بدون قيود على البحث والبرمجة", "The first Egyptian AI platform with no limits on research & programming")}</p>
           </div>
 
           <div className="mt-6 text-center">

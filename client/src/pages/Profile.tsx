@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { authFetch } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import BrandClaim from "@/components/BrandClaim";
 import { Coins, Gift, ArrowRight, ArrowLeft, Crown } from "lucide-react";
 
 type Prize = { label: string; code?: string; date?: string };
@@ -48,7 +49,8 @@ export default function ProfilePage() {
           <a href="/" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white">{language === "ar" ? <ArrowRight size={16}/> : <ArrowLeft size={16}/>} {t("العودة إلى HotGPT", "Back to HotGPT")}</a>
           <LanguageToggle inline />
         </div>
-        <header className="my-8 rounded-3xl border border-amber-200/30 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
+        <BrandClaim />
+          <header className="my-8 rounded-3xl border border-amber-200/30 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
           <p className="text-xs font-bold tracking-widest text-amber-200">HOTGPT · PROFILE</p>
           <h1 className="mt-3 text-3xl font-black">{t("حسابي وجوائزي", "My account & prizes")}</h1>
           <p className="mt-3 text-sm leading-7 text-slate-300">{t("تظهر هنا جميع جوائز HotLucky المسجلة في حسابك مع تاريخ كل جائزة.", "All your recorded HotLucky prizes appear here, with the date of each prize.")}</p>

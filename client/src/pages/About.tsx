@@ -1,8 +1,15 @@
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
+import BrandClaim from "@/components/BrandClaim";
 
 type Section = { hAr: string; hEn: string; bAr: string; bEn: string };
 
 const SECTIONS: Section[] = [
+  {
+    hAr: "أول منصة مصرية من نوعها",
+    hEn: "The first Egyptian platform of its kind",
+    bAr: "HotGPT أول منصة مصرية بتجمع في مكان واحد نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة، وباني مواقع احترافي، واستخراج عملاء، وفحص أمان وSEO للمواقع — بباقات بالجنيه المصري تبدأ من 100 جنيه، والدفع فودافون كاش - إنستاباي أو PayPal، من غير فيزا ولا اشتراكات بالدولار.",
+    bEn: "HotGPT is the first Egyptian platform to bring together, in one place, AI models with no limits on research and programming, a professional website builder, lead extraction, and website security & SEO audits — with packs in Egyptian pounds starting at 100 EGP, paying by Vodafone Cash - InstaPay or PayPal, with no Visa and no dollar subscriptions needed.",
+  },
   {
     hAr: "ما هو HotGPT؟",
     hEn: "What is HotGPT?",
@@ -48,6 +55,7 @@ export default function AboutPage() {
             </a>
             <LanguageToggle inline />
           </div>
+          <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <h1 className="text-3xl font-black sm:text-4xl">{ar ? "من نحن" : "About Us"}</h1>
             <p className="mt-4 text-sm leading-7 text-slate-300">
