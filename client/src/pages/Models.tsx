@@ -1,5 +1,5 @@
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
-import FbFollow from "@/components/FbFollow";
+import FbFollow, { BlogFollow } from "@/components/FbFollow";
 
 // Models page (2026-10-29, owner request): a standalone introduction to the
 // HotGPT family — separate from the packs page — with a CTA into /billing.
@@ -114,7 +114,7 @@ export default function ModelsPage() {
             <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
         <p className="mt-2 text-sm font-bold text-amber-200">{t("منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
           </div>
-          <div className="mb-6 flex justify-end"><FbFollow /></div>
+          <div className="mb-6 flex justify-end gap-2"><FbFollow /><BlogFollow /></div>
 
           <div className="mt-6 text-center">
             <p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT MODELS</p>

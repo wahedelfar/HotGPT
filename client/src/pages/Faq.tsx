@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
-import FbFollow from "@/components/FbFollow";
+import FbFollow, { BlogFollow } from "@/components/FbFollow";
 
 type FAQItem = { qAr: string; qEn: string; aAr: string; aEn: string };
 
@@ -159,7 +159,7 @@ export default function FaqPage() {
             </a>
             <LanguageToggle inline />
           </div>
-          <div className="mt-3 flex justify-end"><FbFollow /></div>
+          <div className="mt-3 flex justify-end gap-2"><FbFollow /><BlogFollow /></div>
           <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <h1 className="text-3xl font-black sm:text-4xl">{language === "ar" ? "الأسئلة الشائعة" : "Frequently Asked Questions"}</h1>
