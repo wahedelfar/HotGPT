@@ -297,17 +297,8 @@ function Sidebar({
         <a className="nav-item" href="/billing" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
           <CreditCard size={16} /> {tr(language, "الباقات", "Packs")}
         </a>
-        <a className="nav-item" href="/faq" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
-          <HelpCircle size={16} /> {tr(language, "الأسئلة الشائعة", "FAQ")}
-        </a>
         <a className="nav-item" href="/payment-guide" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
           <Coins size={16} /> {tr(language, "وسائل الدفع والاشتراك", "Payment & subscribing")}
-        </a>
-        <a className="nav-item" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
-          <Newspaper size={16} /> {tr(language, "مدونة HotGPT", "HotGPT Blog")}
-        </a>
-        <a className="nav-item" href="https://www.facebook.com/hotgpt" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
-          <Facebook size={16} /> {tr(language, "تابعنا على فيسبوك", "Follow us on Facebook")}
         </a>
       </nav>
 
