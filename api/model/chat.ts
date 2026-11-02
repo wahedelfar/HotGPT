@@ -229,8 +229,21 @@ async function handleImageGeneration(req: any, res: any, body: any) {
   // edit is the same call plus the reference image. Malformed or
   // oversized references are rejected before any charge.
   const rawSourceImage = typeof body?.sourceImage === "string" ? body.sourceImage : "";
-  const sourceImage = rawSourceImage.startsWith("data:image/") && rawSourceImage.length <= 8_000_000 ? rawSourceImage : "";
-  if (rawSourceImage && !sourceImage) { res.status(400).json({ error: "invalid_image_request" }); return; }
+  // The reference may arrive as a data URL or as the hosted URL the
+  // image API returned for the original generation — input_references
+  // accepts both forms. (First edit field test, 2026-11-02: the request
+  // died at this validation before any charge, leaving no audit event;
+  // rejections are now logged as image_rejected so the cause is data,
+  // not guesswork.)
+  const sourceImage = (rawSourceImage.startsWith("data:image/") || rawSourceImage.startsWith("https://")) && rawSourceImage.length <= 8_000_000 ? rawSourceImage : "";
+  if (rawSourceImage && !sourceImage) {
+    void supabaseRest("analytics_events", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ user_id: user.id, event_name: "image_rejected", path: "/api/model/chat", metadata: { reason: "invalid_source_image", length: rawSourceImage.length, prefix: rawSourceImage.slice(0, 12) } }),
+    }).catch(() => null);
+    res.status(400).json({ error: "invalid_image_request" }); return;
+  }
   const isEdit = Boolean(sourceImage);
   if (!prompt || !conversationId) { res.status(400).json({ error: "invalid_image_request" }); return; }
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();

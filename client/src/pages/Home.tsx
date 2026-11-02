@@ -1237,8 +1237,30 @@ export default function Home() {
   // edit via the «تعديل الصورة» action on a generated image. While set,
   // the next image-mode send carries it as the model's reference image.
   const [editSource, setEditSource] = useState<string | null>(null);
+  // Shrink the reference before sending: a full-size PNG data URL can
+  // reach several MB and die against the platform request-body limit.
+  // The edit model works from a 1024px JPEG just as well. Hosted URLs
+  // without CORS fall back to the original string (the server accepts
+  // the URL form as a reference too).
+  const shrinkImageForEdit = async (src: string): Promise<string> => {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error("img_load_failed")); img.src = src; });
+      const maxSide = 1024;
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+      if (scale >= 1 && src.length <= 2_500_000) return src;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+      canvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return src;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 0.85);
+    } catch { return src; }
+  };
   const startImageEdit = (imageUrl: string) => {
-    setEditSource(imageUrl);
+    void shrinkImageForEdit(imageUrl).then(shrunk => setEditSource(shrunk));
     setImageMode(true);
     setScanMode(false);
     setSeoMode(false);
@@ -1677,6 +1699,7 @@ export default function Home() {
             const imageErrors: Record<string, string> = {
               insufficient_credits: imageKind === "cgi" ? tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.") : tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough."),
               image_generation_failed: tr(language, "تعذر توليد الصورة الآن. لم يُخصم الرصيد؛ حاول مرة أخرى.", "Image generation failed. No charge was made; please try again."),
+              invalid_image_request: tr(language, "تعذر قراءة الصورة المراد تعديلها. ولّد صورة جديدة وحاول تعديلها.", "The image to edit could not be read. Generate a fresh image and try editing it."),
               image_not_configured: tr(language, "توليد الصور غير مُعدّ على الخادم بعد.", "Image generation is not configured on the server yet."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
             };
