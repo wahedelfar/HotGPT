@@ -3,6 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { authFetch } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
+import FbFollow from "@/components/FbFollow";
 import { Coins, Gift, ArrowRight, ArrowLeft, Crown } from "lucide-react";
 
 type Prize = { label: string; code?: string; date?: string };
@@ -49,6 +50,7 @@ export default function ProfilePage() {
           <a href="/" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white">{language === "ar" ? <ArrowRight size={16}/> : <ArrowLeft size={16}/>} {t("العودة إلى HotGPT", "Back to HotGPT")}</a>
           <LanguageToggle inline />
         </div>
+        <div className="mt-3 flex justify-end"><FbFollow /></div>
         <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/30 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
           <p className="text-xs font-bold tracking-widest text-amber-200">HOTGPT · PROFILE</p>
@@ -87,6 +89,7 @@ export default function ProfilePage() {
             </section>
           </>
         )}
+      <p className="mt-8 text-center text-xs text-slate-500"><a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{t("مدونة HotGPT", "HotGPT Blog")}</a></p>
       </div>
     </main>
     </LocalizedText>

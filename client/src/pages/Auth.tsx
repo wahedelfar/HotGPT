@@ -3,6 +3,7 @@ import { Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { readSession, signIn, signInWithGoogle, signUp } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
+import FbFollow from "@/components/FbFollow";
 
 function messageFor(error: unknown) {
   const code = error instanceof Error ? error.message : "";
@@ -237,6 +238,7 @@ export default function AuthPage() {
         <Button type="submit" disabled={busy} className="mt-6 h-12 w-full flex items-center justify-center bg-[#FBBF24] font-black text-[#1A0505] hover:bg-[#FBBF24]" style={{ backgroundColor: "#FBBF24", color: "#1A0505" }}>{busy ? "جارٍ التنفيذ..." : recoveryMode ? "إرسال" : mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}</Button>
         {!recoveryMode && <p className="mt-5 text-center text-sm text-slate-400">{mode === "login" ? "ليس لديك حساب؟" : "لديك حساب بالفعل؟"} <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setNotice(""); setSuccess(false); setEmailConfirmationRequired(false); }} className="font-semibold text-amber-400 hover:text-amber-300">{mode === "login" ? "إنشاء حساب جديد" : "تسجيل الدخول"}</button></p>}
       </form>
+      <div className="mt-5 flex items-center justify-center gap-4"><FbFollow /><a href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-amber-300 hover:underline">{language === "ar" ? "مدونة HotGPT" : "HotGPT Blog"}</a></div>
     </div>
   </main></LocalizedText>;
 }

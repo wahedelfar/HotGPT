@@ -1,5 +1,6 @@
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
+import FbFollow from "@/components/FbFollow";
 import { ShieldCheck } from "lucide-react";
 
 // Site Terms of Service — DRAFT for owner approval (2026-10-27).
@@ -84,6 +85,7 @@ export default function TermsPage() {
             <a href="/" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white">{t("← العودة إلى HotGPT", "← Back to HotGPT")}</a>
             <LanguageToggle inline />
           </div>
+          <div className="mt-3 flex justify-end"><FbFollow /></div>
           <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <div className="flex items-center gap-3 text-amber-200"><ShieldCheck size={26} /><span className="text-xs font-bold tracking-widest">HOTGPT · TERMS</span></div>
@@ -102,7 +104,8 @@ export default function TermsPage() {
             <a className="text-amber-200 underline" href="/privacy">{t("سياسة الخصوصية", "Privacy Policy")}</a>{" · "}
             <a className="text-amber-200 underline" href="/refund">{t("سياسة الاسترداد", "Refund Policy")}</a>{" · "}
             <a className="text-amber-200 underline" href="/lucky-terms">{t("شروط HotLucky", "HotLucky Terms")}</a>{" · "}
-            <a className="text-amber-200 underline" href="/faq">{t("الأسئلة الشائعة", "FAQ")}</a>
+            <a className="text-amber-200 underline" href="/faq">{t("الأسئلة الشائعة", "FAQ")}</a>{" · "}
+            <a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{t("مدونة HotGPT", "HotGPT Blog")}</a>
           </footer>
         </div>
       </main>

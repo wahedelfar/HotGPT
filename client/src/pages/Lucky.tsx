@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { authFetch } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
+import FbFollow from "@/components/FbFollow";
 import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket, Facebook, MessageCircle } from "lucide-react";
 
 // HotLucky — spin game (restructured 2026-10-27).
@@ -361,6 +362,7 @@ export default function LuckyPage() {
           <LanguageToggle inline />
         </span>
       </nav>
+      <div className="mt-3 flex justify-end"><FbFollow /></div>
 
       <BrandClaim />
 
@@ -462,7 +464,7 @@ export default function LuckyPage() {
           <div className="hl-card p-5"><div className="flex items-center gap-3"><Users className="hl-gold" size={22} /><h2 className="text-lg font-black">{t("آخر الجوائز المسجلة", "Latest recorded prizes")}</h2></div>{winners.length ? <div className="mt-4 space-y-3">{winners.map((w, i) => <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><div><p className="text-sm font-semibold">{w.member}</p>{w.date && <p className="mt-1 text-[11px] text-slate-500">{new Date(w.date).toLocaleString(locale, { timeZone: "Africa/Cairo" })}</p>}</div><span className="text-left text-xs font-bold text-amber-200">{w.prize}</span></div>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-500">{t("ستظهر الجوائز الحقيقية هنا بعد تسجيلها. لا تُعرض نتائج وهمية.", "Real prizes will appear here once recorded. No fake results are ever shown.")}</p>}</div>
         </aside>
       </section>
-      <footer className="mt-12 border-t border-amber-100/10 pt-6 text-center text-xs leading-6 text-slate-500">{t("HotLucky لعبة ترويجية رقمية. الجوائز توكنات داخل المنصة فقط.", "HotLucky is a digital promotional game. Prizes are in-platform tokens only.")} <a className="text-amber-200 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a> · <a className="text-amber-200 underline" href="/">HotGPT</a></footer>
+      <footer className="mt-12 border-t border-amber-100/10 pt-6 text-center text-xs leading-6 text-slate-500">{t("HotLucky لعبة ترويجية رقمية. الجوائز توكنات داخل المنصة فقط.", "HotLucky is a digital promotional game. Prizes are in-platform tokens only.")} <a className="text-amber-200 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a> · <a className="text-amber-200 underline" href="/">HotGPT</a> · <a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{t("مدونة HotGPT", "HotGPT Blog")}</a></footer>
     </div>
   </main></LocalizedText>;
 }

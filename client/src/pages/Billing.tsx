@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth";
 import { trackFunnelEvent } from "@/lib/analytics";
 import { LanguageFlag, LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
+import FbFollow from "@/components/FbFollow";
 
 type PackageOption = { tokens: number; priceEgp: number };
 type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null; notifyOnApproval?: boolean; approvalNoticeSeenAt?: string | null; memberNoticeText?: string | null; test?: boolean };
@@ -268,6 +269,7 @@ export default function BillingPage() {
         <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
         <p className="mt-2 text-sm font-bold text-amber-200">{t("منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
       </div>
+      <div className="mb-6 flex justify-end"><FbFollow /></div>
       <div className="mt-2 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-center text-base font-bold leading-7 text-amber-200">
         {t("رجاءً: لو واجهتك مشكلة أو صعوبة في الدفع، تواصل مع الدعم الفني ", "Please note: if you face any problem or difficulty while paying, contact technical support ")}<a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="text-amber-300 underline decoration-2 underline-offset-4 hover:text-amber-200">{t("من هنا", "here")}</a>{t(" وسيتم حلها فورًا.", " and it will be resolved immediately.")}
       </div>
@@ -373,6 +375,7 @@ export default function BillingPage() {
       <footer className="mt-10 pb-4 text-center text-xs leading-6 text-slate-500">
         <p className="text-sm font-black tracking-wide text-slate-300">{t("HotGPT — نماذج حرة للمطورين والمسوقين وشركات تطوير المواقع · حرية الإنترنت", "HotGPT — free models for developers, marketers & web development companies · Internet freedom")}</p>
         <p className="mx-auto mt-2 max-w-2xl">{t("باستخدامك HotGPT وشرائك أي باقة، أنت وحدك المسؤول قانونيًا عن طلباتك وعن أي استخدام لمخرجات الخدمة، وليست المنصة. التفاصيل في", "By using HotGPT and buying any pack, you alone are legally responsible for your requests and for any use of the service's outputs — not the platform. Details in the")} <a className="text-amber-400 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a>.</p>
+        <p className="mt-2"><a className="text-amber-400 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{t("مدونة HotGPT", "HotGPT Blog")}</a></p>
       </footer>
       <a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" aria-label={t("الدعم الفني على تليجرام", "Technical support on Telegram")} className="fixed bottom-5 start-5 z-40 flex items-center gap-2 rounded-full border border-amber-300/40 bg-[#1A0505]/95 px-4 py-2.5 shadow-lg shadow-black/50 backdrop-blur transition hover:border-amber-300 hover:bg-[#2B0000]">
         <svg viewBox="0 0 24 24" className="h-6 w-6 fill-amber-400" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>

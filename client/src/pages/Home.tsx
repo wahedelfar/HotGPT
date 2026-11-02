@@ -14,6 +14,8 @@ import {
   FileText,
   FolderOpen,
   Menu,
+  Newspaper,
+  Facebook,
   MessageSquare,
   Moon,
   Sun,
@@ -294,6 +296,12 @@ function Sidebar({
         </a>
         <a className="nav-item" href="/payment-guide" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
           <Coins size={16} /> {tr(language, "وسائل الدفع والاشتراك", "Payment & subscribing")}
+        </a>
+        <a className="nav-item" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
+          <Newspaper size={16} /> {tr(language, "مدونة HotGPT", "HotGPT Blog")}
+        </a>
+        <a className="nav-item" href="https://www.facebook.com/hotgpt" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
+          <Facebook size={16} /> {tr(language, "تابعنا على فيسبوك", "Follow us on Facebook")}
         </a>
       </nav>
 
@@ -2647,6 +2655,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <a href="/privacy">{tr(language, "سياسة الخصوصية", "Privacy policy")}</a>
             <a href="/refund">{tr(language, "سياسة الاسترداد", "Refund policy")}</a>
           </nav>
+          <p className="home-footer-copy"><a href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer" style={{ color: "#FBBF24", fontWeight: 800, textDecoration: "none" }}>{tr(language, "مدونة HotGPT", "HotGPT Blog")}</a></p>
           <p className="home-footer-copy">{tr(language, "تسجيل الدخول عبر Google يُستخدم لإنشاء حسابك وتسجيل دخولك فقط، ولا تُستخدم بيانات Google في توليد المحتوى أو تدريب نماذج الذكاء الاصطناعي.", "Google sign-in is used only to create and sign in to your account; Google data is never used to generate content or train AI models.")}</p>
           <p className="home-footer-copy">© {new Date().getFullYear()} HotGPT — {tr(language, "جميع الحقوق محفوظة", "All rights reserved")}</p>
         </footer>
@@ -2674,8 +2683,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           <div style={{ maxWidth: 620, width: "100%", textAlign: "center", position: "relative" }}>
             <button type="button" aria-label={tr(language, "إغلاق", "Close")} onClick={dismissWelcomeGate} style={{ position: "absolute", top: -6, insetInlineEnd: 0, width: 36, height: 36, borderRadius: 999, border: "1px solid rgba(251,191,36,.4)", color: "#FBBF24", fontSize: 20, lineHeight: 1, background: "rgba(0,0,0,.25)", cursor: "pointer" }}>×</button>
             <h1 style={{ margin: 0, fontSize: "clamp(42px, 9vw, 64px)", fontWeight: 900, color: "#fff", lineHeight: 1.15 }}>HotGPT</h1>
+            <p style={{ margin: "10px 0 0", fontSize: 12.5, fontWeight: 700, color: "#F6C453" }}>{tr(language, "منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
             <p style={{ margin: "6px 0 0", fontSize: "clamp(21px, 5.4vw, 32px)", fontWeight: 800, color: "#FBBF24", lineHeight: 1.5 }}>{tr(language, "ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع", "AI for developers, marketers & web development companies")}</p>
-            <p style={{ margin: "20px auto 0", maxWidth: 560, fontSize: 16, lineHeight: 2, color: "#E7E5E4" }}>{tr(language, "منصة HotGPT هي مساحة عمل ذكاء اصطناعي متكاملة: محادثات ذكية، كتابة وتصحيح أكواد، تحليل ملفات، توليد صور وCGI، فحص أمني وSEO للمواقع، بحث حي، واستخراج بيانات عملاء — كل الأدوات في مكان واحد.", "HotGPT is an all-in-one AI workspace: smart chat, code writing & debugging, file analysis, image & CGI generation, website security & SEO audits, live search, and customer lead extraction — every tool in one place.")}</p>
+            <p style={{ margin: "20px auto 0", maxWidth: 560, fontSize: 16, lineHeight: 2, color: "#E7E5E4" }}>{tr(language, "منصة HotGPT هي مساحة عمل ذكاء اصطناعي متكاملة: محادثات ذكية، كتابة وتصحيح أكواد، بناء مواقع احترافية، تحليل ملفات، توليد صور وCGI، فحص أمني وSEO للمواقع، بحث حي، واستخراج بيانات عملاء — كل الأدوات في مكان واحد.", "HotGPT is an all-in-one AI workspace: smart chat, code writing & debugging, website building, file analysis, image & CGI generation, website security & SEO audits, live search, and customer lead extraction — every tool in one place.")}</p>
             <a href="/auth?mode=signup" style={{ display: "block", margin: "26px auto 0", maxWidth: 520, padding: "15px 20px", borderRadius: 16, background: "linear-gradient(135deg, #F6C453, #E8A020 55%, #B97A0F)", color: "#231300", fontWeight: 900, fontSize: 17, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35)" }}>{tr(language, "ابدأ مجانًا ↗", "Start free ↗")}</a>
             <ul style={{ listStyle: "none", margin: "24px 0 0", padding: 0, display: "grid", gap: 9, fontSize: 15, color: "#F5F5F4" }}>
               <li><b style={{ color: "#FBBF24" }}>✓</b> {language === "en" ? "20 gift tokens when you sign up" : egEgp ? "هدية اشتراك ٢٠ جنيه عند أول تسجيل" : "٢٠ توكين هدية عند أول تسجيل"}</li>

@@ -1,5 +1,6 @@
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
+import FbFollow from "@/components/FbFollow";
 
 type Section = { hAr: string; hEn: string; bAr: string; bEn: string };
 
@@ -55,6 +56,7 @@ export default function AboutPage() {
             </a>
             <LanguageToggle inline />
           </div>
+          <div className="mt-3 flex justify-end"><FbFollow /></div>
           <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <h1 className="text-3xl font-black sm:text-4xl">{ar ? "من نحن" : "About Us"}</h1>
@@ -80,6 +82,7 @@ export default function AboutPage() {
               {ar ? "ابدأ مجانًا — ٢٠ توكين هدية" : "Start free — 20 gift tokens"}
             </a>
           </div>
+          <p className="mt-8 text-center text-xs text-slate-500"><a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{ar ? "مدونة HotGPT" : "HotGPT Blog"}</a></p>
         </div>
       </main>
     </LocalizedText>

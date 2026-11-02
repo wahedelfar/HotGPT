@@ -1,6 +1,7 @@
 import { ArrowRight, ShieldCheck, Coins, Gift, Users, Clock3 } from "lucide-react";
 import { LanguageToggle } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
+import FbFollow from "@/components/FbFollow";
 
 // HotLucky terms — rewritten for the spin game (2026-10-27). Section 8
 // (user liability) is kept verbatim: it is the site-wide clause.
@@ -11,6 +12,7 @@ export default function LuckyTermsPage() {
         <a href="/hotlucky" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white"><ArrowRight size={16} /> العودة إلى HotLucky</a>
         <LanguageToggle inline />
       </div>
+      <div className="mt-3 flex justify-end"><FbFollow /></div>
       <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
         <div className="flex items-center gap-3 text-amber-200"><ShieldCheck size={26} /><span className="text-xs font-bold tracking-widest">HOTLUCKY · TERMS</span></div>
@@ -39,7 +41,7 @@ export default function LuckyTermsPage() {
         <section className="rounded-2xl border border-white/10 bg-white/[.03] p-5"><h2 className="text-lg font-bold">7. توضيح قانوني</h2><p className="mt-3 text-sm leading-7 text-slate-300">هذه الصفحة تصف آلية اللعبة كما تعرضها الخدمة، ولا تمثل ضمانًا بأن البرنامج متوافق مع جميع القوانين أو شروط مزودي الدفع في كل دولة. على المستخدم مراجعة الشروط المحلية ذات الصلة، بما فيها القواعد المنظمة لألعاب الحظ الترويجية في بلده. تحتفظ المنصة بحق تعديل أسعار التذاكر أو جدول الجوائز مستقبلًا، على أن تسري التعديلات على التذاكر المشتراة بعد نشرها فقط ولا تمس التذاكر المعتمدة قبلها.</p></section>
         <section className="rounded-2xl border border-white/10 bg-white/[.03] p-5"><h2 className="text-lg font-bold">8. مسؤولية الاستخدام</h2><p className="mt-3 text-sm leading-7 text-slate-300">تنطبق هذه المادة على جميع خدمات HotGPT وباقاتها. تُقدَّم الخدمة كما هي، كأداة ذكاء اصطناعي عامة، والمستخدم وحده مسؤول قانونيًا عن كل طلب يرسله وعن أي استخدام أو نشر أو تنفيذ لمخرجات الخدمة، ولا تتحمل المنصة أي مسؤولية عن استخدام يخالف قوانين بلد المستخدم. استمرارك في الاستخدام يعني قبولك بهذا البند.</p></section>
       </div>
-      <p className="mt-8 text-center text-xs leading-6 text-slate-500">آخر تحديث: 27 أكتوبر 2026 · <a href="/hotlucky" className="text-amber-200 underline">العودة إلى صفحة الجوائز</a></p>
+      <p className="mt-8 text-center text-xs leading-6 text-slate-500">آخر تحديث: 27 أكتوبر 2026 · <a href="/hotlucky" className="text-amber-200 underline">العودة إلى صفحة الجوائز</a> · <a href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer" className="text-amber-200 underline">مدونة HotGPT</a></p>
     </div>
   </main>;
 }
