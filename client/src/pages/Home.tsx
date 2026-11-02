@@ -1578,6 +1578,8 @@ export default function Home() {
     setLocation("/");
     setActiveConversation(null);
     setSiteMode(false);
+    setImageMode(false);
+    setEditSource(null);
     setMessages([]);
     setDraft("");
     setActiveView("chat");
@@ -1714,7 +1716,11 @@ export default function Home() {
         } finally {
           setIsSending(false);
           setIsSearchingWeb(false);
-          setImageMode(false);
+          // Design session stays armed (owner rule, 2026-11-02): after an
+          // image is generated in a conversation, a follow-up design
+          // request must produce an image, not a text reply — so image
+          // mode no longer disarms itself after a send. It disarms via
+          // the Image button, a conversation switch, or a new chat.
           setEditSource(null);
         }
         return;
@@ -2291,6 +2297,8 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             setLocation(`/chat/${id}`);
             setActiveConversation(id);
             setSiteMode(false);
+            setImageMode(false);
+            setEditSource(null);
             setMessages([]);
             setRequestError(null);
             setActiveView("chat");
@@ -2629,7 +2637,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={editSource ? tr(language, "اكتب وصف التعديل على الصورة… مثال: غيّر الخلفية إلى ذهبي", "Describe the edit to this image… e.g. make the background gold") : siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={editSource ? tr(language, "اكتب وصف التعديل على الصورة… مثال: غيّر الخلفية إلى ذهبي", "Describe the edit to this image… e.g. make the background gold") : siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
@@ -2645,6 +2653,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 ) : (
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
                 ))}
+                {imageMode && !editSource && messages.some(m => m.imageUrl) && (
+                  <div className="attachment-cost-note">{tr(language, "🎨 وضع التصميم مفعّل في المحادثة دي: أي تصميم تطلبه هيتنفذ كصورة (5 توكين — وCGI بـ 10). للرجوع للشات النصي دوس زرار «صورة» لإيقاف الوضع.", "🎨 Design mode is on in this conversation: any design you ask for will be generated as an image (5 tokens — CGI 10). Tap the Image button to turn it off and return to text chat.")}</div>
+                )}
                 {editSource && (
                   <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <img src={editSource} alt="" style={{ width: 34, height: 34, objectFit: "cover", borderRadius: 8 }} />
