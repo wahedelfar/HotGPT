@@ -1271,6 +1271,15 @@ export default function Home() {
   };
   const [imageMenuPos, setImageMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
+  // Design-session iteration (2026-11-02, after the reference-less
+  // follow-up failure): the last image generated in this conversation.
+  // While design mode is armed, a follow-up request rides the edit path
+  // with this image as its reference — otherwise an instruction like
+  // «خلي الخلفية سوداء» is rendered AS TEXT by a fresh generation
+  // instead of being applied to the design. freshDesignNext is the
+  // member's visible escape hatch for a from-scratch design.
+  const lastDesignImageRef = useRef<string | null>(null);
+  const [freshDesignNext, setFreshDesignNext] = useState(false);
   const sessionLeadsRef = useRef<Map<string, LeadBusiness[][]>>(new Map());
   const sessionLeadSeenRef = useRef<Map<string, string[]>>(new Map());
 
@@ -1580,6 +1589,8 @@ export default function Home() {
     setSiteMode(false);
     setImageMode(false);
     setEditSource(null);
+    lastDesignImageRef.current = null;
+    setFreshDesignNext(false);
     setMessages([]);
     setDraft("");
     setActiveView("chat");
@@ -1693,9 +1704,11 @@ export default function Home() {
         // Image generation (user feature, 2026-10-25): the server charges a
         // flat 5 tokens and returns the image for this session only; images
         // are not persisted in the database yet.
-        const wasEdit = Boolean(editSource);
+        const stickySource = !editSource && !freshDesignNext && lastDesignImageRef.current ? await shrinkImageForEdit(lastDesignImageRef.current) : null;
+        const effectiveSource = editSource || stickySource;
+        const wasEdit = Boolean(effectiveSource);
         try {
-          const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId, imageKind, ...(editSource ? { sourceImage: editSource } : {}) }) });
+          const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId, imageKind, ...(effectiveSource ? { sourceImage: effectiveSource } : {}) }) });
           const imagePayload = await imageResponse.json().catch(() => ({}));
           if (!imageResponse.ok || !imagePayload.imageDataUrl) {
             const imageErrors: Record<string, string> = {
@@ -1708,6 +1721,7 @@ export default function Home() {
             throw new Error(imageErrors[String(imagePayload.error || "")] || tr(language, "تعذر توليد الصورة الآن.", "Image generation failed."));
           }
           sessionImagesRef.current.set(trimmed.slice(0, 200), String(imagePayload.imageDataUrl));
+          lastDesignImageRef.current = String(imagePayload.imageDataUrl);
           if (typeof imagePayload.tokenBalance === "number") setWalletBalance(imagePayload.tokenBalance);
           const imageNote = wasEdit ? tr(language, `🎨 صورة معدّلة بناءً على طلبك: «${trimmed.slice(0, 200)}»`, `🎨 Image edited as you requested: "${trimmed.slice(0, 200)}"`) : imageKind === "cgi" ? tr(language, `🎨 صورة CGI مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 CGI image generated from your prompt: "${trimmed.slice(0, 200)}"`) : tr(language, `🎨 صورة مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 Image generated from your prompt: "${trimmed.slice(0, 200)}"`);
           setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: imageNote, timestamp: formatTime(), imageUrl: String(imagePayload.imageDataUrl) }]);
@@ -1722,6 +1736,7 @@ export default function Home() {
           // mode no longer disarms itself after a send. It disarms via
           // the Image button, a conversation switch, or a new chat.
           setEditSource(null);
+          setFreshDesignNext(false);
         }
         return;
       }
@@ -2299,6 +2314,8 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             setSiteMode(false);
             setImageMode(false);
             setEditSource(null);
+            lastDesignImageRef.current = null;
+            setFreshDesignNext(false);
             setMessages([]);
             setRequestError(null);
             setActiveView("chat");
@@ -2654,7 +2671,10 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
                 ))}
                 {imageMode && !editSource && messages.some(m => m.imageUrl) && (
-                  <div className="attachment-cost-note">{tr(language, "🎨 وضع التصميم مفعّل في المحادثة دي: أي تصميم تطلبه هيتنفذ كصورة (5 توكين — وCGI بـ 10). للرجوع للشات النصي دوس زرار «صورة» لإيقاف الوضع.", "🎨 Design mode is on in this conversation: any design you ask for will be generated as an image (5 tokens — CGI 10). Tap the Image button to turn it off and return to text chat.")}</div>
+                  <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span>{freshDesignNext ? tr(language, "🎨 الطلب الجاي: تصميم جديد من الصفر (5 توكين — وCGI بـ 10).", "🎨 Next request: a brand-new design from scratch (5 tokens — CGI 10).") : tr(language, "🎨 وضع التصميم مفعّل: طلبك الجاي هيتعدّل على آخر صورة في المحادثة (5 توكين — وCGI بـ 10). للرجوع للشات النصي دوس زرار «صورة».", "🎨 Design mode is on: your next request will edit the last image in this conversation (5 tokens — CGI 10). Tap the Image button to return to text chat.")}</span>
+                    <button type="button" onClick={() => setFreshDesignNext(v => !v)} style={{ color: "#F6C453", fontWeight: 700 }}>{freshDesignNext ? tr(language, "لا — عدّل على آخر صورة", "No — edit the last image") : tr(language, "تصميم جديد من الصفر", "New design from scratch")}</button>
+                  </div>
                 )}
                 {editSource && (
                   <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8 }}>
