@@ -311,7 +311,10 @@ async function handleImageGeneration(req: any, res: any, body: any) {
         { model: primaryModel, timeoutMs: 30000 },
         { model: (process.env.OPENROUTER_CGI_IMAGE_MODEL_FALLBACK || "bytedance-seed/seedream-5-0-flash").trim(), timeoutMs: 24000 },
       ]
-    : [{ model: primaryModel, timeoutMs: 55000 }];
+    : [
+        { model: primaryModel, timeoutMs: 30000 },
+        { model: (process.env.OPENROUTER_IMAGE_MODEL_FALLBACK || "bytedance-seed/seedream-5-0-flash").trim(), timeoutMs: 24000 },
+      ];
   const finalPrompt = cgi && !isEdit ? CGI_FOOH_TEMPLATE.replace("{USER_INPUT}", prompt) : prompt;
   let lastAttemptModel = primaryModel;
   try {
@@ -513,7 +516,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
         { role: "user", content: userContent },
       ];
       for (let pass = 0; pass < 3; pass++) {
-        const budget = Math.min(pass === 0 ? (index === 0 ? 40000 : 25000) : 20000, reportDeadline - Date.now());
+        const budget = Math.min(pass === 0 ? (index === 0 ? 30000 : 25000) : 20000, reportDeadline - Date.now()); // primary pass-0 capped at 30s (rescue plan, 2026-11-03): at 40s the backup model inherited <10s and effectively never ran
         if (budget < 8000) break;
         const passSignal = AbortSignal.timeout(budget);
         try {
@@ -676,7 +679,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
         { role: "user", content: userContent },
       ];
       for (let pass = 0; pass < 3; pass++) {
-        const modelBudget = pass === 0 ? (index === 0 ? 36000 : 18000) : 7000;
+        const modelBudget = pass === 0 ? (index === 0 ? 30000 : 18000) : 7000; // first writer pass-0 capped at 30s (rescue plan, 2026-11-03) so the second writer keeps a real window
         const budget = Math.min(modelBudget, reportDeadline - Date.now());
         if (budget < 5000) break;
         console.info("[SEO] Report generation pass", JSON.stringify({ model, modelIndex: index, pass, budgetMs: budget, elapsedMs: Date.now() - seoRequestStartedAt }));
@@ -987,6 +990,17 @@ async function handleSiteBuild(req: any, res: any, body: any) {
         { role: "assistant", content: assembled },
         { role: "user", content: SITE_CONTINUE },
       ];
+    }
+    // Internal rescue (2026-11-03): if the passes produced nothing
+    // usable and real time remains, one fresh attempt with the fast
+    // fallback model runs before the handler gives up and refunds —
+    // the member sees a finished site instead of a failure. Skipped
+    // for continuations, where `assembled` already holds their site.
+    if (kind !== "continue" && assembled.trim().length < 1500 && deadline - Date.now() > 15000) {
+      const retryChunk = await collectSitePass(orKey, models[models.length - 1], baseMessages, 6000, deadline - 3000 - Date.now()).catch(() => "");
+      if (retryChunk && retryChunk.trim().length > assembled.trim().length) {
+        assembled = retryChunk.replace(/^\s*```html\s*/i, "").replace(/^\s*```\s*/, "");
+      }
     }
     let html = assembled.trim().replace(/```\s*$/, "").trim();
     const hasDoctype = /<!DOCTYPE html/i.test(html.slice(0, 300));
@@ -2056,10 +2070,22 @@ export default async function handler(req: any, res: any) {
       // platform's 60s ceiling and the answer's tail was lost.)
       const attemptController = provider.openRouter ? new AbortController() : null;
       let attemptLastActivityAt = Date.now();
-      const attemptHardCapMs = provider.name === "backup" ? 20000 : 45000;
+      const attemptHardCapMs = provider.name === "backup" ? 20000 : 35000;
       const attemptStallMs = provider.name === "backup" ? 12000 : 15000;
+      // Internal rescue (owner order, 2026-11-03): a primary still
+      // reasoning silently after 25s with ZERO content produced must
+      // not eat the whole request — abort it and let the backup answer
+      // inside the same request, before the member ever sees a
+      // failure. Reasoning activity alone does not reset this clock;
+      // only real content does. (Field incident, 2026-11-02 22:01: the
+      // Beast primary's first content delta arrived at 43.9s under the
+      // old 45s hard cap; the backup then started too late and died at
+      // the platform ceiling.) The primary hard cap drops 45s -> 35s
+      // for the same reason: 35 + the backup's 20 fits the ceiling.
+      const attemptFirstContentMs = provider.name === "backup" ? 12000 : 25000;
       const attemptWatchdog = attemptController ? setInterval(() => {
-        if (Date.now() - attemptLastActivityAt > attemptStallMs || Date.now() - providerStartedAt > attemptHardCapMs) attemptController.abort();
+        const elapsedMs = Date.now() - providerStartedAt;
+        if (Date.now() - attemptLastActivityAt > attemptStallMs || elapsedMs > attemptHardCapMs || (streamToClient && firstContentAt === null && elapsedMs > attemptFirstContentMs)) attemptController.abort();
       }, 1000) : null;
       try {
         const upstream = await fetch(provider.endpoint, {
