@@ -38,8 +38,8 @@ const SECTIONS: Section[] = [
   {
     hAr: "تواصل معنا",
     hEn: "Contact us",
-    bAr: "الدعم الفني: hotgpt.pro@gmail.com — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: 20 توكين هدية، وجرّب بنفسك قبل ما تدفع أي حاجة.",
-    bEn: "Technical support: hotgpt.pro@gmail.com — Administration: wawavip@proton.me. Create your account and claim the welcome gift: 20 free tokens, and try everything yourself before paying anything.",
+    bAr: "الدعم الفني: support@hotgpt.pro — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: 20 توكين هدية، وجرّب بنفسك قبل ما تدفع أي حاجة.",
+    bEn: "Technical support: support@hotgpt.pro — Administration: wawavip@proton.me. Create your account and claim the welcome gift: 20 free tokens, and try everything yourself before paying anything.",
   },
 ];
 

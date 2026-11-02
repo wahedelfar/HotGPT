@@ -196,8 +196,8 @@ export default function PaymentGuidePage() {
               <h2 className="text-lg font-bold">{ar ? "واجهتك أي صعوبة في الدفع؟" : "Facing any difficulty while paying?"}</h2>
               <p className="mt-2 text-sm leading-7 text-slate-300">
                 {ar
-                  ? "تواصل مع الدعم الفني وسيتم حلها فورًا — أو راسلنا على hotgpt.pro@gmail.com."
-                  : "Contact technical support and it will be resolved immediately — or email us at hotgpt.pro@gmail.com."}
+                  ? "تواصل مع الدعم الفني وسيتم حلها فورًا — أو راسلنا على support@hotgpt.pro."
+                  : "Contact technical support and it will be resolved immediately — or email us at support@hotgpt.pro."}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="inline-block rounded-lg bg-amber-400 px-4 py-2 text-sm font-black text-black transition hover:bg-amber-300">

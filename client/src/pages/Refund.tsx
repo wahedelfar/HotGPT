@@ -54,8 +54,8 @@ const SECTIONS: Section[] = [
   {
     h: ["٧. طريقة الطلب", "7. How to request"],
     p: [
-      "راسل hotgpt.pro@gmail.com من بريد حسابك مع تفاصيل العملية (الوسيلة والمبلغ والتوقيت وصورة الإثبات عند الحاجة). تُراجع الطلبات خلال ٢ أيام عمل كحد أقصى، ويُخطرك فريقنا بالنتيجة وسببها إن رُفض الطلب.",
-      "Email hotgpt.pro@gmail.com from your account email with the transaction details (method, amount, time, and the proof image if needed). Requests are reviewed within 2 business days at most, and you will be notified of the outcome — and the reason, if a request is declined.",
+      "راسل support@hotgpt.pro من بريد حسابك مع تفاصيل العملية (الوسيلة والمبلغ والتوقيت وصورة الإثبات عند الحاجة). تُراجع الطلبات خلال ٢ أيام عمل كحد أقصى، ويُخطرك فريقنا بالنتيجة وسببها إن رُفض الطلب.",
+      "Email support@hotgpt.pro from your account email with the transaction details (method, amount, time, and the proof image if needed). Requests are reviewed within 2 business days at most, and you will be notified of the outcome — and the reason, if a request is declined.",
     ],
   },
 ];
