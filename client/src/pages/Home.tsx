@@ -834,7 +834,6 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
         {imageCard()}
         {premiumCard("scan")}
         {starterCard(starters[2])}
-        {premiumCard("darklive")}
         {starterCard(starters[3])}
         {premiumCard("seo")}
       </div>
@@ -1355,6 +1354,7 @@ export default function Home() {
   const promptedPrizeCode = useRef<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+  const [routeNotice, setRouteNotice] = useState<string | null>(null);
   const [hasStartedStreaming, setHasStartedStreaming] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   // Staged progress for the premium URL reports (scan / SEO): the server
@@ -1645,7 +1645,24 @@ export default function Home() {
     setDraft("");
     setRequestError(null);
     setIsSending(true);
-    setIsSearchingWeb(webSearchEnabled);
+    // Smart auto-router (owner order 2026-11-03): a short general
+    // question typed in the plain default mode (prices, gold, weather,
+    // news, scores, leaks, "search for…") used to get a stale
+    // from-memory answer from the free code model, which read as a
+    // weak platform and lost the visitor before he ever tried a PRO
+    // icon. Route it through the existing live web-search path
+    // instead. Code and writing intents keep precedence and stay in
+    // the free mode; the member is told about the move AND its
+    // 5-token price before anything is sent (prices known before
+    // sending); routing never fires when a special mode, an
+    // attachment, the Beast picker or a low balance says no.
+    const ROUTE_STAY = ["كود", "برمج", "بايثون", "python", "جافاسكريبت", "javascript", "سكريبت", "script", "ثغرة", "اختراق", "function", "html", "css", "sql", "php", "swift", "kotlin", "اكتب", "اشرح", "لخص", "لخّص", "ترجم", "قصيدة", "قصة", "مقال"];
+    const ROUTE_GENERAL = ["سعر", "أسعار", "بكام", "ذهب", "دهب", "فضة", "دولار", "يورو", "بورصة", "طقس", "أخبار", "اخبار", "نتيجة", "مباراة", "ماتش", "موعد", "ابحث", "دور على", "بحث", "تسريب", "price", "gold", "weather", "news", "score", "match"];
+    const lowerDraft = trimmed.toLowerCase();
+    const autoRouteSearch = !webSearchEnabled && !darkWebEnabled && !darkLiveMode && !scanMode && !seoMode && !leakMode && !siteMode && !leadsMode && !imageMode && !attachment && selectedModel === "dadgpt-default" && walletBalance >= 5 && trimmed.length <= 300 && !lowerDraft.includes("http") && !ROUTE_STAY.some(w => lowerDraft.includes(w)) && ROUTE_GENERAL.some(w => lowerDraft.includes(w));
+    const effectiveWebSearch = webSearchEnabled || autoRouteSearch;
+    setRouteNotice(autoRouteSearch ? tr(language, "سؤالك ده عام، هنقله لمود بحث PRO (5 توكين) عشان يجيبلك إجابة أدق بالروابط الحية.", "This is a general question, so it was moved to PRO search mode (5 tokens) for a more accurate answer with live links.") : null);
+    setIsSearchingWeb(effectiveWebSearch);
     setHasStartedStreaming(false);
     setIsThinking(false);
     let conversationId = activeConversation;
@@ -1951,8 +1968,8 @@ export default function Home() {
           conversationId,
           stream: true,
           attachment: filePayload,
-          mode: darkLiveMode ? "darklive" : darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default",
-          modes: { writingAssist, webSearch: webSearchEnabled, darkWeb: darkWebEnabled || darkLiveMode },
+          mode: darkLiveMode ? "darklive" : darkWebEnabled ? "darkweb" : (effectiveWebSearch || selectedModel === "dadgpt-beast") ? "Beast pro" : "default",
+          modes: { writingAssist, webSearch: effectiveWebSearch, darkWeb: darkWebEnabled || darkLiveMode },
           livePremium: darkLiveMode,
           preferences: {
             style: localStorage.getItem("hotgpt-response-style") || "professional",
@@ -2067,7 +2084,7 @@ export default function Home() {
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : webSearchEnabled ? "البحث المتقدم يحتاج إلى 5 توكينات لكل عملية. رصيدك غير كافٍ؛ اختر باقة مناسبة." : darkWebEnabled ? "تبدأ تكلفة الدارك ويب من 3 توكينات، وقد تصل إلى 9 حسب طول الإجابة وعمقها. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "تتراوح تكلفة الوحش PRO بين 3 و9 توكينات حسب طول الإجابة وعمقها. اشترِ باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : effectiveWebSearch ? "البحث المتقدم يحتاج إلى 5 توكينات لكل عملية. رصيدك غير كافٍ؛ اختر باقة مناسبة." : darkWebEnabled ? "تبدأ تكلفة الدارك ويب من 3 توكينات، وقد تصل إلى 9 حسب طول الإجابة وعمقها. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "تتراوح تكلفة الوحش PRO بين 3 و9 توكينات حسب طول الإجابة وعمقها. اشترِ باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
@@ -2690,7 +2707,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين… مثال: name@company.com أو company.com", "Type the email or domain… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين… مثال: name@company.com أو company.com", "Type the email or domain… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
                   rows={1}
                 />
                 <button
@@ -2749,14 +2766,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
-                  <button type="button" className={darkLiveMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (darkLiveMode) { setDarkLiveMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "دارك لايف خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Dark Live is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } if (!requireProFeature("darkweb")) return; setRequestError(null); setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); setLeakMode(false); setDarkWebEnabled(false); setDarkLiveMode(true); }} aria-pressed={darkLiveMode} title={tr(language, "دارك لايف — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية · رسم البحث 5 توكن عند توفر النتائج فقط", "Dark Live — live dark-web index search with real results and links · the 5-token search fee applies only when results are found")} style={{ color: "#FBBF24", ...(darkLiveMode ? { borderColor: "#FBBF24", background: "rgba(251,191,36,.12)", boxShadow: "0 0 10px rgba(251,191,36,.28)" } : {}) }}>
-                    <Radio size={16} /><span>{tr(language, "دارك لايف", "Dark Live")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
-                  </button>
                   <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setLeakMode(false); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
                     <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                   <button type="button" className={leakMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode} title={tr(language, "كشف التسريب — هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 توكين", "Leak check — did your email or domain appear in data breaches? · 20 tokens")} style={{ color: "#F87171", ...(leakMode ? { borderColor: "#F87171", background: "rgba(248,113,113,.12)", boxShadow: "0 0 10px rgba(248,113,113,.28)" } : {}) }}>
-                    <ShieldAlert size={16} /><span style={{ fontSize: 11 }}>{tr(language, "كشف التسريب", "Leak check")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
+                    <ShieldAlert size={16} /><span style={{ fontSize: 11 }}>{tr(language, "التسريبات", "Leaks")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                   <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
                     <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
@@ -2765,9 +2779,10 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               </div>
               {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص. الأداة للأغراض الدفاعية والبحثية فقط على المواقع التي تملكها أو مصرح لك بفحصها.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only, on sites you own or are authorized to scan.")}</div>}
               {seoMode && <div className="attachment-cost-note">{tr(language, "📈 وضع فحص SEO: الصق رابط موقعك واضغط إرسال — تقرير SEO كامل بخطة نمو عملية من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "📈 SEO audit mode: paste your website URL and press send — a full SEO report with a practical growth plan from real collected data for 20 tokens, fully refunded if the audit cannot run.")}</div>}
+              {routeNotice && <div className="attachment-cost-note">{routeNotice}</div>}
               {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 وضع كشف التسريب: اكتب إيميلك أو دومين موقعك واضغط إرسال — فحص فوري في فهارس التسريبات العالمية وتقرير بالنتائج والخطوات مقابل 20 توكين، واسترداد كامل إذا تعذر الفحص. افحص فقط إيميلات ودومينات تخصك أو مصرح لك بفحصها.", "🔐 Leak check mode: type your email or your site's domain and press send — an instant check across global breach indexes with a findings-and-actions report for 20 tokens, fully refunded if the check cannot run. Only check emails and domains that are yours or that you are authorized to check.")}</div>}
               {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 وضع استخراج العملاء: اكتب نوع النشاط والمنطقة (مثال: عيادات أسنان في التجمع الخامس) واضغط إرسال — بيانات لحد 30 شركة من خرائط جوجل (الاسم والتليفون والعنوان والموقع والتقييم) مقابل 20 توكن، واسترداد كامل إذا تعذر الاستخراج.", "📇 Lead extraction mode: type the business type and area (e.g. dental clinics in New Cairo) and press send — data for up to 30 businesses from Google Maps (name, phone, address, website, rating) for 20 tokens, fully refunded if the extraction cannot run.")}</div>}
-              {(darkWebEnabled || darkLiveMode) && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
+              {darkWebEnabled && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>

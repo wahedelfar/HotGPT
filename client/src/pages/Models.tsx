@@ -38,14 +38,6 @@ const MODELS: ModelCard[] = [
     price: ["5 توكينات للمرحلة", "5 tokens per stage"],
   },
   {
-    title: ["Dark Live — الدارك المباشر", "Dark Live"],
-    desc: [
-      "خدمة Premium مستقلة بمحرك خاص: بحث حي ومباشر في فهارس الدارك ويب بنتائج وروابط حقيقية وقت حدوثها.",
-      "A standalone Premium service with its own engine: live search across dark-web indexes with real results and links as they happen.",
-    ],
-    price: ["خدمة Premium", "Premium service"],
-  },
-  {
     title: ["بحث الويب المباشر", "Live web search"],
     desc: [
       "عملية بحث كاملة في الويب بإجابة واحدة مدعومة بالمصادر — والبحث الموسّع العميق يعمل بالمراحل.",
