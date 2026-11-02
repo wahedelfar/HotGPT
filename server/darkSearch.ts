@@ -39,6 +39,27 @@ function stripTags(value: string): string {
     .trim();
 }
 
+// Result hygiene (owner field verdict, 2026-11-03): the raw index is
+// full of scam-market spam — promotional copy, bonus/referral hooks,
+// and the same hosts listed again and again. Presenting it raw made
+// the paid live answer read as a spam sheet with repeated links.
+// Drop promotional listings, keep one listing per .onion host, cap 6.
+const DARK_SPAM_PATTERN = /promo\s?code|promocode|bonus|discount|coupon|referral|ref\s?code|invite\s?code|sign[- ]?up bonus|% off|كوبون|كود خصم/i;
+function cleanDarkResults(results: DarkSearchResult[]): DarkSearchResult[] {
+  const seenHosts = new Set<string>();
+  const cleaned: DarkSearchResult[] = [];
+  for (const result of results) {
+    let host = "";
+    try { host = new URL(result.url).hostname.toLowerCase(); } catch { host = result.url.toLowerCase(); }
+    if (!host || seenHosts.has(host)) continue;
+    if (DARK_SPAM_PATTERN.test(`${result.title} ${result.snippet}`)) continue;
+    seenHosts.add(host);
+    cleaned.push(result);
+    if (cleaned.length >= 6) break;
+  }
+  return cleaned;
+}
+
 export async function searchDarkWeb(query: string): Promise<DarkSearchResult[]> {
   const q = String(query || "").trim().slice(0, 200);
   if (!q) return [];
@@ -95,8 +116,9 @@ export async function searchDarkWeb(query: string): Promise<DarkSearchResult[]> 
       results.push({ title, url: realUrl.slice(0, 300), snippet });
     }
 
-    cache.set(cacheKey, { at: Date.now(), results });
-    return results;
+    const cleaned = cleanDarkResults(results);
+    cache.set(cacheKey, { at: Date.now(), results: cleaned });
+    return cleaned;
   } catch {
     return [];
   }
