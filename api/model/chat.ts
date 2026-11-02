@@ -275,11 +275,16 @@ async function handleImageGeneration(req: any, res: any, body: any) {
   // Image charges and refunds are audited in analytics_events (added
   // 2026-11-02 with the edit feature: before this, a failed generation
   // left no ledger trace and the refund could not be proven from data).
-  const logImageEvent = (name: string, model: string) => {
-    void supabaseRest("analytics_events", {
+  const logImageEvent = async (name: string, model: string, detail?: string) => {
+    // Awaited on purpose: a fire-and-forget write at the tail of a
+    // serverless invocation gets frozen before it flushes — the first
+    // edit failure (2026-11-02 23:18) debited and refunded correctly
+    // yet left no event, which is why this logger now returns a promise
+    // and every call site awaits it.
+    await supabaseRest("analytics_events", {
       method: "POST",
       headers: { Prefer: "return=minimal" },
-      body: JSON.stringify({ user_id: user.id, event_name: name, path: "/api/model/chat", metadata: { cost: IMAGE_COST, kind: cgi ? "cgi" : "normal", edit: isEdit, model } }),
+      body: JSON.stringify({ user_id: user.id, event_name: name, path: "/api/model/chat", metadata: { cost: IMAGE_COST, kind: cgi ? "cgi" : "normal", edit: isEdit, model, ...(detail ? { detail: detail.slice(0, 300) } : {}) } }),
     }).catch(() => null);
   };
   const primaryModel = cgi
@@ -290,7 +295,15 @@ async function handleImageGeneration(req: any, res: any, body: any) {
   // then its Flash sibling gets the remaining window — one charge, and
   // the image lands instead of a timeout. Both Seedream tiers accept
   // input_references, so CGI edits ride the same chain.
-  const attempts: Array<{ model: string; timeoutMs: number }> = cgi
+  // Edits get their own chain (2026-11-02): Seedream Flash first — it
+  // is an edit-native model with wide input_references support — then
+  // the kind's primary model. A bare generation keeps the chains below.
+  const attempts: Array<{ model: string; timeoutMs: number }> = isEdit
+    ? [
+        { model: (process.env.OPENROUTER_IMAGE_EDIT_MODEL || "bytedance-seed/seedream-5-0-flash").trim(), timeoutMs: 30000 },
+        { model: primaryModel, timeoutMs: 24000 },
+      ]
+    : cgi
     ? [
         { model: primaryModel, timeoutMs: 30000 },
         { model: (process.env.OPENROUTER_CGI_IMAGE_MODEL_FALLBACK || "bytedance-seed/seedream-5-0-flash").trim(), timeoutMs: 24000 },
@@ -298,6 +311,7 @@ async function handleImageGeneration(req: any, res: any, body: any) {
     : [{ model: primaryModel, timeoutMs: 55000 }];
   const finalPrompt = cgi && !isEdit ? CGI_FOOH_TEMPLATE.replace("{USER_INPUT}", prompt) : prompt;
   try {
+    await logImageEvent("image_attempt", primaryModel, isEdit ? `source:${sourceImage.startsWith("https://") ? "url" : "data"}:${rawSourceImage.length}` : "generation");
     let imageDataUrl = "";
     let usedModel = "";
     let lastError: unknown = null;
@@ -318,7 +332,7 @@ async function handleImageGeneration(req: any, res: any, body: any) {
         const b64 = payload?.data?.[0]?.b64_json;
         const remoteUrl = payload?.data?.[0]?.url;
         const candidate = b64 ? `data:image/png;base64,${b64}` : (typeof remoteUrl === "string" && remoteUrl ? remoteUrl : "");
-        if (!response.ok || !candidate) throw new Error(`image_generation_failed_${response.status}`);
+        if (!response.ok || !candidate) throw new Error(`image_generation_failed_${response.status}:${String(payload?.error?.message || payload?.error || "no_image_in_response").slice(0, 200)}`);
         imageDataUrl = candidate;
         usedModel = attempt.model;
         break;
@@ -333,12 +347,12 @@ async function handleImageGeneration(req: any, res: any, body: any) {
       : cgi
       ? `🎨 صورة CGI مولّدة بناءً على وصفك: «${prompt.slice(0, 200)}» — الصور المولّدة تظهر خلال الجلسة الحالية فقط ولا تُحفظ في قاعدة البيانات بعد. احفظ الصورة على جهازك لأنها تُحذف عند تسجيل خروجك.`
       : `🎨 صورة مولّدة بناءً على وصفك: «${prompt.slice(0, 200)}» — الصور المولّدة تظهر خلال الجلسة الحالية فقط ولا تُحفظ في قاعدة البيانات بعد. احفظ الصورة على جهازك لأنها تُحذف عند تسجيل خروجك.`);
-    logImageEvent("image_charge", usedModel);
+    await logImageEvent("image_charge", usedModel);
     const wallet = await getWallet(user.id).catch(() => null);
     res.status(200).json({ imageDataUrl, tokenBalance: wallet?.tokenBalance, cost: IMAGE_COST, imageKind: cgi ? "cgi" : "normal", edited: isEdit });
   } catch (error) {
     await refundImageCharge();
-    logImageEvent("image_refund", primaryModel);
+    await logImageEvent("image_refund", primaryModel, error instanceof Error ? error.message : "unknown");
     console.error("[Image] generation failed", error instanceof Error ? error.message : "unknown");
     res.status(502).json({ error: "image_generation_failed" });
   }
