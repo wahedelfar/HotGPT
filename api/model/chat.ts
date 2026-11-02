@@ -1441,7 +1441,7 @@ export default async function handler(req: any, res: any) {
   };
   const modeInstructions = [
     writingAssist ? "Writing assistant mode is enabled: improve clarity, structure, specificity, and usefulness while preserving the user's intended meaning." : "",
-    webSearchEnabled ? "Synthesize the supplied live web search results into a coherent, evidence-grounded answer. Cite source URLs, distinguish verified facts from inference, and do not invent current facts." : "",
+    webSearchEnabled ? (extended ? "Synthesize the supplied live web search results into a coherent, evidence-grounded answer. Cite source URLs, distinguish verified facts from inference, and do not invent current facts." : "Write a SHORT summary (at most about 120 words) answering the question from the supplied live web search results: the direct answer first, then the few key supporting points, citing the sources you used inline by their result numbers. The system appends the full direct-results list with links immediately after your summary — do NOT print your own source list, link list, or raw results. Do not invent current facts. Formatting rule: in Arabic answers never use markdown tables — use labeled lists instead.") : "",
     darkWebEnabled ? "For dark-web threat-intelligence topics, prioritize evidence, uncertainty, detection, risk, and defense. Do not claim direct Tor/I2P or leaked-database access unless actually verified. Do not provide instructions for acquiring stolen data or unauthorized access." : "",
   ].filter(Boolean);
   const preferenceSystemMessage = [
@@ -1451,7 +1451,7 @@ export default async function handler(req: any, res: any) {
     ...modeInstructions,
     customInstructions ? (responseLanguage === "en" ? `User preferences (follow when relevant and safe):\n${customInstructions}` : `تعليمات المستخدم المخصصة (اتبعها عندما تكون ملائمة وآمنة):\n${customInstructions}`) : "",
   ].filter(Boolean).join("\n\n");
-  const serverSystemPrompt = [BASE_PROMPT, MODE_PROMPTS[chatMode], webSearchEnabled ? SEARCH_PROMPT : "", preferenceSystemMessage].filter(Boolean).join("\n\n");
+  const serverSystemPrompt = [BASE_PROMPT, MODE_PROMPTS[chatMode], webSearchEnabled && extended ? SEARCH_PROMPT : "", preferenceSystemMessage].filter(Boolean).join("\n\n");
   if (selectedModel !== "dadgpt-default" && selectedModel !== "dadgpt-beast") return res.status(400).json({ error: "invalid_model" });
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
   if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
@@ -1621,6 +1621,8 @@ export default async function handler(req: any, res: any) {
 
   let providerMessages = messages as ChatMessage[];
   let directSearchContent = "";
+  let searchLinksBlock = "";
+  let searchFirstUrl = "";
   if (webSearchEnabled || darkWebEnabled) {
     try {
       // Do not send a specific email address to third-party search providers.
@@ -1630,6 +1632,30 @@ export default async function handler(req: any, res: any) {
           ? "commonly compromised passwords public Pwned Passwords prevalence dataset"
           : String(messages[messages.length - 1].content || "");
       const searchResults = await searchInternet(query, darkWebEnabled);
+      if (webSearchEnabled && !darkWebEnabled) {
+        // Build the guaranteed direct-results links block from the real search
+        // results; it is appended to the final answer server-side (below), so
+        // the user always receives the actual links — never only whatever the
+        // model chose to print.
+        const linkEntries: { title: string; url: string; snippet: string }[] = [];
+        for (const chunk of searchResults.split(/^### /m).slice(1)) {
+          const m = chunk.match(/^\d+\. \[(.*?)\]\((.*?)\)\s*\n+([\s\S]*)$/);
+          if (!m) continue;
+          linkEntries.push({ title: m[1].trim(), url: m[2].trim(), snippet: m[3].replace(/\n*\u0639\u062f\u062f \u0627\u0644\u0645\u0635\u0627\u062f\u0631: \d+\s*$/, "").replace(/\s+/g, " ").trim().slice(0, 180) });
+        }
+        if (linkEntries.length) {
+          const letters = query.replace(/\s/g, "").length || 1;
+          const arDominant = (query.match(/[\u0600-\u06FF]/g) || []).length / letters > 0.3;
+          searchFirstUrl = linkEntries[0].url;
+          searchLinksBlock = sanitizeSearchAnswer([
+            "---",
+            "",
+            "## " + (arDominant ? "\u0631\u0648\u0627\u0628\u0637 \u0627\u0644\u0646\u062a\u0627\u0626\u062c \u0627\u0644\u0645\u0628\u0627\u0634\u0631\u0629" : "Direct result links"),
+            "",
+            ...linkEntries.map((e, i) => `${i + 1}. [${e.title}](${e.url})` + (e.snippet ? `\n   ${e.snippet}` : "")),
+          ].join("\n"));
+        }
+      }
       directSearchContent = [
         "## نتائج البحث المباشر",
         "",
@@ -2222,6 +2248,9 @@ export default async function handler(req: any, res: any) {
       .trim();
     const finalContent = answerWithoutOldNotice;
     let cleanFinalContent = (webSearchEnabled || darkWebEnabled) ? sanitizeSearchAnswer(finalContent) : finalContent;
+    if (webSearchEnabled && !darkWebEnabled && searchLinksBlock && !(searchFirstUrl && cleanFinalContent.includes(searchFirstUrl))) {
+      cleanFinalContent = cleanFinalContent.trimEnd() + "\n\n" + searchLinksBlock;
+    }
     const isComplete = paidStagedRequest ? (!partialResponse && ["stop", "end_turn", "completed", "eos_token"].includes(String(lastFinishReason))) : !(lastFinishReason === "length" && cleanFinalContent.trim().length > 0);
     if (!isComplete) cleanFinalContent = balanceCodeFences(cleanFinalContent);
     if (!paidStagedRequest && !isComplete) continuationAvailable = true;
