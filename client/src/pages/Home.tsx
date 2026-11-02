@@ -791,11 +791,10 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
       </span>
     </button>
   );
-  const premiumCard = (kind: "scan" | "darklive" | "seo" | "leads") => {
+  const premiumCard = (kind: "scan" | "leak" | "seo" | "leads") => {
     const data = {
       leads: { Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 توكين", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 tokens", action: onLeads },
       scan: { Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 توكن للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 tokens per report", action: onScan },
-      darklive: { Icon: Radio, label: "DARK_LIVE", ar: "خدمة مستقلة بمحرك خاص — بحث حي في فهارس الدارك ويب بنتائج وروابط حقيقية", en: "A standalone service with its own engine — live dark-web index search with real results and links", action: onDarkLive },
       seo: { Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 توكن للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 tokens per report", action: onSeo },
       leak: { Icon: ShieldAlert, label: "LEAK_CHECK", ar: "كشف التسريب: هل إيميلك أو دومين شركتك ظهر في تسريبات البيانات؟ فحص فوري في فهارس عالمية وتقرير بالخطوات · 20 توكين للتقرير", en: "Leak check: did your email or company domain appear in data breaches? An instant check across global indexes with an actions report · 20 tokens per report", action: onLeak },
     }[kind];
@@ -836,6 +835,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
         {starterCard(starters[2])}
         {starterCard(starters[3])}
         {premiumCard("seo")}
+        {premiumCard("leak")}
       </div>
       {walletBalance < 20 && (
         <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
