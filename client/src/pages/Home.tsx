@@ -2654,8 +2654,8 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <a href="/terms">{tr(language, "الشروط والأحكام", "Terms")}</a>
             <a href="/privacy">{tr(language, "سياسة الخصوصية", "Privacy policy")}</a>
             <a href="/refund">{tr(language, "سياسة الاسترداد", "Refund policy")}</a>
+            <a href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{tr(language, "مدونة HotGPT", "HotGPT Blog")}</a>
           </nav>
-          <p className="home-footer-copy"><a href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer" style={{ color: "#FBBF24", fontWeight: 800, textDecoration: "none" }}>{tr(language, "مدونة HotGPT", "HotGPT Blog")}</a></p>
           <p className="home-footer-copy">{tr(language, "تسجيل الدخول عبر Google يُستخدم لإنشاء حسابك وتسجيل دخولك فقط، ولا تُستخدم بيانات Google في توليد المحتوى أو تدريب نماذج الذكاء الاصطناعي.", "Google sign-in is used only to create and sign in to your account; Google data is never used to generate content or train AI models.")}</p>
           <p className="home-footer-copy">© {new Date().getFullYear()} HotGPT — {tr(language, "جميع الحقوق محفوظة", "All rights reserved")}</p>
         </footer>
