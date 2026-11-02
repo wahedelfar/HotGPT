@@ -298,6 +298,9 @@ async function handleImageGeneration(req: any, res: any, body: any) {
   // Edits get their own chain (2026-11-02): Seedream Flash first — it
   // is an edit-native model with wide input_references support — then
   // the kind's primary model. A bare generation keeps the chains below.
+  // Reference items MUST carry type:"image_url" — OpenRouter's schema
+  // rejects the bare {image_url:{url}} shape with a 400 (field-proven
+  // 2026-11-02 23:33; the provider error path was input_references.0.type).
   const attempts: Array<{ model: string; timeoutMs: number }> = isEdit
     ? [
         { model: (process.env.OPENROUTER_IMAGE_EDIT_MODEL || "bytedance-seed/seedream-5-0-flash").trim(), timeoutMs: 30000 },
@@ -310,12 +313,14 @@ async function handleImageGeneration(req: any, res: any, body: any) {
       ]
     : [{ model: primaryModel, timeoutMs: 55000 }];
   const finalPrompt = cgi && !isEdit ? CGI_FOOH_TEMPLATE.replace("{USER_INPUT}", prompt) : prompt;
+  let lastAttemptModel = primaryModel;
   try {
     await logImageEvent("image_attempt", primaryModel, isEdit ? `source:${sourceImage.startsWith("https://") ? "url" : "data"}:${rawSourceImage.length}` : "generation");
     let imageDataUrl = "";
     let usedModel = "";
     let lastError: unknown = null;
     for (const attempt of attempts) {
+      lastAttemptModel = attempt.model;
       try {
         const response = await fetch("https://openrouter.ai/api/v1/images/generations", {
           method: "POST",
@@ -324,7 +329,7 @@ async function handleImageGeneration(req: any, res: any, body: any) {
             model: attempt.model,
             prompt: finalPrompt,
             ...(cgi ? { aspect_ratio: "9:16", resolution: "1K" } : {}),
-            ...(isEdit ? { input_references: [{ image_url: { url: sourceImage } }] } : {}),
+            ...(isEdit ? { input_references: [{ type: "image_url", image_url: { url: sourceImage } }] } : {}),
           }),
           signal: AbortSignal.timeout(attempt.timeoutMs),
         });
@@ -352,7 +357,7 @@ async function handleImageGeneration(req: any, res: any, body: any) {
     res.status(200).json({ imageDataUrl, tokenBalance: wallet?.tokenBalance, cost: IMAGE_COST, imageKind: cgi ? "cgi" : "normal", edited: isEdit });
   } catch (error) {
     await refundImageCharge();
-    await logImageEvent("image_refund", primaryModel, error instanceof Error ? error.message : "unknown");
+    await logImageEvent("image_refund", lastAttemptModel, error instanceof Error ? error.message : "unknown");
     console.error("[Image] generation failed", error instanceof Error ? error.message : "unknown");
     res.status(502).json({ error: "image_generation_failed" });
   }
