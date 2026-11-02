@@ -59,7 +59,7 @@ const MODELS: ModelCard[] = [
       "حوّل وصفك المكتوب إلى صورة جاهزة — أو صورة CGI واقعية بأسلوب إعلانات FOOH من وصف قصير. واحفظ صورتك على جهازك بعد توليدها.",
       "Turn your written description into a finished image — or a photorealistic CGI image in the FOOH ad style from a short brief. Save your image to your device after generating it.",
     ],
-    price: ["صورة عادية: 5 توكينات · صورة CGI: ‏10 توكينات", "Normal image: 5 tokens · CGI image: 10 tokens"],
+    price: ["صورة عادية: 3 توكينات · صورة CGI: ‏10 توكينات", "Normal image: 3 tokens · CGI image: 10 tokens"],
   },
   {
     title: ["محترف الـ SEO", "SEO Pro"],
@@ -143,8 +143,8 @@ export default function ModelsPage() {
             <h2 className="text-xl font-bold">{t("جاهز تبدأ؟", "Ready to start?")}</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
               {t(
-                "التسجيل مجاني وبيبدأ بـ20 توكين هدية ترحيب — وباقة البداية 100 توكين مقابل 100 جنيه تكفي تقريبًا 100 رسالة أو 20 صورة.",
-                "Registration is free and starts with a 20-token welcome gift — and the Starter pack of 100 tokens for 100 EGP covers roughly 100 messages or 20 images."
+                "التسجيل مجاني وبيبدأ بـ20 توكين هدية ترحيب — وباقة البداية 100 توكين مقابل 100 جنيه تكفي تقريبًا 100 رسالة أو 33 صورة.",
+                "Registration is free and starts with a 20-token welcome gift — and the Starter pack of 100 tokens for 100 EGP covers roughly 100 messages or 33 images."
               )}
             </p>
             <a href="/billing" className="mt-5 inline-block rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-8 py-3 font-black text-[#231300] shadow-[0_10px_28px_rgba(232,160,32,.35)] transition hover:brightness-110">

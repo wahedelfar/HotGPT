@@ -616,7 +616,7 @@ function SiteCard({ html, language, onContinue, continueDisabled }: { html: stri
   );
 }
 
-function MessageBubble({ message, onContinue, onExtractMore, onSiteContinue, siteContinueDisabled, onEditImage }: { message: ChatMessage; onContinue?: () => void; onExtractMore?: () => void; onSiteContinue?: () => void; siteContinueDisabled?: boolean; onEditImage?: () => void }) {
+function MessageBubble({ message, onContinue, onExtractMore, onSiteContinue, siteContinueDisabled }: { message: ChatMessage; onContinue?: () => void; onExtractMore?: () => void; onSiteContinue?: () => void; siteContinueDisabled?: boolean }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const codeContainerRef = useRef<HTMLDivElement>(null);
@@ -688,7 +688,7 @@ function MessageBubble({ message, onContinue, onExtractMore, onSiteContinue, sit
         </div>
         <div className="message-content" ref={codeContainerRef}>
           {message.imageUrl && <img src={message.imageUrl} alt={tr(language, "صورة مولّدة", "Generated image")} style={{ maxWidth: "100%", borderRadius: 12, marginBottom: 8 }} />}
-          {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span>{onEditImage && <button type="button" onClick={onEditImage} style={{ marginInlineStart: 10, fontSize: 12, fontWeight: 700, color: "#F6C453", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{tr(language, "✏️ تعديل الصورة", "✏️ Edit this image")}</button>}</div>}
+          {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span></div>}
           {message.leadsData && message.leadsData.length > 0 ? <LeadCards leads={message.leadsData} language={language} startIndex={message.leadsOffset ?? 0} onMore={onExtractMore} moreDisabled={message.leadsMoreDisabled === true} /> : message.role === "assistant" && isSiteHtml(message.content) ? <SiteCard html={message.content} language={language} onContinue={onSiteContinue} continueDisabled={siteContinueDisabled} /> : message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
         </div>
         <div className="message-actions">
@@ -778,14 +778,14 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onSite, 
     );
   };
   // Image square (Wahid, 2026-10-30): takes the NET_RECON slot in the
-  // grid and arms normal image generation (5 tokens) in the composer,
+  // grid and arms normal image generation (3 tokens) in the composer,
   // exactly like choosing "Normal image" from the composer's dropdown.
   const imageCard = () => (
     <button type="button" className="starter-card hotgpt-starter-card" key="IMAGE_GEN" style={cardStyle} onClick={() => { trackFunnelEvent({ name: "starter_example_clicked", metadata: { label: "IMAGE_GEN" } }); onImage(); }}>
       <span className="starter-icon hotgpt-starter-icon"><ImageIcon size={19} /></span>
       <span className="starter-copy">
         <strong>IMAGE_GEN</strong>
-        <small>{tr(language, "ولّد صورتك من وصف بسيط — صورة عادية بـ5 توكين", "Generate your image from a simple description — a normal image for 5 tokens")}</small>
+        <small>{tr(language, "ولّد صورتك من وصف بسيط — صورة عادية بـ3 توكين", "Generate your image from a simple description — a normal image for 3 tokens")}</small>
       </span>
     </button>
   );
@@ -1233,10 +1233,6 @@ export default function Home() {
   // opens a small menu — normal image or CGI image. The menu carries
   // names only; image prices live on the /models page.
   const [imageKind, setImageKind] = useState<"normal" | "cgi">("normal");
-  // Image editing (2026-11-02): the session image the member chose to
-  // edit via the «تعديل الصورة» action on a generated image. While set,
-  // the next image-mode send carries it as the model's reference image.
-  const [editSource, setEditSource] = useState<string | null>(null);
   // Shrink the reference before sending: a full-size PNG data URL can
   // reach several MB and die against the platform request-body limit.
   // The edit model works from a 1024px JPEG just as well. Hosted URLs
@@ -1258,16 +1254,6 @@ export default function Home() {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       return canvas.toDataURL("image/jpeg", 0.85);
     } catch { return src; }
-  };
-  const startImageEdit = (imageUrl: string) => {
-    void shrinkImageForEdit(imageUrl).then(shrunk => setEditSource(shrunk));
-    setImageMode(true);
-    setScanMode(false);
-    setSeoMode(false);
-    setLeadsMode(false);
-    setSiteMode(false);
-    setRequestError(null);
-    setTimeout(() => textareaRef.current?.focus(), 0);
   };
   const [imageMenuPos, setImageMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
@@ -1588,7 +1574,6 @@ export default function Home() {
     setActiveConversation(null);
     setSiteMode(false);
     setImageMode(false);
-    setEditSource(null);
     lastDesignImageRef.current = null;
     setFreshDesignNext(false);
     setMessages([]);
@@ -1702,17 +1687,17 @@ export default function Home() {
 
       if (imageMode) {
         // Image generation (user feature, 2026-10-25): the server charges a
-        // flat 5 tokens and returns the image for this session only; images
+        // flat 3 tokens and returns the image for this session only; images
         // are not persisted in the database yet.
-        const stickySource = !editSource && !freshDesignNext && lastDesignImageRef.current ? await shrinkImageForEdit(lastDesignImageRef.current) : null;
-        const effectiveSource = editSource || stickySource;
+        const stickySource = !freshDesignNext && lastDesignImageRef.current ? await shrinkImageForEdit(lastDesignImageRef.current) : null;
+        const effectiveSource = stickySource;
         const wasEdit = Boolean(effectiveSource);
         try {
           const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId, imageKind, ...(effectiveSource ? { sourceImage: effectiveSource } : {}) }) });
           const imagePayload = await imageResponse.json().catch(() => ({}));
           if (!imageResponse.ok || !imagePayload.imageDataUrl) {
             const imageErrors: Record<string, string> = {
-              insufficient_credits: imageKind === "cgi" ? tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.") : tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough."),
+              insufficient_credits: imageKind === "cgi" ? tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.") : tr(language, "توليد الصورة يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 3 tokens. Your balance is not enough."),
               image_generation_failed: tr(language, "تعذر توليد الصورة الآن. لم يُخصم الرصيد؛ حاول مرة أخرى.", "Image generation failed. No charge was made; please try again."),
               invalid_image_request: tr(language, "تعذر قراءة الصورة المراد تعديلها. ولّد صورة جديدة وحاول تعديلها.", "The image to edit could not be read. Generate a fresh image and try editing it."),
               image_not_configured: tr(language, "توليد الصور غير مُعدّ على الخادم بعد.", "Image generation is not configured on the server yet."),
@@ -1735,7 +1720,6 @@ export default function Home() {
           // request must produce an image, not a text reply — so image
           // mode no longer disarms itself after a send. It disarms via
           // the Image button, a conversation switch, or a new chat.
-          setEditSource(null);
           setFreshDesignNext(false);
         }
         return;
@@ -2313,7 +2297,6 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             setActiveConversation(id);
             setSiteMode(false);
             setImageMode(false);
-            setEditSource(null);
             lastDesignImageRef.current = null;
             setFreshDesignNext(false);
             setMessages([]);
@@ -2555,8 +2538,8 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onImage={() => {
-                    if (walletBalance < 5) {
-                      setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough."));
+                    if (walletBalance < 3) {
+                      setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 3 tokens. Your balance is not enough."));
                       return;
                     }
                     setRequestError(null);
@@ -2597,7 +2580,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel,leadsMoreDisabled:isSending}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined} onExtractMore={message.leadsData&&message.leadsData.length?()=>{void extractMoreLeads(message)}:undefined} onSiteContinue={message.role==="assistant"&&index===messages.length-1&&isSiteHtml(message.content)&&!/<\/html>/i.test(message.content)?()=>{void continueSite(message)}:undefined} siteContinueDisabled={isSending} onEditImage={message.role==="assistant"&&message.imageUrl?()=>{startImageEdit(String(message.imageUrl))}:undefined}/>;})}
+                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel,leadsMoreDisabled:isSending}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined} onExtractMore={message.leadsData&&message.leadsData.length?()=>{void extractMoreLeads(message)}:undefined} onSiteContinue={message.role==="assistant"&&index===messages.length-1&&isSiteHtml(message.content)&&!/<\/html>/i.test(message.content)?()=>{void continueSite(message)}:undefined} siteContinueDisabled={isSending}/>;})}
                   {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
@@ -2654,7 +2637,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={editSource ? tr(language, "اكتب وصف التعديل على الصورة… مثال: غيّر الخلفية إلى ذهبي", "Describe the edit to this image… e.g. make the background gold") : siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
@@ -2670,17 +2653,10 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 ) : (
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
                 ))}
-                {imageMode && !editSource && messages.some(m => m.imageUrl) && (
+                {imageMode && messages.some(m => m.imageUrl) && (
                   <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span>{freshDesignNext ? tr(language, "🎨 الطلب الجاي: تصميم جديد من الصفر (5 توكين — وCGI بـ 10).", "🎨 Next request: a brand-new design from scratch (5 tokens — CGI 10).") : tr(language, "🎨 وضع التصميم مفعّل: طلبك الجاي هيتعدّل على آخر صورة في المحادثة (5 توكين — وCGI بـ 10). للرجوع للشات النصي دوس زرار «صورة».", "🎨 Design mode is on: your next request will edit the last image in this conversation (5 tokens — CGI 10). Tap the Image button to return to text chat.")}</span>
+                    <span>{freshDesignNext ? tr(language, "🎨 الطلب الجاي: تصميم جديد من الصفر (3 توكين — وCGI بـ 10).", "🎨 Next request: a brand-new design from scratch (3 tokens — CGI 10).") : tr(language, "🎨 وضع التصميم مفعّل: طلبك الجاي هيتعدّل على آخر صورة في المحادثة (3 توكين — وCGI بـ 10). للرجوع للشات النصي دوس زرار «صورة».", "🎨 Design mode is on: your next request will edit the last image in this conversation (3 tokens — CGI 10). Tap the Image button to return to text chat.")}</span>
                     <button type="button" onClick={() => setFreshDesignNext(v => !v)} style={{ color: "#F6C453", fontWeight: 700 }}>{freshDesignNext ? tr(language, "لا — عدّل على آخر صورة", "No — edit the last image") : tr(language, "تصميم جديد من الصفر", "New design from scratch")}</button>
-                  </div>
-                )}
-                {editSource && (
-                  <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <img src={editSource} alt="" style={{ width: 34, height: 34, objectFit: "cover", borderRadius: 8 }} />
-                    <span>{tr(language, "وضع التعديل: اكتب وصف التعديل واضغط إرسال — بنفس سعر توليد الصورة.", "Edit mode: describe the change and press send — same price as generating an image.")}</span>
-                    <button type="button" onClick={() => setEditSource(null)} style={{ color: "#22d3ee", fontWeight: 700 }}>{tr(language, "إلغاء التعديل", "Cancel edit")}</button>
                   </div>
                 )}
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
@@ -2690,14 +2666,14 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
-                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setEditSource(null); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
                     <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>{imageMode && imageKind === "cgi" && <span style={{ fontSize: 9, fontWeight: 800, color: "#FBBF24", border: "1px solid rgba(251,191,36,.6)", borderRadius: 6, padding: "0 3px", lineHeight: 1.4 }}>CGI</span>}
                   </button>
                   {imageMenuPos && (
                     <>
                       <div onClick={() => setImageMenuPos(null)} style={{ position: "fixed", inset: 0, zIndex: 900 }} />
                       <div role="menu" dir={language === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", left: imageMenuPos.left, bottom: imageMenuPos.bottom, zIndex: 901, minWidth: 200, background: "#1A0505", border: "1px solid rgba(201,162,39,.55)", borderRadius: 12, padding: 6, boxShadow: "0 18px 50px rgba(0,0,0,.55)" }}>
-                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 5) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 5 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 5 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageKind("normal"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
+                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 3) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 3 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageKind("normal"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
                           <ImageIcon size={15} /><span>{tr(language, "صورة عادية", "Normal image")}</span>
                         </button>
                         <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.")); return; } setRequestError(null); setImageKind("cgi"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>

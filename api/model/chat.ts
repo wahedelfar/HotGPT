@@ -213,7 +213,7 @@ async function refundCredit(userId: string, kind: "free" | "paid", cost: number)
 }
 
 // Image generation (user feature, 2026-10-25): FLUX.3 Image Klein on
-// OpenRouter (open weights, from $0.008/image), flat 5 tokens per image,
+// OpenRouter (open weights, from $0.008/image), flat 3 tokens per image,
 // refunded on failure. Per the user's storage decision, the image bytes are
 // NEVER written to the database — they return in this response only and live
 // in the client's current session; the saved history keeps just the prompt
@@ -256,7 +256,7 @@ async function handleImageGeneration(req: any, res: any, body: any) {
   // so the CGI tier debits and refunds through the wallet pair, like
   // the premium reports do.
   const cgi = body?.imageKind === "cgi";
-  const IMAGE_COST = cgi ? CGI_IMAGE_COST : 5;
+  const IMAGE_COST = cgi ? CGI_IMAGE_COST : 3;
   let kind: "free" | "paid" | null = null;
   let walletDebited = false;
   if (cgi) {
