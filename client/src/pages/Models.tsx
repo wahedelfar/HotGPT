@@ -78,6 +78,14 @@ const MODELS: ModelCard[] = [
     price: ["تقرير كامل 20 توكين", "Full report, 20 tokens"],
   },
   {
+    title: ["كشف التسريب", "Leak check"],
+    desc: [
+      "هل إيميلك أو دومين شركتك ظهر في تسريبات البيانات العالمية؟ فحص فوري في فهارس التسريبات وتقرير عربي بالنتائج والخطوات: للإيميل تسريباته كاملة بأنواع البيانات المكشوفة، وللدومين ملخص التعرض والتسريبات التي أصابت خدمته.",
+      "Did your email or company domain appear in global data breaches? An instant check across breach indexes with an Arabic findings-and-actions report: for an email, its full breach list with the exposed data types; for a domain, its exposure summary and the breaches that hit its own service.",
+    ],
+    price: ["20 توكين", "20 tokens"],
+  },
+  {
     title: ["استخراج العملاء", "Lead extraction"],
     desc: [
       "بيانات شركات حقيقية من خرائط جوجل حسب النشاط والمنطقة: الاسم ورقم التليفون والعنوان والموقع الإلكتروني والتقييم — لحد 20 شركة في الاستخراج الواحد.",

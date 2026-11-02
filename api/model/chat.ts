@@ -1,6 +1,7 @@
 
 import { inflateSync } from "node:zlib";
 import { searchDarkWeb, formatDarkResults, type DarkSearchResult } from "../../server/darkSearch.ts";
+import { fetchLeakEvidence, type LeakEvidence } from "../../server/leakCheck.ts";
 import { runUrlScan, scanFindingsText } from "../../server/urlScan.ts";
 import { runSeoAudit, seoFindingsText } from "../../server/seoAudit.ts";
 
@@ -95,6 +96,7 @@ const SCAN_COST = 20;
 // same debit/refund discipline, its own collector (server/seoAudit.ts)
 // and its own writer model slot (OPENROUTER_SEO_MODEL).
 const SEO_COST = 20;
+const LEAK_COST = 20;
 const SEO_REPORT_PROMPT_ADDON = "إضافة خاصة بتقرير SEO — تُطبّق بعد كل التعليمات السابقة ولا تستبدلها:\nأضف الأقسام التالية بعد «درجة SEO» وقبل قائمة التنفيذ النهائية:\n\n«الفهرسة والظهور في جوجل»\n- استخدم indexingData فقط لتحديد حالة الفهرسة، ولا تعتبر الدرجة التقنية دليلًا على الفهرسة.\n- إذا كان indexingData.isIndexed = false، أدرج حرفيًا: «تحذير: الدرجة التقنية لا تعني الظهور في جوجل. موقعك غير مفهرس حالياً.»\n- اشرح السبب فقط إذا كان مدعومًا من indexingData.evidenceBasedReasons أو بيانات الفهرسة نفسها. لا تخمّن أسبابًا مثل حداثة الموقع أو SafeSearch أو حظر Googlebot أو تشابه النطاق دون دليل صريح.\n- إذا كان indexingData.isIndexed = true، اكتب فقط: «مفهرس في جوجل» في بيان الحالة، دون تحذير عدم الفهرسة.\n- إذا كانت indexingData.isIndexed = null أو searchCheckCompleted = false، صرّح بأن التحقق من Google تعذّر ولم تجزم بأن الموقع غير مفهرس.\n- اذكر حالة robots.txt و sitemap.xml كما وردتا في indexingData، ولا تستنتج أن وجودهما يعني أن الموقع مفهرس.\n\n«الكلمات المفتاحية والمنافسين»\n- حلّل نية البحث المحتملة ضمن المجال اعتمادًا على محتوى الموقع والأدلة المتاحة، وميّز مجموعات: brand، unfiltered، adults، roleplay، alternatives.\n- اقترح 5 كلمات مفتاحية أساسية و3 ثانوية، مع فكرة مقال مقترحة لكل كلمة.\n- هذه اقتراحات نوعية وليست بيانات حجم بحث أو منافسة مقاسة. لا تدّعِ أنك فحصت مواقع منافسين فعلية ما لم تتضمن الأدلة ذلك.\n\n«خطة النمو 90 يوم»\n- 0–14 يومًا: ربط Google Search Console وBing Webmaster Tools، إصلاح robots.txt وsitemap، واستخدام meta rating=adult على صفحات المحتوى المخصص للبالغين فقط.\n- 15–45 يومًا: نشر 8–12 مقالًا تعليميًا، وإضافة FAQPage وAPI Documentation حيث ينطبق ذلك فعلًا.\n- 46–90 يومًا: إنشاء صفحات فريدة لكل نية بحث ومراجعة Search Console أسبوعيًا.\n\n«ما لم يتم فحصه»\n- أدرج حرفيًا: «الأرقام الدقيقة للزيارات والباك لينكات تحتاج Google Search Console.»\n- كل رقم أو قياس واقعي في التقرير يجب أن يأتي من technicalData أو indexingData أو الأدلة الأصلية المرفقة. الأرقام المحددة أعلاه ضمن خطة النمو (مثل 8–12 مقالًا و90 يومًا) أهداف تخطيطية مطلوبة وليست قياسات للموقع. لا تخترع أرقام زيارات أو باك لينكات أو أحجام بحث.\n\nقواعد إلزامية أخيرة (تتقدّم على أي تعليمات سابقة عند أي تعارض):\n- الطول الكلي للتقرير بكل أقسامه لا يتجاوز 4600 حرف تقريبًا. هذا سقف صارم: إن تعارض مع أي تفصيل سابق فاختصر التفصيل ولا تتجاوز السقف أبدًا.\n- ترتيب الاختصار عند الحاجة: أمثلة الإصلاحات أولًا (مثال واحد قصير لكل مشكلة)، ثم جدول الكلمات المقترحة، ثم نقاط الخطط — ولا يُحذف أي قسم بالكامل.\n- «الكلمات المفتاحية المقترحة»: 5 كلمات فقط في جدول واحد، لكل كلمة فكرة مقال في عبارة واحدة قصيرة.\n- خطتا النمو تُدمجان في خطة واحدة بعنوان «خطة النمو 90 يوم» بثلاثة آفاق (0–14 يومًا، 15–45 يومًا، 46–90 يومًا)، وكل أفق 3 نقاط كحد أقصى، كل نقطة في سطر واحد.\n- «الفهرسة والظهور في جوجل»: 4 أسطر كحد أقصى بلغة بشرية مفهومة. ممنوع منعًا باتًا نسخ أسماء الحقول أو القيم الخام من بيانات JSON (مثل indexingData أو isIndexed أو siteQueryResultCount) داخل متن التقرير؛ عبّر عن الحالة بجمل عربية واضحة.\n- «المشاكل والإصلاحات»: أهم 4 مشاكل فقط. لكل مشكلة: سطر واحد للدليل، سطر واحد للأثر، وخطوات إصلاح مرقمة قصيرة، ومثال كود واحد قصير عند الحاجة.\n- أي كود أو وسم HTML أو قيمة مثال: داخل بلوك كود محاط بعلامات التنصيص الثلاثية فقط، ولا يُكتب مكسورًا كنص عادي عبر الأسطر أبدًا.\n- «قائمة التنفيذ بالأولوية»: 5 بنود كحد أقصى، ثم سطر «--- نهاية التقرير ---». الوصول إلى هذه الخاتمة أهم من أي تفصيل آخر في التقرير.";
 const PREMIUM_MIN_BALANCE = 20;
 // Premium live dark-web search (Ahmia index): an add-on to Dark mode.
@@ -902,6 +904,159 @@ async function collectSitePass(key: string, model: string, messages: any[], maxT
   } catch { return ""; }
 }
 
+
+// Leak check handler («كشف التسريب», owner proposal 2026-11-03): the
+// scan/SEO family's third twin — auth → validate an EMAIL or a DOMAIN
+// → charge 20 → collect real breach-index evidence (server/leakCheck.ts,
+// free sources) → an Arabic action report → persist → respond; any
+// failure refunds in full. Name lookups are deliberately NOT offered
+// (privacy + useless precision), and a domain report carries exposure
+// counts plus the domain's own service breaches — never a list of the
+// domain's individual emails; no breach API gives that to third
+// parties, and the product copy must never promise it.
+function leakEvidenceText(evidence: LeakEvidence): string {
+  if (evidence.kind === "email") {
+    if (!evidence.found) {
+      return `نوع الفحص: إيميل\nالإيميل: ${evidence.target}\nالنتيجة: لم يظهر هذا الإيميل في أي تسريب معروف لدى فهارس التسريبات العالمية حتى الآن.`;
+    }
+    const lines = [
+      `نوع الفحص: إيميل`,
+      `الإيميل: ${evidence.target}`,
+      `النتيجة: ظهر في ${evidence.breachNames?.length ?? 0} تسريب معروف.`,
+      `أسماء التسريبات: ${(evidence.breachNames ?? []).join("، ")}`,
+    ];
+    if (evidence.riskLabel) lines.push(`درجة الخطورة بحسب الفهرس: ${evidence.riskLabel} (${evidence.riskScore ?? "?"}/100)`);
+    if (evidence.passwordStrength) lines.push(`مؤشرات قوة كلمات المرور في التسريبات: ${JSON.stringify(evidence.passwordStrength).slice(0, 400)}`);
+    if (evidence.exposedData?.length) lines.push(`أنواع البيانات المكشوفة (مع عدد مرات الظهور): ${evidence.exposedData.map(d => `${d.name}: ${d.value}`).join("، ")}`);
+    return lines.join("\n");
+  }
+  const lines = [`نوع الفحص: دومين`, `الدومين: ${evidence.target}`];
+  const summary = evidence.domainSummary;
+  if (summary) {
+    lines.push(`ملخص التعرض في فهارس التسريبات: عناوين مكشوفة على هذا الدومين: ${summary.exposedAddresses ?? "غير معروف"}؛ عدد التسريبات المرتبطة: ${summary.breachCount ?? "غير معروف"}؛ مرات الظهور في الملصقات (pastes): ${summary.pastes ?? "غير معروف"}؛ آخر ظهور: ${summary.lastSeen ?? "غير معروف"}.`);
+  } else {
+    lines.push(`ملخص التعرض: تعذر جلب عدّادات التعرض لهذا الدومين من الفهرس هذه المرة.`);
+  }
+  const breaches = evidence.serviceBreaches ?? [];
+  if (breaches.length) {
+    lines.push(`تسريبات أصابت خدمة الدومين نفسها (من Have I Been Pwned):`);
+    for (const b of breaches) lines.push(`- ${b.name} — التاريخ: ${b.date} — حسابات متأثرة: ${b.accounts} — البيانات: ${b.dataClasses.join("، ") || "غير مذكورة"} — ${b.description}`);
+  } else {
+    lines.push(`تسريبات أصابت خدمة الدومين نفسها: لا توجد تسريبات مسجلة لخدمة هذا الدومين في Have I Been Pwned.`);
+  }
+  return lines.join("\n");
+}
+
+async function handleLeakCheck(req: any, res: any, body: any) {
+  const rawTarget = String(body?.target || "").trim().toLowerCase().slice(0, 200);
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const conversationId = String(body?.conversationId || "");
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(rawTarget);
+  const isDomain = !isEmail && /^(?=.{4,253}$)([a-z0-9](?:-?[a-z0-9])*\.)+[a-z]{2,}$/.test(rawTarget);
+  if ((!isEmail && !isDomain) || !/^[0-9a-f-]{36}$/i.test(conversationId)) {
+    res.status(400).json({ error: "invalid_leak_request", message: "اكتب إيميلًا صحيحًا أو دومينًا صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة." });
+    return;
+  }
+  const kind: "email" | "domain" = isEmail ? "email" : "domain";
+  const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  if (!orKey) { res.status(503).json({ error: "leak_not_configured" }); return; }
+  const walletBefore = await getWallet(user.id).catch(() => null);
+  if (!walletBefore || walletBefore.tokenBalance < LEAK_COST) {
+    res.status(402).json({ error: "insufficient_credits", wallet: walletBefore });
+    return;
+  }
+  let debited = false;
+  const deadline = Date.now() + 54000;
+  try {
+    debited = await debitWalletTokens(user.id, LEAK_COST);
+    if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+    const evidence = await fetchLeakEvidence(kind, rawTarget);
+    if (!evidence) throw new Error("leak_source_unavailable");
+    const system = `أنت كاتب تقارير «كشف التسريب» في منصة HotGPT. مهمتك تحويل بيانات فحص حقيقية من فهارس التسريبات العالمية إلى تقرير عربي واضح وعملي لصاحب الإيميل أو الدومين.
+قواعد صارمة:
+- التقرير مبني فقط على «بيانات الفحص» المرفقة. ممنوع تخترع تسريبًا أو تاريخًا أو رقمًا أو نوع بيانات غير موجود فيها، وممنوع أن تنسب للهدف أي تسريب غير مذكور.
+- ابدأ بالحكم مباشرة في أول سطرين: هل ظهر الهدف في تسريبات أم لم يظهر، وبأي حجم.
+- للإيميل الظاهر في تسريبات: اذكر كل تسريب باسمه وماذا يعني ظهوره، وأنواع البيانات المكشوفة إن وُجدت، ودرجة الخطورة إن وُجدت.
+- للدومين: اشرح الفرق ببساطة بين «عناوين مكشوفة على الدومين» و«تسريبات أصابت خدمة الدومين نفسها»، وغطِّ فقط ما هو موجود في البيانات.
+- للنتيجة النظيفة: قل بوضوح إنه لم يظهر في الفهارس المعروفة، مع تنبيه صادق واحد: الفهارس لا تعرف إلا التسريبات التي ظهرت للعلن، فالنتيجة النظيفة ليست ضمانًا مطلقًا.
+- اختم دائمًا بقسم عنوانه «الخطوات التالية» وفيه أفعال مرتبة بالأولوية حسب نوع البيانات المكشوفة (كلمات مرور: تغيير فوري وتفعيل التحقق بخطوتين وعدم إعادة الاستخدام في أي موقع آخر؛ أرقام هواتف: حذر من التصيد ورسائل الاحتيال؛ لا شيء مكشوف: 3 عادات حماية سريعة).
+- أسلوب مباشر ومهني من غير تخويف مبالغ فيه ومن غير جداول؛ فقرات قصيرة وقوائم عند الحاجة.`;
+    const userContent = `بيانات الفحص:\n${leakEvidenceText(evidence)}`;
+    const models = [
+      (process.env.OPENROUTER_LEAK_MODEL || process.env.OPENROUTER_SCAN_MODEL || "moonshotai/kimi-k2-0905").trim(),
+      (process.env.OPENROUTER_SCAN_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
+    ];
+    let report = "";
+    let bestReport = "";
+    for (const [index, model] of models.entries()) {
+      if (report) break;
+      const budget = Math.min(index === 0 ? 30000 : 20000, deadline - 3000 - Date.now());
+      if (budget < 8000) break;
+      let collected = "";
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: userContent },
+            ],
+            max_tokens: 3500,
+            temperature: 0.3,
+            stream: true,
+            ...(index === 0 ? { reasoning: { effort: "low" } } : {}),
+          }),
+          signal: AbortSignal.timeout(budget),
+        });
+        if (!response.ok || !response.body) continue;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const consumeSseLine = (line: string) => {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) return;
+          const data = trimmed.slice(5).trim();
+          if (!data || data === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed?.choices?.[0]?.delta?.content;
+            if (typeof delta === "string") collected += delta;
+          } catch { /* Ignore malformed provider frame. */ }
+        };
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) consumeSseLine(line);
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) consumeSseLine(buffer);
+      } catch { /* aborted or network error — judged below */ }
+      const text = collected.trim();
+      if (text.length > bestReport.length) bestReport = text;
+      if (text.length >= 200) report = text;
+    }
+    if (!report && bestReport.length >= 200) report = bestReport;
+    if (!report) throw new Error("leak_report_failed");
+    await saveMessage(user.id, conversationId, "user", `🔐 كشف تسريب: ${rawTarget}`);
+    await saveMessage(user.id, conversationId, "assistant", report);
+    const wallet = await getWallet(user.id).catch(() => null);
+    const foundCount = evidence.kind === "email" ? (evidence.breachNames?.length ?? 0) : (evidence.domainSummary?.breachCount ?? evidence.serviceBreaches?.length ?? 0);
+    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEAK_COST, found: foundCount, targetKind: kind });
+  } catch (error) {
+    if (debited) {
+      try { await creditWalletTokens(user.id, LEAK_COST); } catch (refundError) { console.error("[Leak] Refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
+    }
+    console.error("[Leak] Leak check failed", error instanceof Error ? error.message : "unknown");
+    res.status(502).json({ error: "leak_failed" });
+  }
+}
+
 async function handleSiteBuild(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -1505,6 +1660,7 @@ export default async function handler(req: any, res: any) {
   if (body?.imageMode === true) return await handleImageGeneration(req, res, body);
   if (body?.scanMode === true) return await handleUrlScan(req, res, body);
   if (body?.seoMode === true) return await handleSeoAudit(req, res, body);
+  if (body?.leakMode === true) return await handleLeakCheck(req, res, body);
   if (body?.siteMode === true) return await handleSiteBuild(req, res, body);
   if (body?.leadsMode === true) return await handleLeadExtraction(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
