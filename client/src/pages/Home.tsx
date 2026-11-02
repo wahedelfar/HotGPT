@@ -616,7 +616,7 @@ function SiteCard({ html, language, onContinue, continueDisabled }: { html: stri
   );
 }
 
-function MessageBubble({ message, onContinue, onExtractMore, onSiteContinue, siteContinueDisabled }: { message: ChatMessage; onContinue?: () => void; onExtractMore?: () => void; onSiteContinue?: () => void; siteContinueDisabled?: boolean }) {
+function MessageBubble({ message, onContinue, onExtractMore, onSiteContinue, siteContinueDisabled, onEditImage }: { message: ChatMessage; onContinue?: () => void; onExtractMore?: () => void; onSiteContinue?: () => void; siteContinueDisabled?: boolean; onEditImage?: () => void }) {
   const { language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const codeContainerRef = useRef<HTMLDivElement>(null);
@@ -688,7 +688,7 @@ function MessageBubble({ message, onContinue, onExtractMore, onSiteContinue, sit
         </div>
         <div className="message-content" ref={codeContainerRef}>
           {message.imageUrl && <img src={message.imageUrl} alt={tr(language, "صورة مولّدة", "Generated image")} style={{ maxWidth: "100%", borderRadius: 12, marginBottom: 8 }} />}
-          {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span></div>}
+          {message.imageUrl && <div style={{ marginBottom: 8 }}><a href={message.imageUrl} download="hotgpt-image.png" style={{ fontSize: 12, color: "#22d3ee" }}>{tr(language, "⬇ احفظ الصورة على جهازك", "⬇ Save the image to your device")}</a><span style={{ fontSize: 12, opacity: 0.75 }}> — {tr(language, "ستُحذف عند تسجيل خروجك ولا تُحفظ في السجل", "it is deleted when you sign out and is not kept in history")}</span>{onEditImage && <button type="button" onClick={onEditImage} style={{ marginInlineStart: 10, fontSize: 12, fontWeight: 700, color: "#F6C453", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{tr(language, "✏️ تعديل الصورة", "✏️ Edit this image")}</button>}</div>}
           {message.leadsData && message.leadsData.length > 0 ? <LeadCards leads={message.leadsData} language={language} startIndex={message.leadsOffset ?? 0} onMore={onExtractMore} moreDisabled={message.leadsMoreDisabled === true} /> : message.role === "assistant" && isSiteHtml(message.content) ? <SiteCard html={message.content} language={language} onContinue={onSiteContinue} continueDisabled={siteContinueDisabled} /> : message.role === "assistant" && /## نتائج البحث|## نتائج البحث الموسع/.test(message.content) ? <SearchResultCards content={message.content} language={language} /> : <RenderedMessageContent content={message.content} language={language} />}
         </div>
         <div className="message-actions">
@@ -1233,6 +1233,20 @@ export default function Home() {
   // opens a small menu — normal image or CGI image. The menu carries
   // names only; image prices live on the /models page.
   const [imageKind, setImageKind] = useState<"normal" | "cgi">("normal");
+  // Image editing (2026-11-02): the session image the member chose to
+  // edit via the «تعديل الصورة» action on a generated image. While set,
+  // the next image-mode send carries it as the model's reference image.
+  const [editSource, setEditSource] = useState<string | null>(null);
+  const startImageEdit = (imageUrl: string) => {
+    setEditSource(imageUrl);
+    setImageMode(true);
+    setScanMode(false);
+    setSeoMode(false);
+    setLeadsMode(false);
+    setSiteMode(false);
+    setRequestError(null);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
   const [imageMenuPos, setImageMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const sessionImagesRef = useRef<Map<string, string>>(new Map());
   const sessionLeadsRef = useRef<Map<string, LeadBusiness[][]>>(new Map());
@@ -1655,8 +1669,9 @@ export default function Home() {
         // Image generation (user feature, 2026-10-25): the server charges a
         // flat 5 tokens and returns the image for this session only; images
         // are not persisted in the database yet.
+        const wasEdit = Boolean(editSource);
         try {
-          const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId, imageKind }) });
+          const imageResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageMode: true, prompt: trimmed, conversationId, imageKind, ...(editSource ? { sourceImage: editSource } : {}) }) });
           const imagePayload = await imageResponse.json().catch(() => ({}));
           if (!imageResponse.ok || !imagePayload.imageDataUrl) {
             const imageErrors: Record<string, string> = {
@@ -1669,7 +1684,7 @@ export default function Home() {
           }
           sessionImagesRef.current.set(trimmed.slice(0, 200), String(imagePayload.imageDataUrl));
           if (typeof imagePayload.tokenBalance === "number") setWalletBalance(imagePayload.tokenBalance);
-          const imageNote = imageKind === "cgi" ? tr(language, `🎨 صورة CGI مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 CGI image generated from your prompt: "${trimmed.slice(0, 200)}"`) : tr(language, `🎨 صورة مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 Image generated from your prompt: "${trimmed.slice(0, 200)}"`);
+          const imageNote = wasEdit ? tr(language, `🎨 صورة معدّلة بناءً على طلبك: «${trimmed.slice(0, 200)}»`, `🎨 Image edited as you requested: "${trimmed.slice(0, 200)}"`) : imageKind === "cgi" ? tr(language, `🎨 صورة CGI مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 CGI image generated from your prompt: "${trimmed.slice(0, 200)}"`) : tr(language, `🎨 صورة مولّدة بناءً على وصفك: «${trimmed.slice(0, 200)}»`, `🎨 Image generated from your prompt: "${trimmed.slice(0, 200)}"`);
           setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: imageNote, timestamp: formatTime(), imageUrl: String(imagePayload.imageDataUrl) }]);
         } catch (imageError) {
           setRequestError(imageError instanceof Error ? imageError.message : tr(language, "تعذر توليد الصورة الآن.", "Image generation failed."));
@@ -1677,6 +1692,7 @@ export default function Home() {
           setIsSending(false);
           setIsSearchingWeb(false);
           setImageMode(false);
+          setEditSource(null);
         }
         return;
       }
@@ -2533,7 +2549,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <span>{tr(language, "جاري البحث في أحدث المصادر الموثوقة...", "Searching trusted sources...")}</span>
                     </div>
                   )}
-                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel,leadsMoreDisabled:isSending}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined} onExtractMore={message.leadsData&&message.leadsData.length?()=>{void extractMoreLeads(message)}:undefined} onSiteContinue={message.role==="assistant"&&index===messages.length-1&&isSiteHtml(message.content)&&!/<\/html>/i.test(message.content)?()=>{void continueSite(message)}:undefined} siteContinueDisabled={isSending}/>;})}
+                  {messages.map((message,index)=>{const canContinue=message.role==="assistant"&&index===messages.length-1&&message.continuationAvailable===true;const insufficient=walletBalance<(darkLiveMode||darkWebEnabled||webSearchEnabled||selectedModel==="dadgpt-beast"?5:1);return <MessageBubble key={message.id} message={{...message,continuationDisabled:canContinue&&(isSending||insufficient||message.continuationDisabled===true),continuationLabel:canContinue&&insufficient?tr(language,"الرصيد غير كافٍ","Insufficient balance"):message.continuationLabel,leadsMoreDisabled:isSending}} onContinue={canContinue?()=>{void continueMessage(message)}:undefined} onExtractMore={message.leadsData&&message.leadsData.length?()=>{void extractMoreLeads(message)}:undefined} onSiteContinue={message.role==="assistant"&&index===messages.length-1&&isSiteHtml(message.content)&&!/<\/html>/i.test(message.content)?()=>{void continueSite(message)}:undefined} siteContinueDisabled={isSending} onEditImage={message.role==="assistant"&&message.imageUrl?()=>{startImageEdit(String(message.imageUrl))}:undefined}/>;})}
                   {isSending && !hasStartedStreaming && (
                     <div className="typing-row">
                       <div className="message-avatar assistant-avatar">
@@ -2590,7 +2606,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
+                  placeholder={editSource ? tr(language, "اكتب وصف التعديل على الصورة… مثال: غيّر الخلفية إلى ذهبي", "Describe the edit to this image… e.g. make the background gold") : siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : tr(language, "اكتب رسالتك هنا...", "Message HotGPT...")}
                   rows={1}
                 />
                 <button
@@ -2606,6 +2622,13 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 ) : (
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
                 ))}
+                {editSource && (
+                  <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <img src={editSource} alt="" style={{ width: 34, height: 34, objectFit: "cover", borderRadius: 8 }} />
+                    <span>{tr(language, "وضع التعديل: اكتب وصف التعديل واضغط إرسال — بنفس سعر توليد الصورة.", "Edit mode: describe the change and press send — same price as generating an image.")}</span>
+                    <button type="button" onClick={() => setEditSource(null)} style={{ color: "#22d3ee", fontWeight: 700 }}>{tr(language, "إلغاء التعديل", "Cancel edit")}</button>
+                  </div>
+                )}
                 <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <span>{tr(language, "بحث", "Search")}</span><span>PRO</span>
@@ -2613,7 +2636,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
-                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
+                  <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setEditSource(null); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
                     <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>{imageMode && imageKind === "cgi" && <span style={{ fontSize: 9, fontWeight: 800, color: "#FBBF24", border: "1px solid rgba(251,191,36,.6)", borderRadius: 6, padding: "0 3px", lineHeight: 1.4 }}>CGI</span>}
                   </button>
                   {imageMenuPos && (
