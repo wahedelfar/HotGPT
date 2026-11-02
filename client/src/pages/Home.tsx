@@ -187,6 +187,9 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 
 function Sidebar({
   conversations,
+  conversationsLoading,
+  conversationsError,
+  onRetryConversations,
   activeId,
   onSelect,
   onDelete,
@@ -202,6 +205,9 @@ function Sidebar({
   onLogout,
 }: {
   conversations: Conversation[];
+  conversationsLoading?: boolean;
+  conversationsError?: string | null;
+  onRetryConversations?: () => void;
   activeId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
@@ -334,6 +340,18 @@ function Sidebar({
           </button>
         )}
         <div className="conversation-list">
+          {conversations.length === 0 && conversationsLoading && (
+            <p style={{ margin: 0, padding: "10px 8px", fontSize: 12, color: "#8b959d" }}>{tr(language, "جاري تحميل محادثاتك…", "Loading your conversations…")}</p>
+          )}
+          {conversations.length === 0 && !conversationsLoading && conversationsError && (
+            <div style={{ padding: "10px 8px", fontSize: 12, color: "#f87171" }}>
+              <p style={{ margin: "0 0 8px", lineHeight: 1.7 }}>{conversationsError}</p>
+              <button type="button" onClick={onRetryConversations} style={{ background: "rgba(251,191,36,.12)", color: "#FBBF24", border: "1px solid rgba(251,191,36,.35)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{tr(language, "إعادة المحاولة", "Retry")}</button>
+            </div>
+          )}
+          {conversations.length === 0 && !conversationsLoading && !conversationsError && (
+            <p style={{ margin: 0, padding: "10px 8px", fontSize: 12, color: "#8b959d", lineHeight: 1.7 }}>{tr(language, "لا توجد محادثات محفوظة بعد.", "No saved conversations yet.")}</p>
+          )}
           {conversations.map(conversation => (
             <div className="conversation-row-wrap" key={conversation.id}>
               <button
@@ -1202,6 +1220,8 @@ export default function Home() {
     null
   );
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationsError, setConversationsError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [approvalNotice, setApprovalNotice] = useState<{ totalTokens: number; count: number } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1441,10 +1461,37 @@ export default function Home() {
     try { localStorage.setItem("hotgpt-token-balance", String(Math.max(0, walletBalance))); } catch {}
   }, [walletBalance]);
 
+  const loadConversationList = async () => {
+    setConversationsLoading(true);
+    setConversationsError(null);
+    try {
+      const response = await authFetch("/api/conversations");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "conversations_unavailable");
+      setConversations((payload.conversations ?? []).map((item: any) => ({
+        id: String(item.id),
+        title: String(item.title || "محادثة جديدة"),
+        preview: String(item.preview || ""),
+        date: item.date ? new Date(item.date).toLocaleDateString("ar-EG", { month: "short", day: "numeric" }) : "",
+      })));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      const errors: Record<string, string> = {
+        login_required: "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.",
+        auth_unavailable: "تعذر التحقق من جلسة Supabase. تحقق من إعدادات الخادم.",
+        conversations_unavailable: "الخادم لم يتمكن من قراءة المحادثات من قاعدة البيانات. راجع إعداد SUPABASE_SERVICE_ROLE_KEY وسجلات Supabase.",
+      };
+      const message = errors[code] || "تعذر تحميل محادثاتك المحفوظة.";
+      setConversationsError(message);
+      setRequestError(message);
+    } finally {
+      setConversationsLoading(false);
+    }
+  };
+
   const lastAuthUserIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (auth.loading) return;
-    let cancelled = false;
     // Only a real user change (sign-in, sign-out, account switch) may clear
     // the visible conversation. Auth re-validations (loading toggles, token
     // refreshes) used to wipe the message list mid-session, which made
@@ -1458,30 +1505,11 @@ export default function Home() {
     }
     if (!auth.isAuthenticated) {
       setConversations([]);
+      setConversationsLoading(false);
       try { localStorage.removeItem("hotgpt.chat.v1"); } catch {}
       return;
     }
-    void authFetch("/api/conversations").then(async response => {
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "conversations_unavailable");
-      if (cancelled) return;
-      setConversations((payload.conversations ?? []).map((item: any) => ({
-        id: String(item.id),
-        title: String(item.title || "محادثة جديدة"),
-        preview: String(item.preview || ""),
-        date: item.date ? new Date(item.date).toLocaleDateString("ar-EG", { month: "short", day: "numeric" }) : "",
-      })));
-    }).catch(error => {
-      if (cancelled) return;
-      const code = error instanceof Error ? error.message : "";
-      const errors: Record<string, string> = {
-        login_required: "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.",
-        auth_unavailable: "تعذر التحقق من جلسة Supabase. تحقق من إعدادات الخادم.",
-        conversations_unavailable: "الخادم لم يتمكن من قراءة المحادثات من قاعدة البيانات. راجع إعداد SUPABASE_SERVICE_ROLE_KEY وسجلات Supabase.",
-      };
-      setRequestError(errors[code] || "تعذر تحميل محادثاتك المحفوظة.");
-    });
-    return () => { cancelled = true; };
+    void loadConversationList();
   }, [auth.loading, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
@@ -2225,6 +2253,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
       <div className={sidebarOpen ? "sidebar-drawer open" : "sidebar-drawer"}>
         <Sidebar
           conversations={conversations}
+          conversationsLoading={conversationsLoading}
+          conversationsError={conversationsError}
+          onRetryConversations={() => void loadConversationList()}
           activeId={activeConversation}
           onSelect={id => {
             setLocation(`/chat/${id}`);

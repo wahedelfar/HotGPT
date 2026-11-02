@@ -67,13 +67,26 @@ export default async function handler(req: any, res: any) {
         });
       }
       const rows = await rest(`conversations?user_id=eq.${encodeURIComponent(user.id)}&select=id,title,created_at,updated_at&order=updated_at.desc&limit=100`);
-      const conversations = await Promise.all((rows || []).map(async (row: any) => {
-        let preview = "";
+      // Previews in ONE batched query (newest message per conversation). The old
+      // per-conversation query made the list endpoint run up to 101 sequential
+      // REST round-trips, so the sidebar sat empty for seconds and any hiccup
+      // looked like "the conversations disappeared".
+      const previewByConversation = new Map<string, string>();
+      const rowIds = (rows || []).map((row: any) => String(row.id)).filter((id: string) => /^[0-9a-f-]{36}$/i.test(id));
+      if (rowIds.length > 0) {
         try {
-          const messages = await rest(`messages?conversation_id=eq.${encodeURIComponent(row.id)}&user_id=eq.${encodeURIComponent(user.id)}&select=content&order=created_at.desc&limit=1`);
-          preview = String(messages?.[0]?.content || "");
-        } catch { /* Keep the conversation list usable if a preview cannot be loaded. */ }
-        return { id: String(row.id), title: String(row.title || "محادثة جديدة"), preview, date: row.updated_at || row.created_at };
+          const latest = await rest(`messages?conversation_id=in.(${rowIds.join(",")})&user_id=eq.${encodeURIComponent(user.id)}&select=conversation_id,content&order=created_at.desc&limit=1000`);
+          for (const message of latest || []) {
+            const cid = String(message.conversation_id || "");
+            if (cid && !previewByConversation.has(cid)) previewByConversation.set(cid, String(message.content || ""));
+          }
+        } catch { /* Keep the conversation list usable if previews cannot be loaded. */ }
+      }
+      const conversations = (rows || []).map((row: any) => ({
+        id: String(row.id),
+        title: String(row.title || "محادثة جديدة"),
+        preview: previewByConversation.get(String(row.id)) || "",
+        date: row.updated_at || row.created_at,
       }));
       return res.status(200).json({ conversations });
     }
