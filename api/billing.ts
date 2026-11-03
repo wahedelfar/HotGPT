@@ -3,7 +3,7 @@ import { requireMember } from "../server/_core/vercelAuth.ts";
 import * as db from "../server/supabaseBilling.ts";
 import { usdForEgp } from "../server/fxRate.ts";
 
-export const PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 500, 1000: 700 };
+export const PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 440, 1000: 500 };
 
 // --- PayPal Checkout (Orders API), merged into this function on 2026-10-27:
 // the Hobby plan allows at most 12 serverless functions per deployment, so
@@ -302,7 +302,7 @@ async function sendTelegramPaymentAlert(args: {
 // behave exactly as the watcher did. Signal buttons only NOTIFY the
 // member — crediting a native submission still happens in the admin
 // panel, as in v1.
-const INTAKE_PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 500, 1000: 700 };
+const INTAKE_PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 440, 1000: 500 };
 const INTAKE_PACK_BUTTONS = {
   inline_keyboard: [
     [{ text: "باقة 100 توكين — 100 جنيه", callback_data: "pack:100" }],
@@ -618,7 +618,7 @@ export default async function handler(req: any, res: any) {
       instapayUrl: "https://ipn.eg/S/wahedelfar/instapay/4LnUCo",
       paypalPaymentUrl: process.env.PAYPAL_PAYMENT_URL ?? "",
       paypalClientId: process.env.PAYPAL_CLIENT_ID ?? "",
-      packages: [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }],
+      packages: [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 440 }, { tokens: 1000, priceEgp: 500 }],
       packagesUsd,
       usdEgpRate,
       freeAnswers: 0, welcomeGiftTokens: 20, creditsPerAnswer: 1,

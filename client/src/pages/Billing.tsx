@@ -107,7 +107,7 @@ export default function BillingPage() {
   useEffect(() => { trackFunnelEvent({ name: "billing_view" }); void load().catch(() => setMessage(t("تعذر تحميل بيانات الباقات. أعد المحاولة.", "Could not load the pack data. Please try again."))); }, []);
   useEffect(() => { fetch("/api/billing?action=public-requests").then(r => (r.ok ? r.json() : null)).then(d => { if (Array.isArray(d?.requests)) setPublicRequests(d.requests); }).catch(() => {}); }, []);
 
-  const packages = config?.packages ?? [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 500 }, { tokens: 1000, priceEgp: 700 }];
+  const packages = config?.packages ?? [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 440 }, { tokens: 1000, priceEgp: 500 }];
   const selected = packages.find(item => item.tokens === packageTokens);
   async function handleScreenshot(file?: File) {
     setMessage("");

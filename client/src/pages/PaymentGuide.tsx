@@ -88,7 +88,7 @@ export default function PaymentGuidePage() {
                 steps={
                   ar
                     ? [
-                        <>افتح <a href="/billing" style={GOLD_LINK}>صفحة الباقات</a> واضغط كارت الباقة المناسبة: 100 توكين بـ 100 جنيه، 500 بـ 300، 800 بـ 500، 1000 بـ 700.</>,
+                        <>افتح <a href="/billing" style={GOLD_LINK}>صفحة الباقات</a> واضغط كارت الباقة المناسبة: 100 توكين بـ 100 جنيه، 500 بـ 300، 800 بـ 440، 1000 بـ 500.</>,
                         <>حوّل مبلغ الباقة بالظبط إلى رقم فودافون كاش <bdi style={{ fontWeight: 800, color: "#fff" }}>01063537686</bdi> — من تطبيق فودافون كاش، أو بكود USSD الجاهز اللي بيظهر لك في صفحة الباقات بصيغة: <span dir="ltr" style={{ fontWeight: 700, color: "#fff" }}>*9*7*01063537686*المبلغ#</span> (مثال لباقة الـ100: <span dir="ltr" style={{ fontWeight: 700, color: "#fff" }}>*9*7*01063537686*100#</span>).</>,
                         "بعد التحويل مباشرة خد اسكرين شوت للإثبات — لازم يظهر فيها بوضوح: الرقم اللي حوّلت عليه، والمبلغ، ووقت التحويل.",
                         <>ارجع لصفحة الباقات وارفع صورة الإثبات من قسم فودافون كاش واضغط إرسال. وتقدر تبعتها بدل كده لبوت الدفع على تيليجرام <a href="https://t.me/HOT_GPTPaybot" target="_blank" rel="noreferrer" style={GOLD_LINK}>@HOT_GPTPaybot</a> مع إيميلك المسجل في الموقع ورقم التحويل ورقم الباقة في وصف الصورة.</>,
@@ -96,7 +96,7 @@ export default function PaymentGuidePage() {
                         "المراجعة بتتم خلال دقائق، وأول ما تتوافق بينزل مبلغ الباقة كاملًا في رصيدك — ولو فعّلت «نبّهني بعد الموافقة» من شاشة نجاح الإرسال هيوصلك تنبيه جوه الموقع.",
                       ]
                     : [
-                        <>Open the <a href="/billing" style={GOLD_LINK}>billing page</a> and tap the right pack card: 100 tokens for 100 EGP, 500 for 300, 800 for 500, 1000 for 700.</>,
+                        <>Open the <a href="/billing" style={GOLD_LINK}>billing page</a> and tap the right pack card: 100 tokens for 100 EGP, 500 for 300, 800 for 440, 1000 for 500.</>,
                         <>Transfer the exact pack amount to Vodafone Cash number <bdi style={{ fontWeight: 800, color: "#fff" }}>01063537686</bdi> — from the Vodafone Cash app, or with the ready USSD code shown on the billing page: <span dir="ltr" style={{ fontWeight: 700, color: "#fff" }}>*9*7*01063537686*AMOUNT#</span> (for the 100 pack: <span dir="ltr" style={{ fontWeight: 700, color: "#fff" }}>*9*7*01063537686*100#</span>).</>,
                         "Right after transferring, take a screenshot of the proof — it must clearly show: the number you sent to, the amount, and the transfer time.",
                         <>Go back to the billing page, upload the proof image in the Vodafone Cash section and press send. Or send it instead to the payment bot on Telegram, <a href="https://t.me/HOT_GPTPaybot" target="_blank" rel="noreferrer" style={GOLD_LINK}>@HOT_GPTPaybot</a>, with your registered site email, the sender number and the pack number in the photo caption.</>,
