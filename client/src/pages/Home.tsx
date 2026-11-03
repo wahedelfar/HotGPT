@@ -1644,6 +1644,70 @@ export default function Home() {
     return true;
   };
 
+  // Paid reports (owner order, 2026-11-03): the scan/SEO/leak/reverse
+  // branches ask the server to stream (stream:true) and this reader
+  // types the report into a live assistant bubble as it is written,
+  // instead of a silent wait followed by the whole report at once.
+  // Pre-writer failures still arrive as plain JSON and flow through the
+  // branches' existing error maps unchanged; the stream's done event
+  // carries the authoritative final text (it replaces the typed draft),
+  // and an error event is returned shaped like the old JSON error body.
+  const consumeReportResponse = async (response: Response): Promise<any> => {
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.body || !/text\/event-stream/i.test(contentType)) {
+      return response.json().catch(() => ({}));
+    }
+    const liveId = crypto.randomUUID();
+    let liveStarted = false;
+    let finalPayload: any = null;
+    let errorPayload: any = null;
+    const applyEvent = (raw: string) => {
+      const line = raw.trim();
+      if (!line.startsWith("data:")) return;
+      const data = line.slice(5).trim();
+      if (!data || data === "[DONE]") return;
+      let ev: any;
+      try { ev = JSON.parse(data); } catch { return; }
+      if (ev.type === "delta" && typeof ev.text === "string" && ev.text) {
+        if (!liveStarted) {
+          liveStarted = true;
+          setReportWait(null);
+          setMessages(current => [...current, { id: liveId, role: "assistant", content: ev.text, timestamp: formatTime() }]);
+        } else {
+          setMessages(current => current.map(m => (m.id === liveId ? { ...m, content: m.content + ev.text } : m)));
+        }
+      } else if (ev.type === "reset") {
+        if (liveStarted) setMessages(current => current.map(m => (m.id === liveId ? { ...m, content: "" } : m)));
+      } else if (ev.type === "done") {
+        finalPayload = ev;
+      } else if (ev.type === "error") {
+        errorPayload = ev;
+      }
+    };
+    try {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+        for (const part of parts) applyEvent(part);
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) applyEvent(buffer);
+    } catch { /* connection dropped mid-stream — resolved below */ }
+    if (finalPayload && typeof finalPayload.content === "string") {
+      if (liveStarted) setMessages(current => current.map(m => (m.id === liveId ? { ...m, content: String(finalPayload.content) } : m)));
+      return { ...finalPayload, __streamed: liveStarted };
+    }
+    if (liveStarted) setMessages(current => current.filter(m => m.id !== liveId));
+    if (errorPayload) return { error: errorPayload.error || "report_failed", message: errorPayload.message };
+    return { error: "stream_interrupted" };
+  };
+
   const sendMessage = async (value = draft) => {
     const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : reverseMode && reverseFile ? `🧩 هندسة عكسية: ${reverseFile.name}` : "");
     if (!trimmed || isSending) return;
@@ -1772,8 +1836,8 @@ export default function Home() {
         // and returns the finished report; failures refund in full.
         setReportWait("scan");
         try {
-          const scanResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanMode: true, url: trimmed, conversationId }) });
-          const scanPayload = await scanResponse.json().catch(() => ({}));
+          const scanResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanMode: true, url: trimmed, conversationId, stream: true }) });
+          const scanPayload = await consumeReportResponse(scanResponse);
           if (!scanResponse.ok || !scanPayload.content) {
             const scanErrors: Record<string, string> = {
               insufficient_credits: tr(language, "فحص الروابط يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "URL scanning costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
@@ -1787,7 +1851,7 @@ export default function Home() {
             throw new Error(scanErrors[String(scanPayload.error || "")] || tr(language, "تعذر إتمام الفحص الآن. لم يُخصم الرصيد.", "The scan failed. Nothing was charged."));
           }
           if (typeof scanPayload.tokenBalance === "number") setWalletBalance(scanPayload.tokenBalance);
-          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(scanPayload.content), timestamp: formatTime() }]);
+          if (!scanPayload.__streamed) setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(scanPayload.content), timestamp: formatTime() }]);
         } catch (scanError) {
           setRequestError(scanError instanceof Error ? scanError.message : tr(language, "تعذر إتمام الفحص الآن.", "The scan failed."));
         } finally {
@@ -1821,8 +1885,8 @@ export default function Home() {
           reverseUploadBody.append("", reverseFile);
           const putResponse = await fetch(slot.uploadUrl, { method: "PUT", body: reverseUploadBody });
           if (!putResponse.ok) throw new Error(tr(language, "فشل رفع الملف إلى التخزين. حاول مرة أخرى — لم يُخصم شيء.", "Uploading the file to storage failed. Try again — nothing was charged."));
-          const reverseResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reverseMode: true, uploadPath: slot.path, fileName: reverseFile.name, conversationId }) });
-          const reversePayload = await reverseResponse.json().catch(() => ({}));
+          const reverseResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reverseMode: true, uploadPath: slot.path, fileName: reverseFile.name, conversationId, stream: true }) });
+          const reversePayload = await consumeReportResponse(reverseResponse);
           if (!reverseResponse.ok || !reversePayload.content) {
             const serverMsg = typeof reversePayload.message === "string" && reversePayload.message ? reversePayload.message : "";
             const reverseErrors: Record<string, string> = {
@@ -1839,7 +1903,7 @@ export default function Home() {
             throw new Error(reverseErrors[String(reversePayload.error || "")] || tr(language, "تعذر إتمام تحليل الهندسة العكسية الآن. لم يُخصم الرصيد.", "The reverse-engineering analysis failed. Nothing was charged."));
           }
           if (typeof reversePayload.tokenBalance === "number") setWalletBalance(reversePayload.tokenBalance);
-          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(reversePayload.content), timestamp: formatTime() }]);
+          if (!reversePayload.__streamed) setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(reversePayload.content), timestamp: formatTime() }]);
         } catch (reverseError) {
           setRequestError(reverseError instanceof Error ? reverseError.message : tr(language, "تعذر إتمام تحليل الهندسة العكسية الآن.", "The reverse-engineering analysis failed."));
         } finally {
@@ -1860,8 +1924,8 @@ export default function Home() {
         // and the actions to take; failures refund in full.
         setReportWait("leak");
         try {
-          const leakResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leakMode: true, target: trimmed, conversationId }) });
-          const leakPayload = await leakResponse.json().catch(() => ({}));
+          const leakResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leakMode: true, target: trimmed, conversationId, stream: true }) });
+          const leakPayload = await consumeReportResponse(leakResponse);
           if (!leakResponse.ok || !leakPayload.content) {
             const leakErrors: Record<string, string> = {
               invalid_leak_request: tr(language, "اكتب إيميلًا صحيحًا (name@company.com) أو دومينًا صحيحًا (company.com) ثم أعد المحاولة — لم يُخصم الرصيد.", "Enter a valid email (name@company.com) or domain (company.com), then try again — nothing was charged."),
@@ -1874,7 +1938,7 @@ export default function Home() {
             throw new Error(leakErrors[String(leakPayload.error || "")] || tr(language, "تعذر إتمام كشف التسريب الآن. لم يُخصم الرصيد.", "The leak check failed. Nothing was charged."));
           }
           if (typeof leakPayload.tokenBalance === "number") setWalletBalance(leakPayload.tokenBalance);
-          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leakPayload.content), timestamp: formatTime() }]);
+          if (!leakPayload.__streamed) setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(leakPayload.content), timestamp: formatTime() }]);
         } catch (leakError) {
           setRequestError(leakError instanceof Error ? leakError.message : tr(language, "تعذر إتمام كشف التسريب الآن.", "The leak check failed."));
         } finally {
@@ -1893,8 +1957,8 @@ export default function Home() {
         // finished report with a growth plan; failures refund in full.
         setReportWait("seo");
         try {
-          const seoResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seoMode: true, url: trimmed, conversationId }) });
-          const seoPayload = await seoResponse.json().catch(() => ({}));
+          const seoResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seoMode: true, url: trimmed, conversationId, stream: true }) });
+          const seoPayload = await consumeReportResponse(seoResponse);
           if (!seoResponse.ok || !seoPayload.content) {
             const seoErrors: Record<string, string> = {
               invalid_seo_request: tr(language, "أدخل رابط موقع صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة.", "Enter a valid website URL and make sure the conversation is valid, then try again."),
@@ -1912,7 +1976,7 @@ export default function Home() {
             throw new Error(seoErrors[String(seoPayload.error || "")] || tr(language, "تعذر إتمام فحص SEO الآن. لم يُخصم الرصيد.", "The SEO audit failed. Nothing was charged."));
           }
           if (typeof seoPayload.tokenBalance === "number") setWalletBalance(seoPayload.tokenBalance);
-          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(seoPayload.content), timestamp: formatTime() }]);
+          if (!seoPayload.__streamed) setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(seoPayload.content), timestamp: formatTime() }]);
         } catch (seoError) {
           setRequestError(seoError instanceof Error ? seoError.message : tr(language, "تعذر إتمام فحص SEO الآن.", "The SEO audit failed."));
         } finally {
@@ -2839,7 +2903,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 ))}
                 {imageMode && messages.some(m => m.imageUrl) && (
                   <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span>{freshDesignNext ? tr(language, "🎨 الطلب الجاي: تصميم جديد من الصفر (3 توكين — وCGI بـ 10).", "🎨 Next request: a brand-new design from scratch (3 tokens — CGI 10).") : tr(language, "🎨 وضع التصميم مفعّل: طلبك الجاي هيتعدّل على آخر صورة في المحادثة (3 توكين — وCGI بـ 10). للرجوع للشات النصي دوس زرار «صورة».", "🎨 Design mode is on: your next request will edit the last image in this conversation (3 tokens — CGI 10). Tap the Image button to return to text chat.")}</span>
+                    <span>{freshDesignNext ? tr(language, "🎨 الطلب الجاي: تصميم جديد من الصفر (3 توكين — وCGI بـ 10).", "🎨 Next request: a brand-new design from scratch (3 tokens — CGI 10).") : tr(language, "🎨 طلبك الجاي: تعديل على آخر صورة (3 توكين — وCGI بـ 10).", "🎨 Next request: an edit of the last image (3 tokens — CGI 10).")}</span>
                     <button type="button" onClick={() => setFreshDesignNext(v => !v)} style={{ color: "#F6C453", fontWeight: 700 }}>{freshDesignNext ? tr(language, "لا — عدّل على آخر صورة", "No — edit the last image") : tr(language, "تصميم جديد من الصفر", "New design from scratch")}</button>
                   </div>
                 )}
@@ -2894,12 +2958,12 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   </button>
                 </div>
               </div>
-              {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 وضع فحص الروابط: الصق رابط الموقع واضغط إرسال — تقرير أمني كامل من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص. الأداة للأغراض الدفاعية والبحثية فقط على المواقع التي تملكها أو مصرح لك بفحصها.", "🔍 URL scan mode: paste the website URL and press send — a full security report from real collected data for 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only, on sites you own or are authorized to scan.")}</div>}
-              {seoMode && <div className="attachment-cost-note">{tr(language, "📈 وضع فحص SEO: الصق رابط موقعك واضغط إرسال — تقرير SEO كامل بخطة نمو عملية من بيانات حقيقية مقابل 20 توكن، واسترداد كامل إذا تعذر الفحص.", "📈 SEO audit mode: paste your website URL and press send — a full SEO report with a practical growth plan from real collected data for 20 tokens, fully refunded if the audit cannot run.")}</div>}
+              {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 فحص أمني كامل للرابط من بيانات حقيقية — 20 توكن، واسترداد كامل لو تعذّر الفحص. للأغراض الدفاعية والبحثية فقط.", "🔍 A full security scan of the URL from real collected data — 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only.")}</div>}
+              {seoMode && <div className="attachment-cost-note">{tr(language, "📈 تقرير SEO كامل بخطة نمو من بيانات حقيقية — 20 توكن، واسترداد كامل لو تعذّر الفحص.", "📈 A full SEO report with a growth plan from real collected data — 20 tokens, fully refunded if the audit cannot run.")}</div>}
               {routeNotice && <div className="attachment-cost-note">{routeNotice}</div>}
-              {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 وضع كشف التسريب: اكتب إيميلك أو دومين موقعك واضغط إرسال — فحص فوري في فهارس التسريبات العالمية وتقرير بالنتائج والخطوات مقابل 20 توكين، واسترداد كامل إذا تعذر الفحص. افحص فقط إيميلات ودومينات تخصك أو مصرح لك بفحصها.", "🔐 Leak check mode: type your email or your site's domain and press send — an instant check across global breach indexes with a findings-and-actions report for 20 tokens, fully refunded if the check cannot run. Only check emails and domains that are yours or that you are authorized to check.")}</div>}
-              {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 وضع استخراج العملاء: اكتب نوع النشاط والمنطقة (مثال: عيادات أسنان في التجمع الخامس) واضغط إرسال — بيانات لحد 30 شركة من خرائط جوجل (الاسم والتليفون والعنوان والموقع والتقييم) مقابل 20 توكن، واسترداد كامل إذا تعذر الاستخراج.", "📇 Lead extraction mode: type the business type and area (e.g. dental clinics in New Cairo) and press send — data for up to 30 businesses from Google Maps (name, phone, address, website, rating) for 20 tokens, fully refunded if the extraction cannot run.")}</div>}
-              {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 وضع الهندسة العكسية: من أيقونة المشبك 📎 في مربع الكتابة اختر ملف برنامجك أو تطبيقك (حتى 50 ميجا — EXE وDLL وAPK وELF وMach-O) واضغط إرسال — المنصة تفكّكه وتحلّل بنيته واستيراداته ونصوصه وقدراته وتسلّمك تقريرًا احترافيًا للمطورين مقابل 20 توكين، واسترداد كامل إذا تعذر التحليل أو لم يكن الملف مدعومًا. ملفك يُحذف تلقائيًا بعد 3 أيام ويبقى التقرير في محادثتك. حلّل فقط ملفات تخصك أو مصرحًا لك بفحصها.", "🧩 Reverse engineering mode: use the paperclip 📎 in the writing box to choose your program or app file (up to 50 MB — EXE, DLL, APK, ELF, Mach-O), then press send — the platform takes it apart and analyzes its structure, imports, strings and capabilities in a professional developer report for 20 tokens, fully refunded if the analysis cannot run or the file is unsupported. Your file is auto-deleted after 3 days; the report stays in your conversation. Only analyze files you own or are authorized to inspect.")}</div>}
+              {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 فحص إيميلك أو دومينك في فهارس التسريبات العالمية + تقرير بالخطوات — 20 توكن، واسترداد كامل لو تعذّر الفحص. افحص بياناتك فقط.", "🔐 We check your email or domain across global breach indexes and report the findings and next steps — 20 tokens, fully refunded if the check cannot run. Only check your own data.")}</div>}
+              {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 بيانات لحد 30 شركة من خرائط جوجل (اسم وتليفون وعنوان وتقييم) — 20 توكن، واسترداد كامل لو تعذّر الاستخراج.", "📇 Data for up to 30 businesses from Google Maps (name, phone, address, rating) — 20 tokens, fully refunded if the extraction cannot run.")}</div>}
+              {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 فكّ وتحليل ملفك (حتى 50 ميجا): بنية وقدرات وحماية وخارطة عمل — 20 توكن واسترداد كامل عند الفشل. الملف يُحذف بعد 3 أيام ويبقى التقرير.", "🧩 We take your file apart (up to 50 MB): structure, capabilities, protections and a work plan — 20 tokens, fully refunded on failure. The file is deleted after 3 days; the report stays.")}</div>}
               {darkWebEnabled && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">

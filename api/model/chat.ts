@@ -465,9 +465,57 @@ async function darkIndexQuery(userText: string): Promise<string> {
 // charge → work → persist → respond; any failure refunds in full). It
 // runs purely on the collectors + OpenRouter, so like image generation
 // it is dispatched before the primary-provider gate.
+// Client streaming for paid reports (owner order, 2026-11-03 — he
+// watched a Reverse Lab report land as one block after a long silent
+// wait and ordered: «مينفعش يكتب قدام المستخدم؟»): when the client
+// sends stream:true, the report types out live. Deltas are cosmetic —
+// the final "done" event carries the authoritative, acceptance-checked
+// text (a salvaged partial or a backup-model rewrite can differ from
+// what was typed), and an "error" event replaces the JSON error body
+// once streaming has begun. Everything before the writer phase
+// (validation, unreachable target, unsupported file) still answers
+// plain JSON before streaming starts, so the client's existing error
+// copy keeps working untouched.
+function beginReportStream(res: any, body: any) {
+  const streaming = body?.stream === true;
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+  };
+  return {
+    get started() { return started; },
+    delta(text: string) {
+      if (!streaming || !text) return;
+      start();
+      if (!res.writableEnded) res.write(`data: ${JSON.stringify({ type: "delta", text })}\n\n`);
+    },
+    reset() {
+      if (streaming && started && !res.writableEnded) res.write(`data: ${JSON.stringify({ type: "reset" })}\n\n`);
+    },
+    done(payload: Record<string, unknown>): boolean {
+      if (!streaming || !started) return false;
+      if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ type: "done", ...payload })}\n\n`); res.end(); }
+      return true;
+    },
+    error(payload: Record<string, unknown>): boolean {
+      if (!streaming || !started) return false;
+      if (!res.writableEnded) { res.write(`data: ${JSON.stringify({ type: "error", ...payload })}\n\n`); res.end(); }
+      return true;
+    },
+  };
+}
+
 async function handleUrlScan(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
+  const rs = beginReportStream(res, body);
   const rawUrl = String(body?.url || "").trim().slice(0, 500);
   const conversationId = String(body?.conversationId || "");
   if (!rawUrl || !/^[0-9a-f-]{36}$/i.test(conversationId)) { res.status(400).json({ error: "invalid_scan_request" }); return; }
@@ -518,9 +566,11 @@ async function handleUrlScan(req: any, res: any, body: any) {
     const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
     let report = "";
     let bestScanReport = "";
+    let scanStreamed = false;
     const reportDeadline = Date.now() + 50000;
     for (const [index, model] of models.entries()) {
       if (report) break;
+      if (index > 0 && scanStreamed) { rs.reset(); scanStreamed = false; }
       let collected = "";
       let passMessages: any[] = [
         { role: "system", content: system },
@@ -556,7 +606,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
             try {
               const parsed = JSON.parse(data);
               const delta = parsed?.choices?.[0]?.delta?.content;
-              if (typeof delta === "string") collected += delta;
+              if (typeof delta === "string" && delta) { collected += delta; scanStreamed = true; rs.delta(delta); }
             } catch { /* Ignore malformed provider frame; keep the rest of the report. */ }
           };
           for (;;) {
@@ -593,11 +643,12 @@ async function handleUrlScan(req: any, res: any, body: any) {
     await saveMessage(user.id, conversationId, "user", `🔍 فحص أمني للرابط: ${scan.target}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
-    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SCAN_COST, score: scan.score, grade: scan.grade });
+    const scanPayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SCAN_COST, score: scan.score, grade: scan.grade };
+    if (!rs.done(scanPayload)) res.status(200).json(scanPayload);
   } catch (error) {
     await creditWalletTokens(user.id, SCAN_COST);
     console.error("[Scan] URL scan failed", error instanceof Error ? error.message : "unknown");
-    res.status(502).json({ error: "scan_failed" });
+    if (!rs.error({ error: "scan_failed" })) res.status(502).json({ error: "scan_failed" });
   }
 }
 
@@ -610,6 +661,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
   console.info("SEO_REQUEST_RECEIVED:", rawUrl || "(missing_url)");
   const user = await requireUser(req, res);
   if (!user) return;
+  const rs = beginReportStream(res, body);
   const conversationId = String(body?.conversationId || "");
   if (!rawUrl || !/^[0-9a-f-]{36}$/i.test(conversationId)) {
     console.warn("[SEO] Request validation failed", JSON.stringify({ hasUrl: Boolean(rawUrl), conversationIdValid: /^[0-9a-f-]{36}$/i.test(conversationId) }));
@@ -678,12 +730,14 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     const REPORT_CLOSING = "--- نهاية التقرير ---";
     const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة. اختصر خطة النمو إلى 3 نقاط عند الحاجة، وأنهِ بجملة مكتملة ثم سطر مستقل حرفيًا: --- نهاية التقرير --- . لا تتوقف قبل علامة النهاية." ;
     let report = "";
+    let seoStreamed = false;
     let lastCollectedChars = 0;
     let bestCollectedReport = "";
     const reportDeadline = seoRequestDeadline - 3000; // reserve time to persist and return the report
     for (const [index, writer] of writers.entries()) {
       const model = writer.model;
       if (report) break;
+      if (index > 0 && seoStreamed) { rs.reset(); seoStreamed = false; }
       let collected = "";
       let passMessages: any[] = [
         { role: "system", content: system },
@@ -719,7 +773,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
             const payload: any = await response.json().catch(() => null);
             const choice = payload?.choices?.[0];
             const message = choice?.message?.content ?? choice?.text;
-            if (typeof message === "string") collected += message;
+            if (typeof message === "string" && message) { collected += message; seoStreamed = true; rs.delta(message); }
             else console.warn("[SEO] Report provider returned no text", JSON.stringify({ model, pass, status: response.status, contentType }));
           } else {
             const reader = response.body.getReader();
@@ -737,10 +791,10 @@ async function handleSeoAudit(req: any, res: any, body: any) {
                   return;
                 }
                 const delta = parsed?.choices?.[0]?.delta?.content;
-                if (typeof delta === "string") collected += delta;
+                if (typeof delta === "string" && delta) { collected += delta; seoStreamed = true; rs.delta(delta); }
                 // Some compatible gateways send the final text as message.content.
                 const finalText = parsed?.choices?.[0]?.message?.content;
-                if (typeof finalText === "string") collected += finalText;
+                if (typeof finalText === "string" && finalText) { collected += finalText; seoStreamed = true; rs.delta(finalText); }
               } catch { /* malformed or incomplete SSE frame */ }
             };
             try {
@@ -796,7 +850,8 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     await saveMessage(user.id, conversationId, "user", `📈 فحص SEO للرابط: ${audit.target}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
-    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SEO_COST, score: audit.score, grade: audit.grade });
+    const seoPayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SEO_COST, score: audit.score, grade: audit.grade };
+    if (!rs.done(seoPayload)) res.status(200).json(seoPayload);
   } catch (error) {
     if (debited) {
       try {
@@ -808,7 +863,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     }
     const reason = error instanceof Error ? error.message : "unknown";
     console.error("[SEO] SEO audit failed", reason);
-    if (!res.headersSent) {
+    if (!rs.error({ error: "seo_failed", message: "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك." }) && !res.headersSent) {
       res.status(502).json({
         error: "seo_failed",
         message: "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.",
@@ -971,6 +1026,7 @@ async function handleLeakCheck(req: any, res: any, body: any) {
     .replace(/\.$/, "");
   const user = await requireUser(req, res);
   if (!user) return;
+  const rs = beginReportStream(res, body);
   const conversationId = String(body?.conversationId || "");
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(rawTarget);
   const isDomain = !isEmail && /^(?=.{4,253}$)([a-z0-9](?:-?[a-z0-9])*\.)+[a-z]{2,}$/.test(rawTarget);
@@ -1009,8 +1065,10 @@ async function handleLeakCheck(req: any, res: any, body: any) {
     ];
     let report = "";
     let bestReport = "";
+    let leakStreamed = false;
     for (const [index, model] of models.entries()) {
       if (report) break;
+      if (index > 0 && leakStreamed) { rs.reset(); leakStreamed = false; }
       const budget = Math.min(index === 0 ? 30000 : 20000, deadline - 3000 - Date.now());
       if (budget < 8000) break;
       let collected = "";
@@ -1043,7 +1101,7 @@ async function handleLeakCheck(req: any, res: any, body: any) {
           try {
             const parsed = JSON.parse(data);
             const delta = parsed?.choices?.[0]?.delta?.content;
-            if (typeof delta === "string") collected += delta;
+            if (typeof delta === "string" && delta) { collected += delta; leakStreamed = true; rs.delta(delta); }
           } catch { /* Ignore malformed provider frame. */ }
         };
         for (;;) {
@@ -1067,13 +1125,14 @@ async function handleLeakCheck(req: any, res: any, body: any) {
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
     const foundCount = evidence.kind === "email" ? (evidence.breachNames?.length ?? 0) : (evidence.domainSummary?.breachCount ?? evidence.serviceBreaches?.length ?? 0);
-    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEAK_COST, found: foundCount, targetKind: kind });
+    const leakPayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: LEAK_COST, found: foundCount, targetKind: kind };
+    if (!rs.done(leakPayload)) res.status(200).json(leakPayload);
   } catch (error) {
     if (debited) {
       try { await creditWalletTokens(user.id, LEAK_COST); } catch (refundError) { console.error("[Leak] Refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
     }
     console.error("[Leak] Leak check failed", error instanceof Error ? error.message : "unknown");
-    res.status(502).json({ error: "leak_failed" });
+    if (!rs.error({ error: "leak_failed" })) res.status(502).json({ error: "leak_failed" });
   }
 }
 
@@ -1103,6 +1162,7 @@ const REVERSE_REPORT_PROMPT = `أنت خبير الهندسة العكسية ف�
 async function handleReverseAnalysis(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
+  const rs = beginReportStream(res, body);
   const conversationId = String(body?.conversationId || "");
   const uploadPath = String(body?.uploadPath || "");
   const fileName = String(body?.fileName || "file").replace(/[\r\n]/g, " ").slice(0, 160) || "file";
@@ -1155,8 +1215,10 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
     ];
     let report = "";
     let bestReport = "";
+    let reverseStreamed = false;
     for (const [index, model] of models.entries()) {
       if (report) break;
+      if (index > 0 && reverseStreamed) { rs.reset(); reverseStreamed = false; }
       const budget = Math.min(index === 0 ? 30000 : 20000, deadline - 3000 - Date.now());
       if (budget < 8000) break;
       let collected = "";
@@ -1189,7 +1251,7 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
           try {
             const parsed = JSON.parse(data);
             const delta = parsed?.choices?.[0]?.delta?.content;
-            if (typeof delta === "string") collected += delta;
+            if (typeof delta === "string" && delta) { collected += delta; reverseStreamed = true; rs.delta(delta); }
           } catch { /* Ignore malformed provider frame. */ }
         };
         for (;;) {
@@ -1212,13 +1274,14 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
     await saveMessage(user.id, conversationId, "user", `🧩 هندسة عكسية: ${fileName}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
-    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: REVERSE_COST, format: evidence.format, fileName });
+    const reversePayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: REVERSE_COST, format: evidence.format, fileName };
+    if (!rs.done(reversePayload)) res.status(200).json(reversePayload);
   } catch (error) {
     if (debited) {
       try { await creditWalletTokens(user.id, REVERSE_COST); } catch (refundError) { console.error("[Reverse] Refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
     }
     console.error("[Reverse] Analysis failed", error instanceof Error ? error.message : "unknown");
-    res.status(502).json({ error: "reverse_failed" });
+    if (!rs.error({ error: "reverse_failed" })) res.status(502).json({ error: "reverse_failed" });
   }
 }
 
