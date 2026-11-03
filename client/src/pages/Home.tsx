@@ -2802,6 +2802,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <a href="/privacy">{tr(language, "سياسة الخصوصية", "Privacy policy")}</a>
             <a href="/refund">{tr(language, "سياسة الاسترداد", "Refund policy")}</a>
             <a href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{tr(language, "مدونة HotGPT", "HotGPT Blog")}</a>
+            <a href="https://smollaunch.com" target="_blank" rel="noopener" style={{ display: "inline-flex", alignItems: "center", lineHeight: 0 }}><img src="https://smollaunch.com/badges/featured.svg" alt="HOTGPT — Featured on Smol Launch" loading="lazy" style={{ height: 26, width: "auto" }} /></a>
           </nav>
           <p className="home-footer-copy">{tr(language, "تسجيل الدخول عبر Google يُستخدم لإنشاء حسابك وتسجيل دخولك فقط، ولا تُستخدم بيانات Google في توليد المحتوى أو تدريب نماذج الذكاء الاصطناعي.", "Google sign-in is used only to create and sign in to your account; Google data is never used to generate content or train AI models.")}</p>
           <p className="home-footer-copy">© {new Date().getFullYear()} HotGPT — {tr(language, "جميع الحقوق محفوظة", "All rights reserved")}</p>

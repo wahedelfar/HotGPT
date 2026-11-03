@@ -59,3 +59,25 @@ export function BlogFollow() {
     </a>
   );
 }
+
+// Smol Launch featured badge (owner order 2026-11-03): the directory's free
+// listing earns its dofollow backlink while this badge is live on the site.
+// It sits BESIDE the Facebook and Blog pills (owner: «جمبهم مش تحتهم») at the
+// same height as the pills so the row stays even, never below them.
+export function SmolBadge() {
+  return (
+    <a
+      href="https://smollaunch.com"
+      target="_blank"
+      rel="noopener"
+      style={{ display: "inline-flex", alignItems: "center", lineHeight: 0 }}
+    >
+      <img
+        src="https://smollaunch.com/badges/featured.svg"
+        alt="HOTGPT — Featured on Smol Launch"
+        loading="lazy"
+        style={{ height: 33, width: "auto" }}
+      />
+    </a>
+  );
+}

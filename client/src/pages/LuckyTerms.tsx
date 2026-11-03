@@ -1,7 +1,7 @@
 import { ArrowRight, ShieldCheck, Coins, Gift, Users, Clock3 } from "lucide-react";
 import { LanguageToggle } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
-import FbFollow, { BlogFollow } from "@/components/FbFollow";
+import FbFollow, { BlogFollow, SmolBadge } from "@/components/FbFollow";
 
 // HotLucky terms — rewritten for the spin game (2026-10-27). Section 8
 // (user liability) is kept verbatim: it is the site-wide clause.
@@ -12,7 +12,7 @@ export default function LuckyTermsPage() {
         <a href="/hotlucky" className="inline-flex items-center gap-2 text-sm text-amber-200 hover:text-white"><ArrowRight size={16} /> العودة إلى HotLucky</a>
         <LanguageToggle inline />
       </div>
-      <div className="mt-3 flex justify-end gap-2"><FbFollow /><BlogFollow /></div>
+      <div className="mt-3 flex justify-end gap-2"><FbFollow /><BlogFollow /><SmolBadge /></div>
       <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
         <div className="flex items-center gap-3 text-amber-200"><ShieldCheck size={26} /><span className="text-xs font-bold tracking-widest">HOTLUCKY · TERMS</span></div>
