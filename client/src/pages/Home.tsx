@@ -1809,7 +1809,7 @@ export default function Home() {
         // 3 days; the report stays in the conversation.
         setReportWait("reverse");
         try {
-          if (!reverseFile) throw new Error(tr(language, "اختر ملف البرنامج أو التطبيق أولًا من زر «اختيار ملف» في ملحوظة الوضع — لم يُخصم شيء.", "Choose the program or app file first from the mode note's file picker — nothing was charged."));
+          if (!reverseFile) throw new Error(tr(language, "اختر ملف البرنامج أو التطبيق أولًا من أيقونة المشبك 📎 في مربع الكتابة — لم يُخصم شيء.", "Choose the program or app file first from the paperclip 📎 in the writing box — nothing was charged."));
           if (reverseFile.size > 50 * 1024 * 1024) throw new Error(tr(language, "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء.", "The file exceeds 50 MB — nothing was charged."));
           const slotResponse = await authFetch("/api/model/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "reverse", name: reverseFile.name, size: reverseFile.size }) });
           const slot = await slotResponse.json().catch(() => ({})) as { uploadUrl?: string; path?: string; error?: string };
@@ -2373,7 +2373,13 @@ export default function Home() {
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) setRequestError("حجم الملف يجب ألا يتجاوز 10 ميجابايت.");
+      if (reverseMode) {
+        // Reverse Lab: the same in-composer paperclip stages the binary
+        // (any type, up to 50MB) instead of a chat attachment.
+        if (file.size > 50 * 1024 * 1024) setRequestError(tr(language, "حجم الملف يتجاوز 50 ميجابايت — اختر ملفًا أصغر.", "The file exceeds 50 MB — pick a smaller file."));
+        else { setRequestError(null); setReverseFile(file); }
+      }
+      else if (file.size > 10 * 1024 * 1024) setRequestError("حجم الملف يجب ألا يتجاوز 10 ميجابايت.");
       else if (!/\.(pdf|txt|md|csv|json)$/i.test(file.name)) setRequestError("نوع الملف غير مدعوم. استخدم PDF أو TXT أو MD أو CSV أو JSON.");
       else { setRequestError(null); setAttachment(file); }
     }
@@ -2772,6 +2778,20 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               )}
               <div
                 className={
+                  reverseFile ? "attachment-chip" : "attachment-chip hidden"
+                }
+              >
+                <Cpu size={14} />
+                <span>{reverseFile?.name}</span>
+                <button
+                  onClick={() => setReverseFile(null)}
+                  aria-label={tr(language, "إزالة الملف", "Remove file")}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+              <div
+                className={
                   attachment ? "attachment-chip" : "attachment-chip hidden"
                 }
               >
@@ -2792,7 +2812,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       type="file"
                       hidden
                       onChange={handleFile}
-                      accept=".pdf,.txt,.md,.csv,.json"
+                      accept={reverseMode ? "" : ".pdf,.txt,.md,.csv,.json"}
                     />
                   </label>
                 </div>
@@ -2801,13 +2821,13 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : reverseMode ? tr(language, "اختر ملف البرنامج أو التطبيق من زر «اختيار ملف» ثم اضغط إرسال…", "Choose the program or app file from the picker, then press send…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
+                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : reverseMode ? tr(language, "من أيقونة المشبك 📎 اختر ملف البرنامج أو التطبيق ثم اضغط إرسال…", "Use the paperclip 📎 to choose the program or app file, then press send…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
                   rows={1}
                 />
                 <button
-                  className={draft.trim() ? "send-button ready" : "send-button"}
+                  className={draft.trim() || reverseFile ? "send-button ready" : "send-button"}
                   onClick={() => void sendMessage()}
-                  disabled={(!draft.trim() && !attachment) || isSending}
+                  disabled={(!draft.trim() && !attachment && !reverseFile) || isSending}
                   aria-label={tr(language, "إرسال الرسالة", "Send message")}
                 >
                   <Send size={17} />
@@ -2879,16 +2899,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               {routeNotice && <div className="attachment-cost-note">{routeNotice}</div>}
               {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 وضع كشف التسريب: اكتب إيميلك أو دومين موقعك واضغط إرسال — فحص فوري في فهارس التسريبات العالمية وتقرير بالنتائج والخطوات مقابل 20 توكين، واسترداد كامل إذا تعذر الفحص. افحص فقط إيميلات ودومينات تخصك أو مصرح لك بفحصها.", "🔐 Leak check mode: type your email or your site's domain and press send — an instant check across global breach indexes with a findings-and-actions report for 20 tokens, fully refunded if the check cannot run. Only check emails and domains that are yours or that you are authorized to check.")}</div>}
               {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 وضع استخراج العملاء: اكتب نوع النشاط والمنطقة (مثال: عيادات أسنان في التجمع الخامس) واضغط إرسال — بيانات لحد 30 شركة من خرائط جوجل (الاسم والتليفون والعنوان والموقع والتقييم) مقابل 20 توكن، واسترداد كامل إذا تعذر الاستخراج.", "📇 Lead extraction mode: type the business type and area (e.g. dental clinics in New Cairo) and press send — data for up to 30 businesses from Google Maps (name, phone, address, website, rating) for 20 tokens, fully refunded if the extraction cannot run.")}</div>}
-              {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 وضع الهندسة العكسية: اختر ملف برنامجك أو تطبيقك (حتى 50 ميجا — EXE وDLL وAPK وELF وMach-O) واضغط إرسال — المنصة تفكّكه وتحلّل بنيته واستيراداته ونصوصه وقدراته وتسلّمك تقريرًا احترافيًا للمطورين مقابل 20 توكين، واسترداد كامل إذا تعذر التحليل أو لم يكن الملف مدعومًا. ملفك يُحذف تلقائيًا بعد 3 أيام ويبقى التقرير في محادثتك. حلّل فقط ملفات تخصك أو مصرحًا لك بفحصها.", "🧩 Reverse engineering mode: choose your program or app file (up to 50 MB — EXE, DLL, APK, ELF, Mach-O) and press send — the platform takes it apart and analyzes its structure, imports, strings and capabilities in a professional developer report for 20 tokens, fully refunded if the analysis cannot run or the file is unsupported. Your file is auto-deleted after 3 days; the report stays in your conversation. Only analyze files you own or are authorized to inspect.")}</div>}
-              {reverseMode && (
-                <div className="attachment-cost-note" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
-                    <Upload size={14} />{tr(language, "اختيار ملف", "Choose file")}
-                    <input type="file" hidden onChange={event => { const picked = event.target.files?.[0] || null; event.target.value = ""; if (picked && picked.size > 50 * 1024 * 1024) { setRequestError(tr(language, "حجم الملف يتجاوز 50 ميجابايت — اختر ملفًا أصغر.", "The file exceeds 50 MB — pick a smaller file.")); setReverseFile(null); return; } setRequestError(null); setReverseFile(picked); }} />
-                  </label>
-                  {reverseFile ? <span style={{ fontSize: 12.5 }}>📄 {reverseFile.name} · {(reverseFile.size / 1048576).toFixed(2)} MB</span> : <span style={{ fontSize: 12.5, opacity: .85 }}>{tr(language, "لم يُختر ملف بعد — اختر الملف ثم اضغط إرسال.", "No file chosen yet — pick the file, then press send.")}</span>}
-                </div>
-              )}
+              {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 وضع الهندسة العكسية: من أيقونة المشبك 📎 في مربع الكتابة اختر ملف برنامجك أو تطبيقك (حتى 50 ميجا — EXE وDLL وAPK وELF وMach-O) واضغط إرسال — المنصة تفكّكه وتحلّل بنيته واستيراداته ونصوصه وقدراته وتسلّمك تقريرًا احترافيًا للمطورين مقابل 20 توكين، واسترداد كامل إذا تعذر التحليل أو لم يكن الملف مدعومًا. ملفك يُحذف تلقائيًا بعد 3 أيام ويبقى التقرير في محادثتك. حلّل فقط ملفات تخصك أو مصرحًا لك بفحصها.", "🧩 Reverse engineering mode: use the paperclip 📎 in the writing box to choose your program or app file (up to 50 MB — EXE, DLL, APK, ELF, Mach-O), then press send — the platform takes it apart and analyzes its structure, imports, strings and capabilities in a professional developer report for 20 tokens, fully refunded if the analysis cannot run or the file is unsupported. Your file is auto-deleted after 3 days; the report stays in your conversation. Only analyze files you own or are authorized to inspect.")}</div>}
               {darkWebEnabled && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">
