@@ -948,7 +948,18 @@ function leakEvidenceText(evidence: LeakEvidence): string {
 }
 
 async function handleLeakCheck(req: any, res: any, body: any) {
-  const rawTarget = String(body?.target || "").trim().toLowerCase().slice(0, 200);
+  const rawInput = String(body?.target || "").trim().toLowerCase().slice(0, 200);
+  // Members paste a website the way they copy it (Wahid's field test,
+  // 2026-11-03: "https://hotgpt.pro" was rejected as an invalid domain).
+  // Reduce any URL-shaped input to its bare domain before validating —
+  // the same shapes the scan/SEO modes already accept. Emails pass
+  // through untouched (none of these steps can alter a valid address).
+  const rawTarget = rawInput
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
+    .replace(/^www\./, "")
+    .split(/[/?#]/)[0]
+    .replace(/:\d+$/, "")
+    .replace(/\.$/, "");
   const user = await requireUser(req, res);
   if (!user) return;
   const conversationId = String(body?.conversationId || "");
