@@ -78,6 +78,14 @@ const MODELS: ModelCard[] = [
     price: ["20 توكين", "20 tokens"],
   },
   {
+    title: ["محترف الهندسة العكسية", "Reverse Engineering Pro"],
+    desc: [
+      "ارفع برنامجك أو تطبيقك (حتى 50 ميجا — EXE وDLL وAPK وELF وMach-O) والمنصة تفكّكه بنفسها: بنيته الداخلية وأقسامه واستيراداته ونصوصه ومؤشرات التغليف وقدراته المستنتجة من الأدلة، في تقرير هندسة عكسية احترافي للمطورين مع خارطة عمل بأدوات Ghidra وIDA وFrida. ملفك يُحذف تلقائيًا بعد 3 أيام ويبقى التقرير.",
+      "Upload your program or app (up to 50 MB — EXE, DLL, APK, ELF and Mach-O) and the platform takes it apart itself: its internal structure, sections, imports, strings, packing indicators and evidence-based capabilities, in a professional reverse-engineering report for developers with a Ghidra, IDA and Frida work plan. Your file is auto-deleted after 3 days; the report stays.",
+    ],
+    price: ["تقرير كامل 20 توكين", "Full report, 20 tokens"],
+  },
+  {
     title: ["استخراج العملاء", "Lead extraction"],
     desc: [
       "بيانات شركات حقيقية من خرائط جوجل حسب النشاط والمنطقة: الاسم ورقم التليفون والعنوان والموقع الإلكتروني والتقييم — لحد 20 شركة في الاستخراج الواحد.",

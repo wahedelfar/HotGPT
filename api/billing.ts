@@ -2,6 +2,7 @@ import { publicPlatformScript } from "../server/_core/publicConfig.ts";
 import { requireMember } from "../server/_core/vercelAuth.ts";
 import * as db from "../server/supabaseBilling.ts";
 import { usdForEgp } from "../server/fxRate.ts";
+import { sweepReverseUploads } from "../server/reverseLab.ts";
 
 export const PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 440, 1000: 500 };
 
@@ -574,6 +575,19 @@ async function handleTelegramWebhook(req: any, res: any) {
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   const action = typeof req.query?.action === "string" ? req.query.action : "";
+  // Reverse Lab retention sweep — hit daily by the Vercel cron wired to
+  // /api/re-sweep (see vercel.json). Deletes uploaded binaries whose
+  // 3-day retention expired; the written analyses stay untouched.
+  if (action === "re-sweep") {
+    const cronSecret = process.env.CRON_SECRET || "";
+    const authHeader = String(req.headers.authorization || "");
+    const isVercelCron = req.headers["x-vercel-cron"] !== undefined;
+    if (cronSecret ? authHeader !== `Bearer ${cronSecret}` : !isVercelCron) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    const removed = await sweepReverseUploads();
+    return res.status(200).json({ ok: true, removed });
+  }
   if (action === "platform-config") {
     res.setHeader("Content-Type", "application/javascript; charset=utf-8");
     res.setHeader("X-Content-Type-Options", "nosniff");

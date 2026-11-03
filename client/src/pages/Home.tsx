@@ -748,7 +748,7 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onLeads, onImage }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
@@ -756,6 +756,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
   onSeo: () => void;
   onLeak: () => void;
   onSite: () => void;
+  onReverse: () => void;
   onLeads: () => void;
   onImage: () => void;
 }) {
@@ -820,8 +821,9 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
         <p style={{ margin: 0, fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>نحلّ مشاكل <span style={{ color: "#FBBF24" }}>البرمجة</span> ونراجع <span style={{ color: "#FBBF24" }}>أمان موقعك</span> ونقوّيه بتوصيات عملية.</> : <>We solve <span style={{ color: "#FBBF24" }}>coding problems</span> and review and harden <span style={{ color: "#FBBF24" }}>your site's security</span> with practical recommendations.</>}</p>
         <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>ابدأ مجانًا ثم أكمل بباقة صغيرة: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 توكن</span> مقابل <span style={{ color: "#FBBF24" }}>100 جنيه</span>.</> : <>Start free then continue with the small pack: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 tokens</span> for <span style={{ color: "#FBBF24" }}>100 EGP</span>.</>}</p>
       </div>
-      <div style={{ textAlign: "center", marginTop: 12 }}>
-        <button type="button" onClick={onSite} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "بناء موقع إحترافي", "Build a professional website")}</button>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, maxWidth: 430, marginInline: "auto" }}>
+        <button type="button" onClick={onSite} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "بناء موقع إحترافي", "Build a professional website")}</button>
+        <button type="button" onClick={onReverse} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "هندسة عكسية", "Reverse Engineering")}</button>
       </div>
       <div style={{ textAlign: "center", marginTop: 10 }}>
         <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "ابدأ بباقة 100 جنيه", "Start with the $2 pack")}</a>
@@ -1231,6 +1233,8 @@ export default function Home() {
   const [scanMode, setScanMode] = useState(false);
   const [seoMode, setSeoMode] = useState(false);
   const [leakMode, setLeakMode] = useState(false);
+  const [reverseMode, setReverseMode] = useState(false);
+  const [reverseFile, setReverseFile] = useState<File | null>(null);
   const [siteMode, setSiteMode] = useState(false);
   const [darkLiveMode, setDarkLiveMode] = useState(false);
   const [leadsMode, setLeadsMode] = useState(false);
@@ -1362,7 +1366,7 @@ export default function Home() {
   // Staged progress for the premium URL reports (scan / SEO): the server
   // builds the whole report before replying, so instead of a silent
   // «يجهز الرد» the waiting bubble walks through the real phases.
-  const [reportWait, setReportWait] = useState<"scan" | "seo" | "leak" | "leads" | "site" | null>(null);
+  const [reportWait, setReportWait] = useState<"scan" | "seo" | "leak" | "leads" | "site" | "reverse" | null>(null);
   const [reportWaitSecs, setReportWaitSecs] = useState(0);
   useEffect(() => {
     if (!reportWait) { setReportWaitSecs(0); return; }
@@ -1641,7 +1645,7 @@ export default function Home() {
   };
 
   const sendMessage = async (value = draft) => {
-    const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : "");
+    const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : reverseMode && reverseFile ? `🧩 هندسة عكسية: ${reverseFile.name}` : "");
     if (!trimmed || isSending) return;
     if (auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0) {
       setRequestError(tr(language, "جرّب HotGPT بـ100 توكن مقابل 100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with 100 tokens for 100 EGP — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay."));
@@ -1675,7 +1679,7 @@ export default function Home() {
     const ROUTE_STAY = ["كود", "برمج", "بايثون", "python", "جافاسكريبت", "javascript", "سكريبت", "script", "ثغرة", "اختراق", "function", "html", "css", "sql", "php", "swift", "kotlin", "اكتب", "اشرح", "لخص", "لخّص", "ترجم", "قصيدة", "قصة", "مقال"];
     const ROUTE_GENERAL = ["سعر", "أسعار", "بكام", "ذهب", "دهب", "فضة", "دولار", "يورو", "بورصة", "طقس", "أخبار", "اخبار", "نتيجة", "مباراة", "ماتش", "موعد", "ابحث", "دور على", "بحث", "تسريب", "price", "gold", "weather", "news", "score", "match"];
     const lowerDraft = trimmed.toLowerCase();
-    const autoRouteSearch = !webSearchEnabled && !darkWebEnabled && !darkLiveMode && !scanMode && !seoMode && !leakMode && !siteMode && !leadsMode && !imageMode && !attachment && selectedModel === "dadgpt-default" && walletBalance >= 5 && trimmed.length <= 300 && !lowerDraft.includes("http") && !ROUTE_STAY.some(w => lowerDraft.includes(w)) && ROUTE_GENERAL.some(w => lowerDraft.includes(w));
+    const autoRouteSearch = !webSearchEnabled && !darkWebEnabled && !darkLiveMode && !scanMode && !seoMode && !leakMode && !reverseMode && !siteMode && !leadsMode && !imageMode && !attachment && selectedModel === "dadgpt-default" && walletBalance >= 5 && trimmed.length <= 300 && !lowerDraft.includes("http") && !ROUTE_STAY.some(w => lowerDraft.includes(w)) && ROUTE_GENERAL.some(w => lowerDraft.includes(w));
     const effectiveWebSearch = webSearchEnabled || autoRouteSearch;
     setRouteNotice(autoRouteSearch ? tr(language, "سؤالك ده عام، هنقله لمود بحث PRO (5 توكين) عشان يجيبلك إجابة أدق بالروابط الحية.", "This is a general question, so it was moved to PRO search mode (5 tokens) for a more accurate answer with live links.") : null);
     setIsSearchingWeb(effectiveWebSearch);
@@ -1791,6 +1795,59 @@ export default function Home() {
           setIsSending(false);
           setIsSearchingWeb(false);
           setScanMode(false);
+        }
+        return;
+      }
+
+      if (reverseMode) {
+        // Reverse Lab (premium, 2026-11-03): the member uploads his own
+        // tool/app (up to 50MB, direct to the dedicated storage bucket),
+        // the server takes it apart (deep static analysis) and returns a
+        // professional developer report for a flat 20 tokens; failures
+        // and unsupported files refund in full (the server debits only
+        // after real evidence exists). The binary is auto-deleted after
+        // 3 days; the report stays in the conversation.
+        setReportWait("reverse");
+        try {
+          if (!reverseFile) throw new Error(tr(language, "اختر ملف البرنامج أو التطبيق أولًا من زر «اختيار ملف» في ملحوظة الوضع — لم يُخصم شيء.", "Choose the program or app file first from the mode note's file picker — nothing was charged."));
+          if (reverseFile.size > 50 * 1024 * 1024) throw new Error(tr(language, "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء.", "The file exceeds 50 MB — nothing was charged."));
+          const slotResponse = await authFetch("/api/model/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "reverse", name: reverseFile.name, size: reverseFile.size }) });
+          const slot = await slotResponse.json().catch(() => ({})) as { uploadUrl?: string; path?: string; error?: string };
+          if (!slotResponse.ok || !slot.uploadUrl || !slot.path) {
+            throw new Error(slot.error === "file_too_large" ? tr(language, "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء.", "The file exceeds 50 MB — nothing was charged.") : tr(language, "تعذر تجهيز رفع الملف. حاول مرة أخرى — لم يُخصم شيء.", "The upload could not be prepared. Try again — nothing was charged."));
+          }
+          const reverseUploadBody = new FormData();
+          reverseUploadBody.append("cacheControl", "3600");
+          reverseUploadBody.append("", reverseFile);
+          const putResponse = await fetch(slot.uploadUrl, { method: "PUT", body: reverseUploadBody });
+          if (!putResponse.ok) throw new Error(tr(language, "فشل رفع الملف إلى التخزين. حاول مرة أخرى — لم يُخصم شيء.", "Uploading the file to storage failed. Try again — nothing was charged."));
+          const reverseResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reverseMode: true, uploadPath: slot.path, fileName: reverseFile.name, conversationId }) });
+          const reversePayload = await reverseResponse.json().catch(() => ({}));
+          if (!reverseResponse.ok || !reversePayload.content) {
+            const serverMsg = typeof reversePayload.message === "string" && reversePayload.message ? reversePayload.message : "";
+            const reverseErrors: Record<string, string> = {
+              invalid_reverse_request: serverMsg || tr(language, "بيانات الرفع غير مكتملة — أعد رفع الملف وحاول مرة أخرى. لم يُخصم شيء.", "The upload data was incomplete — re-upload the file and try again. Nothing was charged."),
+              reverse_file_missing: serverMsg || tr(language, "لم نجد الملف المرفوع — أعد رفعه وحاول مرة أخرى. لم يُخصم شيء.", "The uploaded file was not found — upload it again and retry. Nothing was charged."),
+              unsupported_binary: serverMsg || tr(language, "الملف لا يبدو برنامجًا أو تطبيقًا قابلًا للتحليل (ندعم Windows PE وELF وAPK وDEX وMach-O) — لم يُخصم شيء.", "This file does not look like an analyzable program or app (we support Windows PE, ELF, APK, DEX and Mach-O) — nothing was charged."),
+              file_too_large: serverMsg || tr(language, "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء.", "The file exceeds 50 MB — nothing was charged."),
+              insufficient_credits: tr(language, "الهندسة العكسية تحتاج إلى 20 توكين. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Reverse engineering costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              reverse_failed: tr(language, "تعذر إتمام تحليل الهندسة العكسية الآن. لم يُخصم الرصيد — حاول مرة أخرى.", "The reverse-engineering analysis could not be completed. Nothing was charged — please try again."),
+              reverse_not_configured: tr(language, "خدمة الهندسة العكسية غير مُعدّة على الخادم بعد.", "The reverse-engineering service is not configured on the server yet."),
+              login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+              auth_unavailable: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+            };
+            throw new Error(reverseErrors[String(reversePayload.error || "")] || tr(language, "تعذر إتمام تحليل الهندسة العكسية الآن. لم يُخصم الرصيد.", "The reverse-engineering analysis failed. Nothing was charged."));
+          }
+          if (typeof reversePayload.tokenBalance === "number") setWalletBalance(reversePayload.tokenBalance);
+          setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: String(reversePayload.content), timestamp: formatTime() }]);
+        } catch (reverseError) {
+          setRequestError(reverseError instanceof Error ? reverseError.message : tr(language, "تعذر إتمام تحليل الهندسة العكسية الآن.", "The reverse-engineering analysis failed."));
+        } finally {
+          setReportWait(null);
+          setIsSending(false);
+          setIsSearchingWeb(false);
+          setReverseMode(false);
+          setReverseFile(null);
         }
         return;
       }
@@ -2273,6 +2330,8 @@ export default function Home() {
     setScanMode(false);
     setSeoMode(false);
     setLeadsMode(false);
+    setReverseMode(false);
+    setReverseFile(null);
     if (feature === "search") setWebSearchEnabled(value => !value);
     else { setDarkWebEnabled(value => !value); setDarkLiveMode(false); }
   };
@@ -2607,6 +2666,25 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setDarkLiveMode(false);
                     setAttachment(null);
                   }}
+                  onReverse={() => {
+                    if (walletBalance < 20) {
+                      setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      return;
+                    }
+                    setRequestError(null);
+                    setReverseMode(true);
+                    setScanMode(false);
+                    setSeoMode(false);
+                    setLeakMode(false);
+                    setImageMode(false);
+                    setLeadsMode(false);
+                    setSiteMode(false);
+                    setDarkWebEnabled(false);
+                    setDarkLiveMode(false);
+                    setAttachment(null);
+                    setDraft("");
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
                   onLeads={() => {
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
@@ -2677,7 +2755,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                         <i />
                         <i />
                       </span>
-                      <span>{reportWait ? (reportWaitSecs < 12 ? tr(language, reportWait === "site" ? "جارٍ بناء موقعك وكتابة الكود..." : reportWait === "seo" ? "جارٍ فحص الموقع وجمع بيانات SEO..." : reportWait === "leads" ? "جارٍ استخراج بيانات الشركات من خرائط جوجل..." : reportWait === "leak" ? "جارٍ فحص فهارس التسريبات وجمع البيانات..." : "جارٍ فحص الموقع وجمع البيانات...", reportWait === "site" ? "Building your website and writing the code..." : reportWait === "seo" ? "Auditing the site and collecting SEO data..." : reportWait === "leads" ? "Extracting business data from Google Maps..." : reportWait === "leak" ? "Checking breach indexes and collecting data..." : "Scanning the site and collecting data...") : reportWaitSecs < 30 ? tr(language, "جارٍ تحليل النتائج...", "Analyzing the results...") : tr(language, "جارٍ كتابة التقرير...", "Writing the report...")) : isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
+                      <span>{reportWait ? (reportWaitSecs < 12 ? tr(language, reportWait === "site" ? "جارٍ بناء موقعك وكتابة الكود..." : reportWait === "seo" ? "جارٍ فحص الموقع وجمع بيانات SEO..." : reportWait === "leads" ? "جارٍ استخراج بيانات الشركات من خرائط جوجل..." : reportWait === "leak" ? "جارٍ فحص فهارس التسريبات وجمع البيانات..." : reportWait === "reverse" ? "جارٍ فكّ الملف وتحليل بنيته وقدراته..." : "جارٍ فحص الموقع وجمع البيانات...", reportWait === "site" ? "Building your website and writing the code..." : reportWait === "seo" ? "Auditing the site and collecting SEO data..." : reportWait === "leads" ? "Extracting business data from Google Maps..." : reportWait === "leak" ? "Checking breach indexes and collecting data..." : reportWait === "reverse" ? "Taking the file apart and analyzing its structure and capabilities..." : "Scanning the site and collecting data...") : reportWaitSecs < 30 ? tr(language, "جارٍ تحليل النتائج...", "Analyzing the results...") : tr(language, "جارٍ كتابة التقرير...", "Writing the report...")) : isThinking ? tr(language, "جارٍ التحليل والتفكير في سؤالك...", "Analyzing your question...") : tr(language, "يجهز الرد...", "Preparing a response...")}</span>
                     </div>
                   )}
                 </div>
@@ -2723,7 +2801,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
+                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : reverseMode ? tr(language, "اختر ملف البرنامج أو التطبيق من زر «اختيار ملف» ثم اضغط إرسال…", "Choose the program or app file from the picker, then press send…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
                   rows={1}
                 />
                 <button
@@ -2734,7 +2812,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 >
                   <Send size={17} />
                 </button>
-                {draft.trim().length >= 12 && !scanMode && !seoMode && !leakMode && !leadsMode && (writingAssist ? (
+                {draft.trim().length >= 12 && !scanMode && !seoMode && !leakMode && !reverseMode && !leadsMode && (writingAssist ? (
                   <div className="attachment-cost-note">✨ {tr(language, "محسّن الطلب مفعّل — سيتم تنظيم طلبك قبل الإرسال.", "Prompt enhancer is on — your request will be organized before sending.")} <button type="button" onClick={() => setWritingAssist(false)} style={{ color: "#22d3ee", fontWeight: 700 }}>{tr(language, "إيقاف", "Turn off")}</button></div>
                 ) : (
                   <div className="attachment-cost-note"><button type="button" onClick={() => setWritingAssist(true)} style={{ color: "#22d3ee", fontWeight: 700 }}>✨ {tr(language, "حسّن طلبك", "Improve your request")}</button> <span>{tr(language, "— سننظمه ونوضحه قبل الإرسال من غير تغيير معناه.", "— we will organize and clarify it before sending, without changing its meaning.")}</span></div>
@@ -2749,7 +2827,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <span>{tr(language, "بحث", "Search")}</span><span>PRO</span>
                   </button>
-                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
+                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setReverseMode(false); setReverseFile(null); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
                   <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
@@ -2782,14 +2860,17 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
-                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setLeakMode(false); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
+                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setReverseMode(false); setReverseFile(null); setLeakMode(false); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
                     <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={leakMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode} title={tr(language, "كشف التسريب — هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 توكين", "Leak check — did your email or domain appear in data breaches? · 20 tokens")} style={{ color: "#F87171", ...(leakMode ? { borderColor: "#F87171", background: "rgba(248,113,113,.12)", boxShadow: "0 0 10px rgba(248,113,113,.28)" } : {}) }}>
+                  <button type="button" className={leakMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode} title={tr(language, "كشف التسريب — هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 توكين", "Leak check — did your email or domain appear in data breaches? · 20 tokens")} style={{ color: "#F87171", ...(leakMode ? { borderColor: "#F87171", background: "rgba(248,113,113,.12)", boxShadow: "0 0 10px rgba(248,113,113,.28)" } : {}) }}>
                     <ShieldAlert size={16} /><span style={{ fontSize: 11 }}>{tr(language, "التسريبات", "Leaks")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
+                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
                     <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
+                  </button>
+                  <button type="button" className={reverseMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setReverseMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={reverseMode} title={tr(language, "هندسة عكسية — ارفع برنامجك أو تطبيقك والمنصة تفكّه وتحلّله · 20 توكين", "Reverse engineering — upload your program or app and the platform takes it apart · 20 tokens")} style={{ color: "#A78BFA", ...(reverseMode ? { borderColor: "#A78BFA", background: "rgba(167,139,250,.12)", boxShadow: "0 0 10px rgba(167,139,250,.28)" } : {}) }}>
+                    <Cpu size={16} /><span style={{ fontSize: 11 }}>{tr(language, "العكسية", "Reverse")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
               </div>
@@ -2798,6 +2879,16 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               {routeNotice && <div className="attachment-cost-note">{routeNotice}</div>}
               {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 وضع كشف التسريب: اكتب إيميلك أو دومين موقعك واضغط إرسال — فحص فوري في فهارس التسريبات العالمية وتقرير بالنتائج والخطوات مقابل 20 توكين، واسترداد كامل إذا تعذر الفحص. افحص فقط إيميلات ودومينات تخصك أو مصرح لك بفحصها.", "🔐 Leak check mode: type your email or your site's domain and press send — an instant check across global breach indexes with a findings-and-actions report for 20 tokens, fully refunded if the check cannot run. Only check emails and domains that are yours or that you are authorized to check.")}</div>}
               {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 وضع استخراج العملاء: اكتب نوع النشاط والمنطقة (مثال: عيادات أسنان في التجمع الخامس) واضغط إرسال — بيانات لحد 30 شركة من خرائط جوجل (الاسم والتليفون والعنوان والموقع والتقييم) مقابل 20 توكن، واسترداد كامل إذا تعذر الاستخراج.", "📇 Lead extraction mode: type the business type and area (e.g. dental clinics in New Cairo) and press send — data for up to 30 businesses from Google Maps (name, phone, address, website, rating) for 20 tokens, fully refunded if the extraction cannot run.")}</div>}
+              {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 وضع الهندسة العكسية: اختر ملف برنامجك أو تطبيقك (حتى 50 ميجا — EXE وDLL وAPK وELF وMach-O) واضغط إرسال — المنصة تفكّكه وتحلّل بنيته واستيراداته ونصوصه وقدراته وتسلّمك تقريرًا احترافيًا للمطورين مقابل 20 توكين، واسترداد كامل إذا تعذر التحليل أو لم يكن الملف مدعومًا. ملفك يُحذف تلقائيًا بعد 3 أيام ويبقى التقرير في محادثتك. حلّل فقط ملفات تخصك أو مصرحًا لك بفحصها.", "🧩 Reverse engineering mode: choose your program or app file (up to 50 MB — EXE, DLL, APK, ELF, Mach-O) and press send — the platform takes it apart and analyzes its structure, imports, strings and capabilities in a professional developer report for 20 tokens, fully refunded if the analysis cannot run or the file is unsupported. Your file is auto-deleted after 3 days; the report stays in your conversation. Only analyze files you own or are authorized to inspect.")}</div>}
+              {reverseMode && (
+                <div className="attachment-cost-note" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 12.5, cursor: "pointer" }}>
+                    <Upload size={14} />{tr(language, "اختيار ملف", "Choose file")}
+                    <input type="file" hidden onChange={event => { const picked = event.target.files?.[0] || null; event.target.value = ""; if (picked && picked.size > 50 * 1024 * 1024) { setRequestError(tr(language, "حجم الملف يتجاوز 50 ميجابايت — اختر ملفًا أصغر.", "The file exceeds 50 MB — pick a smaller file.")); setReverseFile(null); return; } setRequestError(null); setReverseFile(picked); }} />
+                  </label>
+                  {reverseFile ? <span style={{ fontSize: 12.5 }}>📄 {reverseFile.name} · {(reverseFile.size / 1048576).toFixed(2)} MB</span> : <span style={{ fontSize: 12.5, opacity: .85 }}>{tr(language, "لم يُختر ملف بعد — اختر الملف ثم اضغط إرسال.", "No file chosen yet — pick the file, then press send.")}</span>}
+                </div>
+              )}
               {darkWebEnabled && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
               <div className="composer-footer">

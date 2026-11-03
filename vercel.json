@@ -10,6 +10,10 @@
       "destination": "/api/billing?action=auth"
     },
     {
+      "source": "/api/re-sweep",
+      "destination": "/api/billing?action=re-sweep"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
@@ -20,6 +24,12 @@
       "maxDuration": 60
     }
   },
+  "crons": [
+    {
+      "path": "/api/re-sweep",
+      "schedule": "20 2 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

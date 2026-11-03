@@ -15,8 +15,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "كم تبلغ أسعار HotGPT؟",
     qEn: "How much does HotGPT cost?",
-    aAr: "الأسعار بالتوكن ومعروفة قبل ما تبعت: الرسالة العادية 1 توكن، وتحليل الملفات 3، والبحث على الويب 5، والصورة 3، وتقارير فحص الأمان والـ SEO وكشف التسريب بسعر 20 توكين للتقرير. الباقات: 100 توكن بـ 100 جنيه، و500 بـ 300، و800 بـ 440، و1000 بـ 500. وكل حساب جديد له هدية ترحيب 20 توكن.",
-    aEn: "Pricing is in tokens and shown before you send: a normal message is 1 token, file analysis 3, web search 5, an image 3, and security, SEO audit and leak-check reports are 20 tokens per report. Packs: 100 tokens for 100 EGP, 500 for 300, 800 for 440, and 1000 for 500. Every new account gets a 20-token welcome gift.",
+    aAr: "الأسعار بالتوكن ومعروفة قبل ما تبعت: الرسالة العادية 1 توكن، وتحليل الملفات 3، والبحث على الويب 5، والصورة 3، وتقارير فحص الأمان والـ SEO وكشف التسريب والهندسة العكسية بسعر 20 توكين للتقرير. الباقات: 100 توكن بـ 100 جنيه، و500 بـ 300، و800 بـ 440، و1000 بـ 500. وكل حساب جديد له هدية ترحيب 20 توكن.",
+    aEn: "Pricing is in tokens and shown before you send: a normal message is 1 token, file analysis 3, web search 5, an image 3, and security, SEO audit, leak-check and reverse-engineering reports are 20 tokens per report. Packs: 100 tokens for 100 EGP, 500 for 300, 800 for 440, and 1000 for 500. Every new account gets a 20-token welcome gift.",
   },
   {
     qAr: "كيف أدفع في HotGPT؟",

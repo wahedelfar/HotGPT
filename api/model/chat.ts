@@ -4,6 +4,7 @@ import { searchDarkWeb, formatDarkResults, type DarkSearchResult } from "../../s
 import { fetchLeakEvidence, type LeakEvidence } from "../../server/leakCheck.ts";
 import { runUrlScan, scanFindingsText } from "../../server/urlScan.ts";
 import { runSeoAudit, seoFindingsText } from "../../server/seoAudit.ts";
+import { analyzeBinary, sweepReverseUploads, RE_BUCKET, RE_MAX_BYTES } from "../../server/reverseLab.ts";
 
 function decodePdfLiteral(value: string): string {
   return value
@@ -97,6 +98,14 @@ const SCAN_COST = 20;
 // and its own writer model slot (OPENROUTER_SEO_MODEL).
 const SEO_COST = 20;
 const LEAK_COST = 20;
+// Reverse Lab (owner decisions, 2026-11-03): the member uploads his own
+// tool/app (up to 50MB, direct to the dedicated hotgpt-re-uploads bucket),
+// the platform takes it apart with server/reverseLab.ts (deep static
+// analysis), and the writer turns the evidence into a professional report.
+// Flat 20 tokens like the rest of the premium family, full refund on
+// failure; the binary itself is auto-deleted after 3 days — only this
+// written analysis stays in the member's conversation.
+const REVERSE_COST = 20;
 const SEO_REPORT_PROMPT_ADDON = "إضافة خاصة بتقرير SEO — تُطبّق بعد كل التعليمات السابقة ولا تستبدلها:\nأضف الأقسام التالية بعد «درجة SEO» وقبل قائمة التنفيذ النهائية:\n\n«الفهرسة والظهور في جوجل»\n- استخدم indexingData فقط لتحديد حالة الفهرسة، ولا تعتبر الدرجة التقنية دليلًا على الفهرسة.\n- إذا كان indexingData.isIndexed = false، أدرج حرفيًا: «تحذير: الدرجة التقنية لا تعني الظهور في جوجل. موقعك غير مفهرس حالياً.»\n- اشرح السبب فقط إذا كان مدعومًا من indexingData.evidenceBasedReasons أو بيانات الفهرسة نفسها. لا تخمّن أسبابًا مثل حداثة الموقع أو SafeSearch أو حظر Googlebot أو تشابه النطاق دون دليل صريح.\n- إذا كان indexingData.isIndexed = true، اكتب فقط: «مفهرس في جوجل» في بيان الحالة، دون تحذير عدم الفهرسة.\n- إذا كانت indexingData.isIndexed = null أو searchCheckCompleted = false، صرّح بأن التحقق من Google تعذّر ولم تجزم بأن الموقع غير مفهرس.\n- اذكر حالة robots.txt و sitemap.xml كما وردتا في indexingData، ولا تستنتج أن وجودهما يعني أن الموقع مفهرس.\n\n«الكلمات المفتاحية والمنافسين»\n- حلّل نية البحث المحتملة ضمن المجال اعتمادًا على محتوى الموقع والأدلة المتاحة، وميّز مجموعات: brand، unfiltered، adults، roleplay، alternatives.\n- اقترح 5 كلمات مفتاحية أساسية و3 ثانوية، مع فكرة مقال مقترحة لكل كلمة.\n- هذه اقتراحات نوعية وليست بيانات حجم بحث أو منافسة مقاسة. لا تدّعِ أنك فحصت مواقع منافسين فعلية ما لم تتضمن الأدلة ذلك.\n\n«خطة النمو 90 يوم»\n- 0–14 يومًا: ربط Google Search Console وBing Webmaster Tools، إصلاح robots.txt وsitemap، واستخدام meta rating=adult على صفحات المحتوى المخصص للبالغين فقط.\n- 15–45 يومًا: نشر 8–12 مقالًا تعليميًا، وإضافة FAQPage وAPI Documentation حيث ينطبق ذلك فعلًا.\n- 46–90 يومًا: إنشاء صفحات فريدة لكل نية بحث ومراجعة Search Console أسبوعيًا.\n\n«ما لم يتم فحصه»\n- أدرج حرفيًا: «الأرقام الدقيقة للزيارات والباك لينكات تحتاج Google Search Console.»\n- كل رقم أو قياس واقعي في التقرير يجب أن يأتي من technicalData أو indexingData أو الأدلة الأصلية المرفقة. الأرقام المحددة أعلاه ضمن خطة النمو (مثل 8–12 مقالًا و90 يومًا) أهداف تخطيطية مطلوبة وليست قياسات للموقع. لا تخترع أرقام زيارات أو باك لينكات أو أحجام بحث.\n\nقواعد إلزامية أخيرة (تتقدّم على أي تعليمات سابقة عند أي تعارض):\n- الطول الكلي للتقرير بكل أقسامه لا يتجاوز 4600 حرف تقريبًا. هذا سقف صارم: إن تعارض مع أي تفصيل سابق فاختصر التفصيل ولا تتجاوز السقف أبدًا.\n- ترتيب الاختصار عند الحاجة: أمثلة الإصلاحات أولًا (مثال واحد قصير لكل مشكلة)، ثم جدول الكلمات المقترحة، ثم نقاط الخطط — ولا يُحذف أي قسم بالكامل.\n- «الكلمات المفتاحية المقترحة»: 5 كلمات فقط في جدول واحد، لكل كلمة فكرة مقال في عبارة واحدة قصيرة.\n- خطتا النمو تُدمجان في خطة واحدة بعنوان «خطة النمو 90 يوم» بثلاثة آفاق (0–14 يومًا، 15–45 يومًا، 46–90 يومًا)، وكل أفق 3 نقاط كحد أقصى، كل نقطة في سطر واحد.\n- «الفهرسة والظهور في جوجل»: 4 أسطر كحد أقصى بلغة بشرية مفهومة. ممنوع منعًا باتًا نسخ أسماء الحقول أو القيم الخام من بيانات JSON (مثل indexingData أو isIndexed أو siteQueryResultCount) داخل متن التقرير؛ عبّر عن الحالة بجمل عربية واضحة.\n- «المشاكل والإصلاحات»: أهم 4 مشاكل فقط. لكل مشكلة: سطر واحد للدليل، سطر واحد للأثر، وخطوات إصلاح مرقمة قصيرة، ومثال كود واحد قصير عند الحاجة.\n- أي كود أو وسم HTML أو قيمة مثال: داخل بلوك كود محاط بعلامات التنصيص الثلاثية فقط، ولا يُكتب مكسورًا كنص عادي عبر الأسطر أبدًا.\n- «قائمة التنفيذ بالأولوية»: 5 بنود كحد أقصى، ثم سطر «--- نهاية التقرير ---». الوصول إلى هذه الخاتمة أهم من أي تفصيل آخر في التقرير.";
 const PREMIUM_MIN_BALANCE = 20;
 // Premium live dark-web search (Ahmia index): an add-on to Dark mode.
@@ -1068,6 +1077,151 @@ async function handleLeakCheck(req: any, res: any, body: any) {
   }
 }
 
+// Reverse Lab handler — mirrors the leak handler's discipline with one
+// deliberate difference: the uploaded binary is downloaded and torn apart
+// BEFORE any debit (extraction is local CPU and spends nothing external),
+// so an unrecognized or unsupported file is rejected free; the debit lands
+// only once real evidence exists, and refunds in full if writing fails.
+const REVERSE_REPORT_PROMPT = `أنت خبير الهندسة العكسية في «مختبر الهندسة العكسية» بمنصة HotGPT، تكتب تقرير تحليل ثابت احترافيًا لمطور دفع مقابل فكّ ملفه وتحليله.
+المرفق هو ناتج فكّ آلي حقيقي من خادم المنصة (تحليل ثابت: هوية وبصمة، أقسام، استيرادات/رموز، نصوص، إنتروبيا، مؤشرات تغليف، وقدرات مستنتجة مربوطة بأدلتها). قواعد صارمة:
+- كل ما تكتبه مبني على هذا الناتج فقط. ممنوع تخترع دالة أو عنوانًا أو سلوكًا غير موجود فيه، وممنوع تدّعي أنك شغّلت الملف أو راقبت سلوكه فعليًا — هذا تحليل ثابت (static) لا ديناميكي.
+- ميّز دائمًا بين ما هو مؤكد من الأدلة وما هو ترجيح، واذكر درجة ثقتك عند الترجيح.
+- روابط أو دومينات من نوع وثائق/تراخيص (مثل gnu.org) لا تُعد مؤشر خطر؛ مؤشرات الخطر تحتاج أدلة تشغيلية (حقن، ثبات، مضاد تنقيب، اتصال بخادم تحكم).
+بنية التقرير بهذا الترتيب:
+1) سطر عنوان: «تقرير هندسة عكسية: <اسم الملف>» ثم حكمك في سطرين: ما هذا الملف على الأرجح وما غرضه الظاهر.
+2) «الهوية والبصمة» — النوع والمعمارية والحجم والبصمة وحالة التوقيع كما وردت.
+3) «ماذا يستطيع هذا البرنامج» — اشرح كل قدرة مستنتجة واربطها بدليلها بلغة مطور، وماذا تعني عمليًا.
+4) «البنية الداخلية» — الأقسام والاستيرادات والحزم: ماذا توحي به المعمارية (لغة/مترجم محتمل إن دلّت الأدلة، طبقات البرنامج).
+5) «الحماية والتغليف» — قيّم مؤشرات التغليف والحمايات: هل الفك الكامل سهل أم معاق؟ وماذا يحتاج المطور لفكّه أعمق.
+6) «مؤشرات الخطر» — فقط إن وُجدت أدلة: عدّدها بهدوء مهني مع التنبيه أن أدوات مشروعة كثيرة تشارك نفس المؤشرات، وأن الحكم النهائي يحتاج تحليلًا ديناميكيًا.
+7) «خارطة العمل للمطور» — خطوات عملية مرتبة: من أين يبدأ في Ghidra/IDA/radare2 (أي استيرادات ونصوص يرتكز عليها)، ماذا يعيد تسميته أولًا، ونقاط hook مقترحة في Frida عند الحاجة، وللـ APK: مسار jadx/apktool.
+8) «ما لم يتم فحصه» — بصراحة: الفك الكامل إلى كود شبه مقروء (pseudocode)، السلوك وقت التشغيل، وأي حمولة مضغوطة/مشفرة لم تُفك — هذه تحتاج بيئة تشغيل أعمق.
+9) اختم بقسم «الخطوات التالية» — 3 أفعال مرتبة بالأولوية للمطور صاحب الملف.
+- علّم أثناء الشرح: كل مصطلح متخصص (مثل إنتروبيا أو TLS callback) اشرحه في نصف سطر أول مرة يظهر.
+- أي كود أو أوامر داخل بلوكات كود محاطة فقط. لا جداول عريضة؛ قوائم وفقرات قصيرة. الطول المستهدف 600-900 كلمة.`;
+
+async function handleReverseAnalysis(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const conversationId = String(body?.conversationId || "");
+  const uploadPath = String(body?.uploadPath || "");
+  const fileName = String(body?.fileName || "file").replace(/[\r\n]/g, " ").slice(0, 160) || "file";
+  if (!/^[0-9a-f-]{36}$/i.test(conversationId) || !uploadPath.startsWith(`${user.id}/`) || uploadPath.includes("..") || uploadPath.length > 220) {
+    res.status(400).json({ error: "invalid_reverse_request", message: "بيانات الرفع غير مكتملة — أعد رفع الملف وحاول مرة أخرى." });
+    return;
+  }
+  const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
+  if (!orKey) { res.status(503).json({ error: "reverse_not_configured" }); return; }
+  const walletBefore = await getWallet(user.id).catch(() => null);
+  if (!walletBefore || walletBefore.tokenBalance < REVERSE_COST) {
+    res.status(402).json({ error: "insufficient_credits", wallet: walletBefore });
+    return;
+  }
+  // Lazy retention sweep (the daily cron is the main mechanism; this is
+  // the backstop that guarantees expired binaries never linger).
+  void sweepReverseUploads(50).catch(() => {});
+  let bytes: Buffer;
+  try {
+    const storageResponse = await fetch(`${supabaseUrl()}/storage/v1/object/${RE_BUCKET}/${uploadPath}`, {
+      headers: { apikey: serviceKey(), authorization: `Bearer ${serviceKey()}` }, cache: "no-store",
+    });
+    if (!storageResponse.ok) {
+      res.status(400).json({ error: "reverse_file_missing", message: "لم نجد الملف المرفوع (قد يكون انقضت مدة الاحتفاظ به 3 أيام) — أعد رفعه وحاول مرة أخرى. لم يُخصم شيء." });
+      return;
+    }
+    bytes = Buffer.from(await storageResponse.arrayBuffer());
+  } catch {
+    res.status(502).json({ error: "reverse_read_failed", message: "تعذّرت قراءة الملف المرفوع — حاول مرة أخرى. لم يُخصم شيء." });
+    return;
+  }
+  if (bytes.length > RE_MAX_BYTES) {
+    res.status(413).json({ error: "file_too_large", message: "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء." });
+    return;
+  }
+  const evidence = analyzeBinary(bytes, fileName);
+  if (!evidence) {
+    res.status(422).json({ error: "unsupported_binary", message: "الملف لا يبدو برنامجًا أو تطبيقًا قابلًا للتحليل الثابت (ندعم Windows PE وELF وAPK وDEX وMach-O) — لم يُخصم شيء." });
+    return;
+  }
+  let debited = false;
+  const deadline = Date.now() + 54000;
+  try {
+    debited = await debitWalletTokens(user.id, REVERSE_COST);
+    if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+    const userContent = `بيانات الفك والتحليل الثابت الآلي من مختبر الهندسة العكسية:\n${evidence.evidenceText}`;
+    const models = [
+      (process.env.OPENROUTER_SCAN_MODEL || "moonshotai/kimi-k2-0905").trim(),
+      (process.env.OPENROUTER_SCAN_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
+    ];
+    let report = "";
+    let bestReport = "";
+    for (const [index, model] of models.entries()) {
+      if (report) break;
+      const budget = Math.min(index === 0 ? 30000 : 20000, deadline - 3000 - Date.now());
+      if (budget < 8000) break;
+      let collected = "";
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${orKey}`, "HTTP-Referer": "https://hot-gpt-ai.vercel.app", "X-Title": "HotGPT" },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: REVERSE_REPORT_PROMPT },
+              { role: "user", content: userContent },
+            ],
+            max_tokens: 3500,
+            temperature: 0.3,
+            stream: true,
+            ...(index === 0 ? { reasoning: { effort: "low" } } : {}),
+          }),
+          signal: AbortSignal.timeout(budget),
+        });
+        if (!response.ok || !response.body) continue;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const consumeSseLine = (line: string) => {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) return;
+          const data = trimmed.slice(5).trim();
+          if (!data || data === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed?.choices?.[0]?.delta?.content;
+            if (typeof delta === "string") collected += delta;
+          } catch { /* Ignore malformed provider frame. */ }
+        };
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) consumeSseLine(line);
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) consumeSseLine(buffer);
+      } catch { /* aborted or network error — judged below */ }
+      const text = collected.trim();
+      if (text.length > bestReport.length) bestReport = text;
+      if (text.length >= 400) report = text;
+    }
+    if (!report && bestReport.length >= 400) report = bestReport;
+    if (!report) throw new Error("reverse_report_failed");
+    await saveMessage(user.id, conversationId, "user", `🧩 هندسة عكسية: ${fileName}`);
+    await saveMessage(user.id, conversationId, "assistant", report);
+    const wallet = await getWallet(user.id).catch(() => null);
+    res.status(200).json({ content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: REVERSE_COST, format: evidence.format, fileName });
+  } catch (error) {
+    if (debited) {
+      try { await creditWalletTokens(user.id, REVERSE_COST); } catch (refundError) { console.error("[Reverse] Refund failed", refundError instanceof Error ? refundError.message : "unknown"); }
+    }
+    console.error("[Reverse] Analysis failed", error instanceof Error ? error.message : "unknown");
+    res.status(502).json({ error: "reverse_failed" });
+  }
+}
+
 async function handleSiteBuild(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -1672,6 +1826,7 @@ export default async function handler(req: any, res: any) {
   if (body?.scanMode === true) return await handleUrlScan(req, res, body);
   if (body?.seoMode === true) return await handleSeoAudit(req, res, body);
   if (body?.leakMode === true) return await handleLeakCheck(req, res, body);
+  if (body?.reverseMode === true) return await handleReverseAnalysis(req, res, body);
   if (body?.siteMode === true) return await handleSiteBuild(req, res, body);
   if (body?.leadsMode === true) return await handleLeadExtraction(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route

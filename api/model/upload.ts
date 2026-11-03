@@ -1,3 +1,5 @@
+import { ensureReverseBucket, recordReverseUpload, RE_BUCKET, RE_MAX_BYTES } from "../../server/reverseLab.ts";
+
 const supabaseUrl = () => (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
 const publicKey = () => process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 const serviceKey = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
@@ -13,6 +15,32 @@ export default async function handler(req: any, res: any) {
     if (!authResponse.ok) return res.status(authResponse.status === 401 || authResponse.status === 403 ? 401 : 503).json({ error: authResponse.status === 401 || authResponse.status === 403 ? "login_required" : "auth_unavailable" });
     const user = await authResponse.json() as { id?: string };
     if (!user.id) return res.status(401).json({ error: "login_required" });
+    // Reverse Lab branch (2026-11-03): binaries up to 50MB into the
+    // dedicated hotgpt-re-uploads bucket. No extension/MIME gating —
+    // real tools ship as .exe/.dll/.apk/extension-less ELF alike; the
+    // file's magic is validated by the analysis handler before any debit.
+    // Every slot is registered for the 3-day auto-delete sweep.
+    if ((req.body ?? {}).kind === "reverse") {
+      const rName = typeof req.body.name === "string" ? req.body.name.trim() : "";
+      const rSize = Number(req.body.size);
+      if (!rName || rName.length > 160 || !Number.isFinite(rSize) || rSize < 1) return res.status(400).json({ error: "unsupported_attachment" });
+      if (rSize > RE_MAX_BYTES) return res.status(413).json({ error: "file_too_large" });
+      await ensureReverseBucket();
+      const rPath = `${user.id}/${crypto.randomUUID()}.bin`;
+      const rSigned = await fetch(`${url}/storage/v1/object/upload/sign/${RE_BUCKET}/${rPath}`, {
+        method: "POST", headers: { apikey: secret, authorization: `Bearer ${secret}`, "content-type": "application/json" },
+        body: JSON.stringify({ upsert: false }), cache: "no-store",
+      });
+      const rPayload = await rSigned.json().catch(() => ({})) as { signedURL?: string; url?: string; error?: string; message?: string };
+      if (!rSigned.ok || !(rPayload.signedURL || rPayload.url)) {
+        console.error("[Upload] Reverse signed URL failed", rSigned.status, rPayload.error || rPayload.message || "unknown");
+        return res.status(502).json({ error: "upload_unavailable" });
+      }
+      const rSignedUrl = rPayload.signedURL || rPayload.url!;
+      const rUploadUrl = rSignedUrl.startsWith("http") ? rSignedUrl : `${url}/storage/v1${rSignedUrl.startsWith("/") ? "" : "/"}${rSignedUrl}`;
+      await recordReverseUpload(user.id, rPath, rName, rSize);
+      return res.status(200).json({ uploadUrl: rUploadUrl, path: rPath, contentType: "application/octet-stream", maxBytes: RE_MAX_BYTES });
+    }
     const body = req.body ?? {}, name = typeof body.name === "string" ? body.name : "", size = Number(body.size), type = typeof body.type === "string" ? body.type : "";
     const match = name.toLowerCase().match(/\.(pdf|txt|md|csv|json)$/);
     const allowedTypes: Record<string, string[]> = { pdf:["application/pdf"], txt:["text/plain"], md:["text/markdown","text/plain"], csv:["text/csv","application/vnd.ms-excel","text/plain"], json:["application/json","text/json","text/plain"] };
