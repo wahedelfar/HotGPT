@@ -1127,19 +1127,21 @@ export default function Home() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeGiftJustGranted, setWelcomeGiftJustGranted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(true);
+  const [termsBusy, setTermsBusy] = useState(false);
   const [showAuthGateModal, setShowAuthGateModal] = useState(false);
-  const [welcomeGateVisible, setWelcomeGateVisible] = useState(false);
-  useEffect(() => {
-    if (auth.loading || auth.isAuthenticated) return;
+  // Terms acceptance (Wahid, 2026-11-03): recorded server-side from the
+  // post-login welcome window — the one acceptance moment for every member,
+  // whatever sign-in route they used (email form, Google, or existing member).
+  const acceptTerms = async () => {
+    if (termsBusy) return;
+    setTermsBusy(true);
     try {
-      // A saved session means this is a member whose auth check has not
-      // settled (or hiccuped) — never greet them with the guest window.
-      if (localStorage.getItem("hotgpt.supabase.session")) return;
-      const until = Number(localStorage.getItem("hotgpt-welcome-dismissed-until") || 0);
-      if (Date.now() >= until) setWelcomeGateVisible(true);
-    } catch { setWelcomeGateVisible(true); }
-  }, [auth.loading, auth.isAuthenticated]);
-  const dismissWelcomeGate = () => { try { localStorage.setItem("hotgpt-welcome-dismissed-until", String(Date.now() + 24 * 60 * 60 * 1000)); } catch {} setWelcomeGateVisible(false); };
+      const response = await authFetch("/api/billing?action=accept-terms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: "2026-11-03" }) });
+      if (response.ok) { setTermsAccepted(true); setShowWelcomeModal(false); }
+    } catch {}
+    setTermsBusy(false);
+  };
 
   useEffect(() => {
     if (auth.loading) return;
@@ -1381,8 +1383,20 @@ export default function Home() {
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   };
   useEffect(() => {
+    // Empty state = the welcome screen: it must open on the hero/header,
+    // never stuck to the bottom on the service cards (Wahid, 2026-11-03).
+    if (messages.length === 0) { const el = messagesScrollRef.current; if (el) el.scrollTo({ top: 0, behavior: "auto" }); return; }
     if (stickToBottomRef.current) scrollMessagesToBottom(false);
   }, [messages]);
+
+  // Open on the hero: a fresh open or a refresh lands at the top of the
+  // page — the browser must not restore a mid-page scroll onto the cards.
+  useEffect(() => {
+    try { if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual"; } catch {}
+    window.scrollTo(0, 0);
+    const el = messagesScrollRef.current;
+    if (el) el.scrollTop = 0;
+  }, []);
 
   useEffect(() => {
     if (auth.loading || !auth.isAuthenticated) { setHotLuckyPrize(null); return; }
@@ -1398,6 +1412,7 @@ export default function Home() {
           if (!cancelled) {
             const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
             if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); setShowWelcomeModal(true); }
+            if ((wallet as any).termsAccepted === false) { setTermsAccepted(false); setShowWelcomeModal(true); }
             const freeRemaining = Math.max(0, Number(wallet.freeAnswersRemaining) || 0);
             setWalletBalance(balance);
             setFreeAnswersRemaining(freeRemaining);
@@ -1441,6 +1456,7 @@ export default function Home() {
       if (!cancelled) {
         const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
         if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); setShowWelcomeModal(true); }
+        if ((wallet as any).termsAccepted === false) { setTermsAccepted(false); setShowWelcomeModal(true); }
         setWalletBalance(balance);
         setFreeAnswersRemaining(Math.max(0, Number(wallet.freeAnswersRemaining) || 0));
         try { localStorage.setItem("hotgpt-token-balance", String(balance)); } catch {}
@@ -2826,24 +2842,6 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           </section>
         </div>
       )}
-      {welcomeGateVisible && !auth.loading && !auth.isAuthenticated && (
-        <div role="dialog" aria-modal="true" aria-label="HotGPT" dir={language === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 70, overflowY: "auto", background: "radial-gradient(ellipse at top, rgba(251,191,36,.10), transparent 55%), linear-gradient(180deg, #2B0000, #1A0505)", display: "flex", alignItems: "center", justifyContent: "center", padding: "28px 18px" }}>
-          <div style={{ maxWidth: 620, width: "100%", textAlign: "center", position: "relative" }}>
-            <button type="button" aria-label={tr(language, "إغلاق", "Close")} onClick={dismissWelcomeGate} style={{ position: "absolute", top: -6, insetInlineEnd: 0, width: 36, height: 36, borderRadius: 999, border: "1px solid rgba(251,191,36,.4)", color: "#FBBF24", fontSize: 20, lineHeight: 1, background: "rgba(0,0,0,.25)", cursor: "pointer" }}>×</button>
-            <h1 style={{ margin: 0, fontSize: "clamp(42px, 9vw, 64px)", fontWeight: 900, color: "#fff", lineHeight: 1.15 }}>HotGPT</h1>
-            <p style={{ margin: "10px 0 0", fontSize: 12.5, fontWeight: 700, color: "#F6C453" }}>{tr(language, "منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
-            <p style={{ margin: "6px 0 0", fontSize: "clamp(21px, 5.4vw, 32px)", fontWeight: 800, color: "#FBBF24", lineHeight: 1.5 }}>{tr(language, "ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع", "AI for developers, marketers & web development companies")}</p>
-            <p style={{ margin: "20px auto 0", maxWidth: 560, fontSize: 16, lineHeight: 2, color: "#E7E5E4" }}>{tr(language, "منصة HotGPT هي مساحة عمل ذكاء اصطناعي متكاملة: محادثات ذكية، كتابة وتصحيح أكواد، بناء مواقع احترافية، تحليل ملفات، توليد صور وCGI، فحص أمني وSEO للمواقع، بحث حي، واستخراج بيانات عملاء — كل الأدوات في مكان واحد.", "HotGPT is an all-in-one AI workspace: smart chat, code writing & debugging, website building, file analysis, image & CGI generation, website security & SEO audits, live search, and customer lead extraction — every tool in one place.")}</p>
-            <a href="/auth?mode=signup" style={{ display: "block", margin: "26px auto 0", maxWidth: 520, padding: "15px 20px", borderRadius: 16, background: "linear-gradient(135deg, #F6C453, #E8A020 55%, #B97A0F)", color: "#231300", fontWeight: 900, fontSize: 17, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35)" }}>{tr(language, "ابدأ مجانًا ↗", "Start free ↗")}</a>
-            <ul style={{ listStyle: "none", margin: "24px 0 0", padding: 0, display: "grid", gap: 9, fontSize: 15, color: "#F5F5F4" }}>
-              <li><b style={{ color: "#FBBF24" }}>✓</b> {language === "en" ? "20 gift tokens when you sign up" : egEgp ? "هدية اشتراك ٢٠ جنيه عند أول تسجيل" : "٢٠ توكين هدية عند أول تسجيل"}</li>
-              <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "واجهة محادثة كاملة بالعربي والإنجليزي", "Full chat interface in Arabic & English")}</li>
-              <li><b style={{ color: "#FBBF24" }}>✓</b> {tr(language, "رد فوري خلال ثوانٍ", "Instant replies within seconds")}</li>
-            </ul>
-            <p style={{ margin: "22px auto 0", maxWidth: 520, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(251,191,36,.35)", background: "rgba(251,191,36,.07)", color: "#FBBF24", fontSize: 14.5, fontWeight: 800, lineHeight: 1.9 }}>⚡ {tr(language, "أرخص اشتراك في مصر — 100 جنيه فقط · الدفع فودافون كاش - إنستاباي", "Egypt's cheapest subscription — only 100 EGP · Pay by Vodafone Cash & InstaPay")}</p>
-          </div>
-        </div>
-      )}
       {showAuthGateModal && !auth.loading && !auth.isAuthenticated && (
         <div className="welcome-modal-backdrop visitor-modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) { setShowAuthGateModal(false); try { sessionStorage.setItem("hotgpt-visitor-popup-dismissed", "1"); } catch {} } }}>
           <section className="welcome-modal auth-required-modal visitor-modal-card" role="dialog" aria-modal="true" aria-labelledby="visitor-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
@@ -2876,18 +2874,36 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
         </div>
       )}
       {showWelcomeModal && !auth.loading && auth.isAuthenticated && (
-        <div className="welcome-modal-backdrop post-login-welcome-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setShowWelcomeModal(false); }}>
+        <div className="welcome-modal-backdrop post-login-welcome-backdrop" onMouseDown={event => { if (termsAccepted && event.target === event.currentTarget) setShowWelcomeModal(false); }}>
           <section className="welcome-modal post-login-welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
-            <button type="button" className="welcome-modal-close" onClick={() => setShowWelcomeModal(false)} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>
+            {termsAccepted && <button type="button" className="welcome-modal-close" onClick={() => setShowWelcomeModal(false)} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>}
             <div className="welcome-modal-brand"><BrandMark compact /></div>
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
             <h2 id="welcome-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
             {welcomeGiftJustGranted && <p className="welcome-modal-lead">{language === "en" ? "🎁 Congratulations! A 20-token welcome gift just landed in your balance — build a full website, scan your site's security, or have 20 chats." : egEgp ? "🎁 مبروك! كسبت هدية اشتراك ٢٠ جنيه — ٢٠ توكين وصلت رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة." : "🎁 مبروك! كسبت هدية اشتراك ٢٠ توكين — وصلت رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة."}</p>}
             <CheapestLine />
+            {!termsAccepted && (
+              <div style={{ marginTop: 16, textAlign: "center" }}>
+                <p style={{ fontSize: 13.5, lineHeight: 2, color: "#E7E5E4", margin: 0 }}>
+                  {tr(language, "بالضغط على «أوافق وأبدأ» أنت توافق على ", "By clicking \u201CI agree \u2014 start\u201D you accept the ")}
+                  <a href="/terms" target="_blank" rel="noreferrer" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "الشروط والأحكام", "Terms & Conditions")}</a>
+                  {tr(language, " و", ", the ")}
+                  <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "سياسة الخصوصية", "Privacy Policy")}</a>
+                  {tr(language, " و", " and the ")}
+                  <a href="/refund" target="_blank" rel="noreferrer" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "سياسة الاسترداد", "Refund Policy")}</a>
+                  {tr(language, "، وتقرّ أن عمرك 18 عامًا أو أكثر.", ", and you confirm that you are 18 years or older.")}
+                </p>
+                <button type="button" disabled={termsBusy} onClick={() => void acceptTerms()} style={{ display: "block", width: "100%", marginTop: 14, padding: "13px 18px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#ffe69a,#e5a927)", color: "#171006", fontWeight: 900, fontSize: 16, cursor: "pointer", opacity: termsBusy ? 0.6 : 1 }}>
+                  {termsBusy ? tr(language, "جارٍ الحفظ...", "Saving...") : tr(language, "أوافق وأبدأ", "I agree \u2014 start")}
+                </button>
+              </div>
+            )}
+            {termsAccepted && (
             <div className="post-login-welcome-actions">
               <a href="/rewards" className="post-login-rewards-cta">{tr(language, "🎁 صفحة الجوائز", "🎁 Rewards")}</a>
               <a href="/billing" className="post-login-plans-cta">{tr(language, "💎 صفحة الباقات", "💎 Plans")}</a>
             </div>
+            )}
           </section>
         </div>
       )}

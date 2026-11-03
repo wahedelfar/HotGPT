@@ -645,11 +645,25 @@ export default async function handler(req: any, res: any) {
         const claim = await db.claimReferralReward(user.id);
         if (claim.credited) wallet = await db.getWallet(user.id);
       } catch { /* referral storage not ready yet */ }
-      return res.status(200).json({ email: user.email, name: user.name, ...wallet });
+      let termsAccepted = true;
+      try { termsAccepted = await db.hasAcceptedTerms(user.id); } catch { /* fail open: never break billing on the audit read */ }
+      return res.status(200).json({ email: user.email, name: user.name, ...wallet, termsAccepted });
     }
     catch (error) {
       console.error("[Billing] Wallet lookup failed", error instanceof Error ? error.message : "unknown");
       return res.status(503).json({ error: "billing_unavailable" });
+    }
+  }
+  if (action === "accept-terms") {
+    if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "method_not_allowed" }); }
+    const user = await requireMember(req, res);
+    if (!user) return;
+    try {
+      await db.recordTermsAcceptance(user.id, "2026-11-03");
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("[Billing] Terms acceptance failed", error instanceof Error ? error.message : "unknown");
+      return res.status(503).json({ error: "terms_unavailable" });
     }
   }
   if (action === "requests") {

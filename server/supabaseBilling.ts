@@ -227,6 +227,19 @@ export async function recordFunnelEvent(input: { userId: string; name: string; p
   });
 }
 
+// Terms acceptance (Wahid, 2026-11-03): the post-login welcome window is the
+// single acceptance moment for every member (email, Google, existing alike).
+// The proof is an analytics_events row — no schema change needed.
+export async function hasAcceptedTerms(userId: string): Promise<boolean> {
+  const rows = await rest(`analytics_events?user_id=eq.${encodeURIComponent(userId)}&event_name=eq.terms_accepted&select=id&limit=1`);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+export async function recordTermsAcceptance(userId: string, version: string) {
+  if (await hasAcceptedTerms(userId)) return;
+  await recordFunnelEvent({ userId, name: "terms_accepted", path: "/", metadata: { version, via: "post_login_welcome" } });
+}
+
 export async function listUserPaymentRequests(userId: string) {
   const rows = await rest(`payment_requests?user_id=eq.${encodeURIComponent(userId)}&select=id,payment_method,package_tokens,amount_egp,status,created_at,reviewed_at,notify_on_approval,approval_notice_seen_at,bridge_status,member_notice_text&order=created_at.desc&limit=20`);
   return (rows || []).map((row: any) => ({

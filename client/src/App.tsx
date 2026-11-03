@@ -21,7 +21,6 @@ import RefundPage from "./pages/Refund";
 import FaqPage from "./pages/Faq";
 import PaymentGuidePage from "./pages/PaymentGuide";
 import AboutPage from "./pages/About";
-import AgeGate from "./components/AgeGate";
 import InstallAppButton from "@/components/InstallAppButton";
 
 
@@ -181,7 +180,6 @@ export default function App() {
         <ThemeProvider defaultTheme="dark" switchable>
           <TooltipProvider>
             <Toaster />
-            <AgeGate />
             <ReferralCapture />
             <Router />
             <InstallAppButton />
