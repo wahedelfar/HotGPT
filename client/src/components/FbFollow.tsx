@@ -60,50 +60,15 @@ export function BlogFollow() {
   );
 }
 
-// Smol Launch featured badge (owner order 2026-11-03): the directory's free
-// listing earns its dofollow backlink while this badge is live on the site.
-// It sits BESIDE the Facebook and Blog pills (owner: «جمبهم مش تحتهم») at the
-// same height as the pills so the row stays even, never below them.
-// The GateOfAI verified badge (banked 2026-11-03, shipped with the
-// 2026-11-04 billing batch at the owner's order) renders inside SmolBadge so
-// the two directory badges stay paired at every existing render site.
+// REMOVED at the owner's order (2026-11-05): both directory badges — Smol
+// Launch and GateOfAI — are removed from every page. The exports stay so
+// existing render sites compile, but they render nothing.
 export function SmolBadge() {
-  return (
-    <>
-      <a
-        href="https://smollaunch.com"
-        target="_blank"
-        rel="noopener"
-        style={{ display: "inline-flex", alignItems: "center", lineHeight: 0 }}
-      >
-        <img
-          src="https://smollaunch.com/badges/featured.svg"
-          alt="HOTGPT — Featured on Smol Launch"
-          loading="lazy"
-          style={{ height: 33, width: "auto" }}
-        />
-      </a>
-      <GateOfAIBadge />
-    </>
-  );
+  return null;
 }
 
-// GateOfAI "Verified" badge: link, image and alt are the directory's own
-// badge snippet verbatim; height matches the Smol badge so the row is even.
+// GateOfAI "Verified" badge — REMOVED with the Smol badge at the owner's
+// order (2026-11-05). Renders nothing.
 export function GateOfAIBadge() {
-  return (
-    <a
-      href="https://gateofai.com/community-tools/hotgpt/"
-      target="_blank"
-      rel="noopener"
-      style={{ display: "inline-flex", alignItems: "center", lineHeight: 0 }}
-    >
-      <img
-        src="https://gateofai.com/badge/featured.svg?tool=6009"
-        alt="Verified on GateOfAI.com"
-        loading="lazy"
-        style={{ height: 33, width: "auto" }}
-      />
-    </a>
-  );
+  return null;
 }
