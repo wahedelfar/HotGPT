@@ -64,17 +64,43 @@ export function BlogFollow() {
 // listing earns its dofollow backlink while this badge is live on the site.
 // It sits BESIDE the Facebook and Blog pills (owner: «جمبهم مش تحتهم») at the
 // same height as the pills so the row stays even, never below them.
+// The GateOfAI verified badge (banked 2026-11-03, shipped with the
+// 2026-11-04 billing batch at the owner's order) renders inside SmolBadge so
+// the two directory badges stay paired at every existing render site.
 export function SmolBadge() {
   return (
+    <>
+      <a
+        href="https://smollaunch.com"
+        target="_blank"
+        rel="noopener"
+        style={{ display: "inline-flex", alignItems: "center", lineHeight: 0 }}
+      >
+        <img
+          src="https://smollaunch.com/badges/featured.svg"
+          alt="HOTGPT — Featured on Smol Launch"
+          loading="lazy"
+          style={{ height: 33, width: "auto" }}
+        />
+      </a>
+      <GateOfAIBadge />
+    </>
+  );
+}
+
+// GateOfAI "Verified" badge: link, image and alt are the directory's own
+// badge snippet verbatim; height matches the Smol badge so the row is even.
+export function GateOfAIBadge() {
+  return (
     <a
-      href="https://smollaunch.com"
+      href="https://gateofai.com/community-tools/hotgpt/"
       target="_blank"
       rel="noopener"
       style={{ display: "inline-flex", alignItems: "center", lineHeight: 0 }}
     >
       <img
-        src="https://smollaunch.com/badges/featured.svg"
-        alt="HOTGPT — Featured on Smol Launch"
+        src="https://gateofai.com/badge/featured.svg?tool=6009"
+        alt="Verified on GateOfAI.com"
         loading="lazy"
         style={{ height: 33, width: "auto" }}
       />
