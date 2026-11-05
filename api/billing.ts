@@ -264,7 +264,7 @@ async function sendTelegramPaymentAlert(args: {
       "طلب دفع جديد — HotGPT",
       `العضو: ${args.request.email}`,
       `الباقة: ${args.request.packageTokens} توكين — ${args.request.amountEgp} جنيه`,
-      `الوسيلة: ${args.request.paymentMethod === "instapay" ? "إنستا باي" : "فودافون كاش"}`,
+      `الوسيلة: ${args.request.paymentMethod === "instapay" ? "إنستا باي" : args.request.paymentMethod === "binance_pay" ? "Binance Pay (USDT)" : args.request.paymentMethod === "bybit_pay" ? "Bybit Pay (USDT)" : "فودافون كاش"}`,
       `رقم العملية: ${args.request.transferReference || "—"}`,
       `هدية الجسر: ${bridgeText}`,
     ].join("\n");
@@ -630,6 +630,10 @@ export default async function handler(req: any, res: any) {
       vodafoneCashUrl: "https://vf.eg/vfcash?id=mt&qrId=G0gO2O",
       instapayAddress: "wahedelfar@instapay",
       instapayUrl: "https://ipn.eg/S/wahedelfar/instapay/4LnUCo",
+      binancePayId: "1024827539",
+      binanceUsdtAddress: "TY4Lq6zYv3xCuyUp2q9M6A2rX6woXHfnZR",
+      bybitUid: "362452272",
+      bybitUsdtAddress: "TPBbQajQoy7hGBGE1MweVWruJxK6AomRa4",
       paypalPaymentUrl: process.env.PAYPAL_PAYMENT_URL ?? "",
       paypalClientId: process.env.PAYPAL_CLIENT_ID ?? "",
       packages: [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 440 }, { tokens: 1000, priceEgp: 500 }],
@@ -720,7 +724,7 @@ export default async function handler(req: any, res: any) {
     const tokens = Number(body.packageTokens);
     const method = body.paymentMethod;
     const screenshotData = body.screenshotData;
-    if (!PACKAGES[tokens] || !["vodafone_cash", "instapay"].includes(method)) return res.status(400).json({ error: "invalid_package_or_method" });
+    if (!PACKAGES[tokens] || !["vodafone_cash", "instapay", "binance_pay", "bybit_pay"].includes(method)) return res.status(400).json({ error: "invalid_package_or_method" });
     if (typeof screenshotData !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(screenshotData) || screenshotData.length > 1_000_000) {
       return res.status(400).json({ error: "invalid_screenshot" });
     }

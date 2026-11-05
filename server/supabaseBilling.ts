@@ -121,7 +121,7 @@ export async function refundAnswerCredit(userId: string, kind: "free" | "paid") 
 }
 
 export async function submitPaymentRequest(input: {
-  userId: string; email: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal";
+  userId: string; email: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal" | "binance_pay" | "bybit_pay";
   packageTokens: number; amountEgp: number; transferReference?: string; screenshotData: string;
 }) {
   const match = input.screenshotData.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
