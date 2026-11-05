@@ -10,6 +10,7 @@ type ModelCard = {
   title: [string, string];
   desc: [string, string];
   price: [string, string];
+  kind: "free" | "specialized";
 };
 
 const MODELS: ModelCard[] = [
@@ -20,6 +21,7 @@ const MODELS: ModelCard[] = [
       "Your everyday assistant for programming, writing code, answering questions and general analysis — fast, direct, and made for daily work.",
     ],
     price: ["رسالة: 1 من الرصيد · تحليل ملف مرفق: 3 من الرصيد", "Message: 1 from balance · attached-file analysis: 3 from balance"],
+    kind: "free",
   },
   {
     title: ["HotGPT الوحش PRO", "HotGPT Alwahsh PRO"],
@@ -28,6 +30,7 @@ const MODELS: ModelCard[] = [
       "Our strongest mode for deep analysis, advanced programming, digital security and penetration testing — a staged in-depth answer, continued with a second stage at the same price.",
     ],
     price: ["5 من الرصيد للمرحلة", "5 from balance per stage"],
+    kind: "free",
   },
   {
     title: ["HotGPT Dark", "HotGPT Dark"],
@@ -36,6 +39,7 @@ const MODELS: ModelCard[] = [
       "The dark-web intelligence mode: markets, forums, leaks and threat actors — a full intelligence picture with sources and deep analysis.",
     ],
     price: ["5 من الرصيد للمرحلة", "5 from balance per stage"],
+    kind: "free",
   },
   {
     title: ["بحث الويب المباشر", "Live web search"],
@@ -44,6 +48,7 @@ const MODELS: ModelCard[] = [
       "A complete web search in a single answer backed by sources — extended deep research runs in stages.",
     ],
     price: ["5 من الرصيد", "5 from balance"],
+    kind: "specialized",
   },
   {
     title: ["توليد الصور", "Image generation"],
@@ -52,6 +57,7 @@ const MODELS: ModelCard[] = [
       "Turn your written description into a finished image — or a photorealistic CGI image in the FOOH ad style from a short brief. Save your image to your device after generating it.",
     ],
     price: ["صورة عادية: 3 من الرصيد · صورة CGI: ‏10 من الرصيد", "Normal image: 3 from balance · CGI image: 10 from balance"],
+    kind: "specialized",
   },
   {
     title: ["محترف الـ SEO", "SEO Pro"],
@@ -60,6 +66,7 @@ const MODELS: ModelCard[] = [
       "A detailed SEO report for your site with practical recommendations to improve its visibility on Google.",
     ],
     price: ["تقرير كامل بـ 20 من الرصيد", "Full report, 20 from balance"],
+    kind: "specialized",
   },
   {
     title: ["محترف فحص الأمان", "Security Scan Pro"],
@@ -68,6 +75,7 @@ const MODELS: ModelCard[] = [
       "A dedicated model that scans your site's security, rates the severity, and recommends how to close its vulnerabilities and protect it.",
     ],
     price: ["تقرير كامل بـ 20 من الرصيد", "Full report, 20 from balance"],
+    kind: "free",
   },
   {
     title: ["كشف التسريب", "Leak check"],
@@ -76,6 +84,7 @@ const MODELS: ModelCard[] = [
       "Did your email or company domain appear in global data breaches? An instant check across breach indexes with an Arabic findings-and-actions report: for an email, its full breach list with the exposed data types; for a domain, its exposure summary and the breaches that hit its own service.",
     ],
     price: ["20 من الرصيد", "20 from balance"],
+    kind: "specialized",
   },
   {
     title: ["محترف الهندسة العكسية", "Reverse Engineering Pro"],
@@ -84,6 +93,7 @@ const MODELS: ModelCard[] = [
       "Upload your program or app (up to 50 MB — EXE, DLL, APK, ELF and Mach-O) and the platform takes it apart itself: its internal structure, sections, imports, strings, packing indicators and evidence-based capabilities, in a professional reverse-engineering report for developers with a Ghidra, IDA and Frida work plan. Your file is auto-deleted after 3 days; the report stays.",
     ],
     price: ["تقرير كامل بـ 20 من الرصيد", "Full report, 20 from balance"],
+    kind: "free",
   },
   {
     title: ["استخراج العملاء", "Lead extraction"],
@@ -92,6 +102,7 @@ const MODELS: ModelCard[] = [
       "Real business data from Google Maps by business type and area: name, phone number, address, website and rating — up to 20 businesses in a single extraction.",
     ],
     price: ["استخراج كامل بـ 20 من الرصيد", "Full extraction, 20 from balance"],
+    kind: "specialized",
   },
   {
     title: ["باني المواقع — بناء موقع إحترافي", "Website Builder — build a professional site"],
@@ -100,6 +111,7 @@ const MODELS: ModelCard[] = [
       "Describe your site in detail (business and name, sections, colors) and we build you a complete single-file website ready to publish — instant live preview and one-tap download. Paste your own image URLs in the description to use them; otherwise we use our default images, which you can replace after downloading. And completing any site that got cut off is completely free.",
     ],
     price: ["بناء جديد بـ 20 من الرصيد · تعديل على موقع موجود بـ 10", "New build 20 from balance · edit an existing site 10 from balance"],
+    kind: "free",
   },
 ];
 
@@ -140,6 +152,14 @@ export default function ModelsPage() {
               <div key={model.title[1]} className="rounded-xl border border-amber-400/20 bg-black/30 p-5">
                 <div className="font-bold">{pick(model.title)}</div>
                 <p className="mt-1 text-sm leading-6 text-slate-400">{pick(model.desc)}</p>
+                {model.kind === "free" ? (
+                  <div className="mt-3">
+                    <div className="text-base font-black text-amber-300">{t("نماذج حرة بدون قيود", "Free, unrestricted models")}</div>
+                    <div className="mt-0.5 text-xs text-slate-400">{t("لكتابة أي كود برمجي", "For writing any programming code")}</div>
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm font-black text-slate-200">{t("نماذج متخصصة", "Specialized models")}</div>
+                )}
                 <p className="mt-2 text-sm">
                   <strong className="text-amber-400">{pick(model.price)}</strong>
                 </p>

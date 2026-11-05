@@ -283,6 +283,10 @@ export default function BillingPage() {
         <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT SUBSCRIPTION</p><h1 className="mt-2 text-3xl font-bold">{t("اشتراكك الشهري", "Your monthly subscription")}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{t("اشتراك شهري واحد يفتح لك كل الأدوات: سعر كل خدمة ثابت ومعروف قبل ما تبدأ — مفيش فواتير مفاجئة. واشتراكك بدأ بهدية ترحيب وصلت رصيدك تلقائيًا عند أول دخول.", "One monthly subscription unlocks every tool: each service has one flat price you know before you start — no surprise bills. And your subscription began with a welcome gift that landed in your balance automatically on your first visit.")}</p></div>
         {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{t("رصيد اشتراكك", "Subscription balance")}: {account.tokenBalance}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{language === "en" ? "🎁 The welcome gift was added to your subscription balance" : egEgp ? "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك" : "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك"}</div>}</div>}
       </div>
+      <div className="mt-6 rounded-2xl border border-amber-400/30 bg-black/30 px-5 py-4 text-center">
+        <div className="text-xl font-black text-amber-300">{t("نماذج حرة بدون قيود", "Free, unrestricted models")}</div>
+        <div className="mt-1 text-xs text-slate-400">{t("لكتابة أي كود برمجي", "For writing any programming code")}</div>
+      </div>
       <div className="mt-8 flex flex-wrap gap-3">
         <a href="/models" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("اعرف نماذجنا", "Meet our models")}</a>
         <a href="/payment-guide" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("وسائل الدفع وطريقة الاشتراك", "Payment methods & how to subscribe")}</a>
@@ -336,6 +340,7 @@ export default function BillingPage() {
             <strong className="block">{t("الدفع بالعملات المشفرة", "Pay with crypto")}</strong><span className="mt-1 block text-xs text-slate-400">Binance · Bybit (USDT)</span>
           </button>
         </div>
+        <p className="mt-3 text-sm font-bold text-emerald-300">🔒 {t("لا يتم تخزين أي بيانات دفع في موقعنا", "No payment data is stored on our website")}</p>
         {payCategory === "usd" && <div className="mt-3 grid gap-3">
           <button onClick={() => setPaymentMethod("paypal")} className={`rounded-xl border p-4 text-start transition ${paymentMethod === "paypal" ? "border-amber-400 bg-amber-400/10" : "border-white/10 bg-white/[.02] hover:border-white/25"}`}>
             <span className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#012169] text-sm font-black italic text-white">P</span><span><strong className="block">PayPal</strong><span className="text-xs text-slate-400">{t("دولار أمريكي · إضافة فورية تلقائية", "USD · instant automatic credit")}</span></span><span className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-slate-300"><span aria-hidden="true">🌐</span><span className="rounded bg-white px-1.5 py-px text-[9px] font-black italic tracking-wide text-[#1a1f71]">VISA</span><span className="flex items-center" aria-hidden="true"><span className="h-3.5 w-3.5 rounded-full bg-[#eb001b]/90"></span><span className="-ms-1.5 h-3.5 w-3.5 rounded-full bg-[#f79e1b]/90"></span></span>Mastercard</span></span>

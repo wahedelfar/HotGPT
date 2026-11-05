@@ -789,15 +789,16 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
       <span className="starter-copy">
         <strong>IMAGE_GEN</strong>
         <small>{tr(language, "ولّد صورتك من وصف بسيط — صورة عادية بـ3 رصيد", "Generate your image from a simple description — a normal image for 3 from your balance")}</small>
+        <small style={{ marginTop: 2, color: "#CBD5E1", fontWeight: 700 }}>{tr(language, "نموذج متخصص", "Specialized model")}</small>
       </span>
     </button>
   );
   const premiumCard = (kind: "scan" | "leak" | "seo" | "leads") => {
     const data = {
-      leads: { Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 رصيد", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 from your balance", action: onLeads },
-      scan: { Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 رصيد للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 from your balance per report", action: onScan },
-      seo: { Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 رصيد للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 from your balance per report", action: onSeo },
-      leak: { Icon: ShieldAlert, label: "LEAK_CHECK", ar: "كشف التسريب: هل إيميلك أو دومين شركتك ظهر في تسريبات البيانات؟ فحص فوري في فهارس عالمية وتقرير بالخطوات · 20 رصيد للتقرير", en: "Leak check: did your email or company domain appear in data breaches? An instant check across global indexes with an actions report · 20 from your balance per report", action: onLeak },
+      leads: { cls: "spec", Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 رصيد", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 from your balance", action: onLeads },
+      scan: { cls: "free", Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 رصيد للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 from your balance per report", action: onScan },
+      seo: { cls: "spec", Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 رصيد للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 from your balance per report", action: onSeo },
+      leak: { cls: "spec", Icon: ShieldAlert, label: "LEAK_CHECK", ar: "كشف التسريب: هل إيميلك أو دومين شركتك ظهر في تسريبات البيانات؟ فحص فوري في فهارس عالمية وتقرير بالخطوات · 20 رصيد للتقرير", en: "Leak check: did your email or company domain appear in data breaches? An instant check across global indexes with an actions report · 20 from your balance per report", action: onLeak },
     }[kind];
     const PIcon = data.Icon;
     return (
@@ -806,6 +807,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
         <span className="starter-copy">
           <strong>{data.label}{premiumBadge} {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
           <small>{tr(language, data.ar, data.en)}</small>
+          {data.cls === "free" ? <small style={{ marginTop: 2 }}><strong style={{ color: "#F6C453" }}>{tr(language, "نماذج حرة بدون قيود", "Free, unrestricted models")}</strong> <span style={{ opacity: 0.75 }}>{tr(language, "— لكتابة أي كود برمجي", "— for writing any programming code")}</span></small> : <small style={{ marginTop: 2, color: "#CBD5E1", fontWeight: 700 }}>{tr(language, "نموذج متخصص", "Specialized model")}</small>}
         </span>
       </button>
     );
