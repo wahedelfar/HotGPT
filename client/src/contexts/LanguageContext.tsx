@@ -169,7 +169,7 @@ const dictionary: Record<string, string> = {
   "تعذر التحقق من الحساب حاليًا. أعد المحاولة بعد قليل.": "Could not verify your account right now. Try again shortly.",
   "الصورة غير صالحة أو تتجاوز 700 كيلوبايت.": "The image is invalid or exceeds 700 KB.",
   "تعذر حفظ صورة الإثبات في التخزين. أعد المحاولة، وإذا تكرر الخطأ تواصل مع الإدارة.": "Could not save the proof image. Try again; contact support if the issue continues.",
-  "تم رفع الصورة لكن تعذر تسجيل طلب الدفع. لا تعِد التحويل؛ أعد إرسال الطلب أو تواصل مع الإدارة.": "The image uploaded, but the payment request could not be recorded. Do not transfer again; retry the request or contact support.",
+  "صورتك وصلتنا وطلبك متسجل عندنا — حصل بس تأخير لحظي في إتمامه. ارفع الصورة مرة كمان من غير ما تحوّل تاني وهيتم التفعيل خلال دقائق، والدعم الفني معاك ٢٤ ساعة لأي مشكلة.": "Your image reached us and your request is recorded — there was just a momentary delay completing it. Upload the image once more without paying again and activation will happen within minutes; support is with you 24/7 for any problem.",
   "اختر باقة وطريقة دفع صحيحتين.": "Choose a valid plan and payment method.",
   "تعذر إرسال طلب الدفع. تحقق من اتصالك وحاول مرة أخرى.": "Could not submit the payment request. Check your connection and try again.",
   "تم إرسال إثبات الدفع للمراجعة. ستُضاف التوكينات بعد موافقة الإدارة.": "Payment proof submitted for review. Tokens will be added after admin approval.",
