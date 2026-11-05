@@ -69,7 +69,7 @@ export default function ProfilePage() {
               <p className="mt-1 break-all font-bold">{auth.user?.email || "—"}</p>
               <div className="mt-4 flex items-center gap-3 rounded-xl border border-amber-200/20 bg-black/20 p-4">
                 <Coins className="text-amber-200" size={24}/>
-                <div><p className="text-xs text-slate-400">{t("رصيد التوكنز الحالي", "Current token balance")}</p><p className="text-2xl font-black text-amber-200">{loading ? "…" : Number(wallet?.tokenBalance || 0).toLocaleString("en-US")}</p></div>
+                <div><p className="text-xs text-slate-400">{t("رصيد اشتراكك الحالي", "Current subscription balance")}</p><p className="text-2xl font-black text-amber-200">{loading ? "…" : Number(wallet?.tokenBalance || 0).toLocaleString("en-US")}</p></div>
               </div>
             </section>
             <section className="mt-5 rounded-2xl border border-amber-200/35 bg-amber-200/[.06] p-5">

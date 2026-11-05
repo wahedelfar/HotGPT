@@ -215,7 +215,7 @@ export default function AuthPage() {
         {!recoveryMode && inviteCode && (
           <div className="mt-5 rounded-2xl border border-amber-300/40 bg-amber-300/10 p-4 text-start">
             <p className="text-sm font-bold text-amber-200">{language === "ar" ? <>حضرتك وصلت عن طريق كود الدعوة: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></> : <>You arrived via an invite code: <code dir="ltr" className="font-black text-amber-300">{inviteCode}</code></>}</p>
-            <p className="mt-1.5 text-sm leading-7 text-amber-100/90">{language === "en" ? "Welcome to our site. Enjoy your 20 free welcome tokens, and to activate the referral reward for you and your friend (25 tokens each), subscribe to any plan on the site." : egEgp ? "أهلا بيك في موقعنا. استمتع بهدية اشتراك ٢٠ جنيه، ولتفعيل جائزة الإحالة ليك ولصاحبك — ٢٥ جنيه لكل واحد — اشترك في أي باقة في الموقع" : "أهلا بيك في موقعنا. استمتع بـ٢٠ توكين هدية، ولتفعيل جائزة الإحالة ليك ولصاحبك — ٢٥ توكين لكل واحد — اشترك في أي باقة في الموقع"}</p>
+            <p className="mt-1.5 text-sm leading-7 text-amber-100/90">{language === "en" ? "Welcome to our site. Enjoy your free welcome balance of 20, and to activate the referral reward for you and your friend (25 in balance each), subscribe to any subscription plan on the site." : egEgp ? "أهلا بيك في موقعنا. استمتع بهدية اشتراك ٢٠ جنيه، ولتفعيل جائزة الإحالة ليك ولصاحبك — ٢٥ جنيه لكل واحد — اشترك في أي خطة اشتراك في الموقع" : "أهلا بيك في موقعنا. استمتع برصيد هدية ٢٠، ولتفعيل جائزة الإحالة ليك ولصاحبك — ٢٥ رصيد لكل واحد — اشترك في أي خطة اشتراك في الموقع"}</p>
           </div>
         )}
         {!recoveryMode && mode === "signup" && <label className="mt-6 block text-sm">الاسم

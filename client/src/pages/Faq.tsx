@@ -15,8 +15,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "كم تبلغ أسعار HotGPT؟",
     qEn: "How much does HotGPT cost?",
-    aAr: "الأسعار بالتوكن ومعروفة قبل ما تبعت: الرسالة العادية 1 توكن، وتحليل الملفات 3، والبحث على الويب 5، والصورة 3، وتقارير فحص الأمان والـ SEO وكشف التسريب والهندسة العكسية بسعر 20 توكين للتقرير. الباقات: 100 توكن بـ 100 جنيه، و500 بـ 300، و800 بـ 440، و1000 بـ 500. وكل حساب جديد له هدية ترحيب 20 توكن.",
-    aEn: "Pricing is in tokens and shown before you send: a normal message is 1 token, file analysis 3, web search 5, an image 3, and security, SEO audit, leak-check and reverse-engineering reports are 20 tokens per report. Packs: 100 tokens for 100 EGP, 500 for 300, 800 for 440, and 1000 for 500. Every new account gets a 20-token welcome gift.",
+    aAr: "الأسعار من رصيد اشتراكك ومعروفة قبل ما تبعت: الرسالة العادية 1، وتحليل الملفات 3، والبحث على الويب 5، والصورة 3، وتقارير فحص الأمان والـ SEO وكشف التسريب والهندسة العكسية بـ 20 للتقرير. الاشتراكات الشهرية: البداية بـ 100 جنيه، والأساسي بـ 300، والأكبر بـ 440، والشامل بـ 500. وكل حساب جديد له هدية ترحيب: رصيد 20.",
+    aEn: "Pricing comes out of your subscription balance and is shown before you send: a normal message is 1, file analysis 3, web search 5, an image 3, and security, SEO audit, leak-check and reverse-engineering reports are 20 per report. Monthly subscriptions: 100 EGP ($2), 300 EGP ($6), 440 EGP ($8), and 500 EGP ($10). Every new account gets a welcome gift balance of 20.",
   },
   {
     qAr: "كيف أدفع في HotGPT؟",
@@ -33,8 +33,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "كيف أفحص أمان موقعي؟",
     qEn: "How can I check my website's security?",
-    aAr: "ابدأ بالأساسيات اللي بتتفش من بره: هيدرز الأمان (CSP وX-Frame-Options وغيرها)، شهادة TLS وصلاحيتها، سجلات SPF وDMARC للبريد، والملفات الحساسة المكشوفة. خدمة فحص الأمان في HotGPT بتعمل الفحص ده كله من رابط موقعك وبتطلع تقريرًا بالدرجة والأدلة وخطوات الإصلاح، بسعر 20 توكن.",
-    aEn: "Start with what can be seen from outside: security headers (CSP, X-Frame-Options and others), your TLS certificate and its validity, SPF and DMARC email records, and exposed sensitive files. HotGPT's security scan runs all of these checks from your site's URL and produces a report with a score, evidence and fix steps, for 20 tokens.",
+    aAr: "ابدأ بالأساسيات اللي بتتفش من بره: هيدرز الأمان (CSP وX-Frame-Options وغيرها)، شهادة TLS وصلاحيتها، سجلات SPF وDMARC للبريد، والملفات الحساسة المكشوفة. خدمة فحص الأمان في HotGPT بتعمل الفحص ده كله من رابط موقعك وبتطلع تقريرًا بالدرجة والأدلة وخطوات الإصلاح، بـ 20 من رصيد اشتراكك.",
+    aEn: "Start with what can be seen from outside: security headers (CSP, X-Frame-Options and others), your TLS certificate and its validity, SPF and DMARC email records, and exposed sensitive files. HotGPT's security scan runs all of these checks from your site's URL and produces a report with a score, evidence and fix steps, for 20 from your subscription balance.",
   },
   {
     qAr: "كيف أبدأ تعلم الأمن السيبراني واختبار الاختراق؟",
@@ -57,8 +57,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "لماذا لا يظهر موقعي في نتائج جوجل؟",
     qEn: "Why doesn't my website appear on Google?",
-    aAr: "الأسباب الشائعة: مفيش وصف تعريفي (meta description) مناسب، أو مفيش عناوين منظمة وبيانات منظمة (schema)، أو محتوى الصفحة قليل، أو سرعة الموقع بطيئة، أو مفيش روابط داخلية وخارجية للموقع. فحص الـ SEO في HotGPT بيراجع العناصر دي من رابط موقعك ويديك تقريرًا بالنتيجة والأدلة وقائمة تنفيذ بالأولوية، بسعر 20 توكن.",
-    aEn: "Common reasons: a missing or weak meta description, no structured headings or schema data, thin page content, a slow site, or no internal and external links. HotGPT's SEO audit checks all of these from your site's URL and gives you a report with a score, evidence and a prioritized action list, for 20 tokens.",
+    aAr: "الأسباب الشائعة: مفيش وصف تعريفي (meta description) مناسب، أو مفيش عناوين منظمة وبيانات منظمة (schema)، أو محتوى الصفحة قليل، أو سرعة الموقع بطيئة، أو مفيش روابط داخلية وخارجية للموقع. فحص الـ SEO في HotGPT بيراجع العناصر دي من رابط موقعك ويديك تقريرًا بالنتيجة والأدلة وقائمة تنفيذ بالأولوية، بـ 20 من رصيد اشتراكك.",
+    aEn: "Common reasons: a missing or weak meta description, no structured headings or schema data, thin page content, a slow site, or no internal and external links. HotGPT's SEO audit checks all of these from your site's URL and gives you a report with a score, evidence and a prioritized action list, for 20 from your subscription balance.",
   },
   {
     qAr: "ما هو الدارك ويب؟ وهل تصفحه قانوني؟",
@@ -87,8 +87,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "ما هي باقة HotLucky؟",
     qEn: "What is the HotLucky pack?",
-    aAr: "باقة HotLucky: بـ 50 جنيه خد من 25 لـ 100 رسالة — تشتري الباقة وتلف العجلة، وأقل حاجة هتاخدها 25 توكن، مفيش خسارة. الجوائز بتتضاف لرصيدك فورًا وتقدر تستخدمها في أي وضع أو خدمة في الموقع.",
-    aEn: "The HotLucky pack: for 50 EGP you get between 25 and 100 messages — buy the pack and spin the wheel; the least you can get is 25 tokens, there is no losing outcome. Prizes are added to your balance instantly and can be used in any mode or service on the site.",
+    aAr: "باقة HotLucky: بـ 50 جنيه خد من 25 لـ 100 رسالة — تشتري التذكرة وتلف العجلة، وأقل حاجة هتاخدها رصيد 25، مفيش خسارة. الجوائز بتتضاف لرصيدك فورًا وتقدر تستخدمها في أي وضع أو خدمة في الموقع.",
+    aEn: "The HotLucky pack: for 50 EGP you get between 25 and 100 messages — buy the ticket and spin the wheel; the least you can get is 25 in balance, there is no losing outcome. Prizes are added to your balance instantly and can be used in any mode or service on the site.",
   },
 ];
 
@@ -96,13 +96,13 @@ function linkedAnswer(text: string, language: "ar" | "en") {
   const labels = language === "ar"
     ? [
         ["حساب جديد", "/auth"],
-        ["الباقات", "/billing"],
+        ["الاشتراك", "/billing"],
         ["سياسة الخصوصية", "/privacy"],
         ["الجوائز", "/rewards"],
       ]
     : [
         ["new account", "/auth"],
-        ["Packs", "/billing"],
+        ["Subscription", "/billing"],
         ["privacy policy", "/privacy"],
         ["Prizes", "/rewards"],
       ];

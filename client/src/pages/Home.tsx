@@ -296,7 +296,7 @@ function Sidebar({
           <Bot size={16} /> {tr(language, "النماذج", "Models")}
         </a>
         <a className="nav-item" href="/billing" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
-          <CreditCard size={16} /> {tr(language, "الباقات", "Packs")}
+          <CreditCard size={16} /> {tr(language, "الاشتراك", "Subscription")}
         </a>
         <a className="nav-item" href="/payment-guide" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "inherit" }}>
           <Coins size={16} /> {tr(language, "وسائل الدفع والاشتراك", "Payment & subscribing")}
@@ -410,9 +410,9 @@ function Sidebar({
                 <div className="profile-menu-identity">
                   <strong>{displayName}</strong>
                   <span>{email}</span>
-                  <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
+                  <a href="/billing" className="profile-token-badge"><Coins size={17} /> {tr(language, "رصيد ", "")}{walletBalance}</a>
                 </div>
-                <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
+                <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والاشتراك", "Billing & subscription")}</span></a>
                 <a role="menuitem" href="/rewards" className="profile-menu-item"><Sparkles size={19} /> <span>{tr(language, "صفحة الجوائز", "Rewards")}</span></a>
                 <a role="menuitem" href="/rewards" className="profile-menu-item"><Users size={19} /> <span>{tr(language, "إدع صديق واكسب", "Invite a friend & earn")}</span></a>
                 <button role="menuitem" className="profile-menu-item" onClick={() => { setSidebarProfileOpen(false); onSettings(); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
@@ -763,7 +763,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
   const { language } = useLanguage();
   // Unified welcome grid (Wahid, 2026-10-27): slightly smaller cards,
   // free starters interleaved with Premium services — every row pairs
-  // one of each, Premium carries a badge (+ lock under 20 tokens).
+  // one of each, Premium carries a badge (+ lock under 20 balance).
   const cardStyle: React.CSSProperties = { minHeight: 56, padding: "9px 11px" };
   const premiumBadge = (
     <span style={{ display: "inline-block", marginInlineStart: 6, padding: "1px 7px", borderRadius: 999, background: "rgba(251,191,36,.16)", border: "1px solid rgba(251,191,36,.55)", color: "#FBBF24", fontSize: 10, fontWeight: 800, verticalAlign: "2px" }}>⭐ {tr(language, "بريميوم", "Premium")}</span>
@@ -781,23 +781,23 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
     );
   };
   // Image square (Wahid, 2026-10-30): takes the NET_RECON slot in the
-  // grid and arms normal image generation (3 tokens) in the composer,
+  // grid and arms normal image generation (3 balance) in the composer,
   // exactly like choosing "Normal image" from the composer's dropdown.
   const imageCard = () => (
     <button type="button" className="starter-card hotgpt-starter-card" key="IMAGE_GEN" style={cardStyle} onClick={() => { trackFunnelEvent({ name: "starter_example_clicked", metadata: { label: "IMAGE_GEN" } }); onImage(); }}>
       <span className="starter-icon hotgpt-starter-icon"><ImageIcon size={19} /></span>
       <span className="starter-copy">
         <strong>IMAGE_GEN</strong>
-        <small>{tr(language, "ولّد صورتك من وصف بسيط — صورة عادية بـ3 توكين", "Generate your image from a simple description — a normal image for 3 tokens")}</small>
+        <small>{tr(language, "ولّد صورتك من وصف بسيط — صورة عادية بـ3 رصيد", "Generate your image from a simple description — a normal image for 3 from your balance")}</small>
       </span>
     </button>
   );
   const premiumCard = (kind: "scan" | "leak" | "seo" | "leads") => {
     const data = {
-      leads: { Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 توكين", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 tokens", action: onLeads },
-      scan: { Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 توكن للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 tokens per report", action: onScan },
-      seo: { Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 توكن للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 tokens per report", action: onSeo },
-      leak: { Icon: ShieldAlert, label: "LEAK_CHECK", ar: "كشف التسريب: هل إيميلك أو دومين شركتك ظهر في تسريبات البيانات؟ فحص فوري في فهارس عالمية وتقرير بالخطوات · 20 توكين للتقرير", en: "Leak check: did your email or company domain appear in data breaches? An instant check across global indexes with an actions report · 20 tokens per report", action: onLeak },
+      leads: { Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 رصيد", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 from your balance", action: onLeads },
+      scan: { Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 رصيد للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 from your balance per report", action: onScan },
+      seo: { Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 رصيد للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 from your balance per report", action: onSeo },
+      leak: { Icon: ShieldAlert, label: "LEAK_CHECK", ar: "كشف التسريب: هل إيميلك أو دومين شركتك ظهر في تسريبات البيانات؟ فحص فوري في فهارس عالمية وتقرير بالخطوات · 20 رصيد للتقرير", en: "Leak check: did your email or company domain appear in data breaches? An instant check across global indexes with an actions report · 20 from your balance per report", action: onLeak },
     }[kind];
     const PIcon = data.Icon;
     return (
@@ -819,16 +819,16 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
       <p style={{ margin: "8px 0 0", textAlign: "center", color: "#FBBF24", fontSize: 12.5, fontWeight: 700 }}>{language === "ar" ? "منصة عربية بدون قيود على البحث والبرمجة" : "No limits on research & programming"}</p>
       <div style={{ maxWidth: 580, margin: "10px auto 0", textAlign: "center", fontFamily: "'IBM Plex Sans Arabic', 'Space Grotesk', sans-serif" }}>
         <p style={{ margin: 0, fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>نحلّ مشاكل <span style={{ color: "#FBBF24" }}>البرمجة</span> ونراجع <span style={{ color: "#FBBF24" }}>أمان موقعك</span> ونقوّيه بتوصيات عملية.</> : <>We solve <span style={{ color: "#FBBF24" }}>coding problems</span> and review and harden <span style={{ color: "#FBBF24" }}>your site's security</span> with practical recommendations.</>}</p>
-        <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>ابدأ مجانًا ثم أكمل بباقة صغيرة: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 توكن</span> مقابل <span style={{ color: "#FBBF24" }}>100 جنيه</span>.</> : <>Start free then continue with the small pack: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 tokens</span> for <span style={{ color: "#FBBF24" }}>100 EGP</span>.</>}</p>
+        <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "clamp(12px, 1.7vw, 16px)", lineHeight: 2, color: "#FFFFFF" }}>{language === "ar" ? <>ابدأ مجانًا ثم أكمل بالاشتراك الشهري: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>100 جنيه</span> <span style={{ color: "#FBBF24" }}>في الشهر</span>.</> : <>Start free, then continue with the monthly subscription: <span style={{ color: "#FBBF24", whiteSpace: "nowrap" }}>$2</span> <span style={{ color: "#FBBF24" }}>a month</span>.</>}</p>
       </div>
       <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, maxWidth: 430, marginInline: "auto" }}>
         <button type="button" onClick={onSite} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "بناء موقع إحترافي", "Build a professional website")}</button>
         <button type="button" onClick={onReverse} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "هندسة عكسية", "Reverse Engineering")}</button>
       </div>
       <div style={{ textAlign: "center", marginTop: 10 }}>
-        <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "ابدأ بباقة 100 جنيه", "Start with the $2 pack")}</a>
+        <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "اشتراك شهري 100 جنيه", "Monthly subscription — $2")}</a>
       </div>
-      <p style={{ textAlign: "center", fontSize: 12.5, margin: "10px 0 18px", opacity: 0.9 }}>{language === "ar" ? <>باقة الـ<span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> محادثة - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> صورة - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> مواقع - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> استخراج عملاء</> : <>The <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> pack = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> chats - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> images - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> websites - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> lead extractions</>}<br />{language === "ar" ? <>الدفع <span style={{ color: "#FF1E2E", fontWeight: 800 }}>فودافون كاش</span> - <span style={{ color: "#38BDF8", fontWeight: 800 }}>إنستاباي</span> بصورة التحويل فقط.</> : <>Pay by <span style={{ color: "#FF1E2E", fontWeight: 800 }}>Vodafone Cash</span> or <span style={{ color: "#38BDF8", fontWeight: 800 }}>InstaPay</span> with just a transfer screenshot.</>}</p>
+      <p style={{ textAlign: "center", fontSize: 12.5, margin: "10px 0 18px", opacity: 0.9 }}>{language === "ar" ? <>اشتراك الـ<span style={{ color: "#F6C453", fontWeight: 800 }}>100 جنيه</span> = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> محادثة - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> صورة - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> مواقع - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> استخراج عملاء</> : <>The <span style={{ color: "#F6C453", fontWeight: 800 }}>$2</span> monthly plan = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> chats - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> images - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> websites - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> lead extractions</>}<br />{language === "ar" ? <>الدفع <span style={{ color: "#FF1E2E", fontWeight: 800 }}>فودافون كاش</span> - <span style={{ color: "#38BDF8", fontWeight: 800 }}>إنستاباي</span> بصورة التحويل فقط.</> : <>Pay by <span style={{ color: "#FF1E2E", fontWeight: 800 }}>Vodafone Cash</span> or <span style={{ color: "#38BDF8", fontWeight: 800 }}>InstaPay</span> with just a transfer screenshot.</>}</p>
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
         {starterCard(starters[0])}
         {premiumCard("leads")}
@@ -841,7 +841,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
       </div>
       {walletBalance < 20 && (
         <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
-          🔒 {tr(language, "الكروت اللي عليها ⭐ بريميوم تُفتح برصيد 20 توكن أو أكثر —", "Cards marked ⭐ Premium unlock at a balance of 20+ tokens —")}{" "}
+          🔒 {tr(language, "الكروت اللي عليها ⭐ بريميوم تُفتح برصيد اشتراك 20 أو أكثر —", "Cards marked ⭐ Premium unlock with a subscription balance of 20+ —")}{" "}
           <a href="/billing" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "اشحن رصيدك", "top up")}</a>{" "}
           {tr(language, "أو", "or")}{" "}
           <a href="/hotlucky" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "باقة HotLucky: بـ 50 جنيه خد من 25 لـ 100 رسالة", "HotLucky pack: 50 EGP gets you 25 to 100 messages")}</a>
@@ -1220,7 +1220,7 @@ export default function Home() {
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [conversationsError, setConversationsError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
-  const [approvalNotice, setApprovalNotice] = useState<{ totalTokens: number; count: number } | null>(null);
+  const [approvalNotice, setApprovalNotice] = useState<{ totalBalance: number; count: number } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [writingAssist, setWritingAssist] = useState(true);
@@ -1488,8 +1488,8 @@ export default function Home() {
         });
         if (!unseen.length || cancelled) return;
         for (const r of unseen) { try { localStorage.setItem("hotgpt.approval-acknowledged:" + r.id, "1"); } catch {} }
-        const totalTokens = unseen.reduce((sum: number, r: any) => sum + (Number(r.packageTokens) || 0), 0);
-        if (!cancelled && totalTokens > 0) setApprovalNotice({ totalTokens, count: unseen.length });
+        const totalBalance = unseen.reduce((sum: number, r: any) => sum + (Number(r.packageBalance) || 0), 0);
+        if (!cancelled && totalBalance > 0) setApprovalNotice({ totalBalance, count: unseen.length });
       } catch {}
     };
     void checkApprovals();
@@ -1712,7 +1712,7 @@ export default function Home() {
     const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : reverseMode && reverseFile ? `🧩 هندسة عكسية: ${reverseFile.name}` : "");
     if (!trimmed || isSending) return;
     if (auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0) {
-      setRequestError(tr(language, "جرّب HotGPT بـ100 توكن مقابل 100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with 100 tokens for 100 EGP — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay."));
+      setRequestError(tr(language, "جرّب HotGPT بالاشتراك الشهري بـ100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with the monthly subscription for just $2 — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay."));
       return;
     }
     if (webSearchEnabled && attachment) {
@@ -1745,7 +1745,7 @@ export default function Home() {
     const lowerDraft = trimmed.toLowerCase();
     const autoRouteSearch = !webSearchEnabled && !darkWebEnabled && !darkLiveMode && !scanMode && !seoMode && !leakMode && !reverseMode && !siteMode && !leadsMode && !imageMode && !attachment && selectedModel === "dadgpt-default" && walletBalance >= 5 && trimmed.length <= 300 && !lowerDraft.includes("http") && !ROUTE_STAY.some(w => lowerDraft.includes(w)) && ROUTE_GENERAL.some(w => lowerDraft.includes(w));
     const effectiveWebSearch = webSearchEnabled || autoRouteSearch;
-    setRouteNotice(autoRouteSearch ? tr(language, "سؤالك ده عام، هنقله لمود بحث PRO (5 توكين) عشان يجيبلك إجابة أدق بالروابط الحية.", "This is a general question, so it was moved to PRO search mode (5 tokens) for a more accurate answer with live links.") : null);
+    setRouteNotice(autoRouteSearch ? tr(language, "سؤالك ده عام، هنقله لمود بحث PRO (5 من رصيدك) عشان يجيبلك إجابة أدق بالروابط الحية.", "This is a general question, so it was moved to PRO search mode (5 from your balance) for a more accurate answer with live links.") : null);
     setIsSearchingWeb(effectiveWebSearch);
     setHasStartedStreaming(false);
     setIsThinking(false);
@@ -1792,7 +1792,7 @@ export default function Home() {
 
       if (imageMode) {
         // Image generation (user feature, 2026-10-25): the server charges a
-        // flat 3 tokens and returns the image for this session only; images
+        // flat 3 balance and returns the image for this session only; images
         // are not persisted in the database yet.
         const stickySource = !freshDesignNext && lastDesignImageRef.current ? await shrinkImageForEdit(lastDesignImageRef.current) : null;
         const effectiveSource = stickySource;
@@ -1802,7 +1802,7 @@ export default function Home() {
           const imagePayload = await imageResponse.json().catch(() => ({}));
           if (!imageResponse.ok || !imagePayload.imageDataUrl) {
             const imageErrors: Record<string, string> = {
-              insufficient_credits: imageKind === "cgi" ? tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.") : tr(language, "توليد الصورة يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 3 tokens. Your balance is not enough."),
+              insufficient_credits: imageKind === "cgi" ? tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الاشتراك — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from the Subscription page — prices are on the Models page.") : tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough."),
               image_generation_failed: tr(language, "تعذر توليد الصورة الآن. لم يُخصم الرصيد؛ حاول مرة أخرى.", "Image generation failed. No charge was made; please try again."),
               invalid_image_request: tr(language, "تعذر قراءة الصورة المراد تعديلها. ولّد صورة جديدة وحاول تعديلها.", "The image to edit could not be read. Generate a fresh image and try editing it."),
               image_not_configured: tr(language, "توليد الصور غير مُعدّ على الخادم بعد.", "Image generation is not configured on the server yet."),
@@ -1832,7 +1832,7 @@ export default function Home() {
 
       if (scanMode) {
         // URL scan (premium, 2026-10-27): the draft is the target URL.
-        // The server charges a flat 20 tokens, collects real evidence,
+        // The server charges a flat 20 balance, collects real evidence,
         // and returns the finished report; failures refund in full.
         setReportWait("scan");
         try {
@@ -1840,7 +1840,7 @@ export default function Home() {
           const scanPayload = await consumeReportResponse(scanResponse);
           if (!scanResponse.ok || !scanPayload.content) {
             const scanErrors: Record<string, string> = {
-              insufficient_credits: tr(language, "فحص الروابط يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "URL scanning costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              insufficient_credits: tr(language, "فحص الروابط يحتاج رصيد 20. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "URL scanning needs a balance of 20. Your balance is not enough; top up or grab the HotLucky pack."),
               invalid_url: tr(language, "الرابط غير صالح. اكتب رابطًا كاملًا مثل https://example.com — لم يُخصم الرصيد.", "That URL looks invalid. Enter a full URL like https://example.com — nothing was charged."),
               scan_target_not_public: tr(language, "لا يمكن فحص روابط داخلية أو محلية. جرّب موقعًا عامًا — لم يُخصم الرصيد.", "Internal or local addresses cannot be scanned. Try a public website — nothing was charged."),
               scan_target_unreachable: tr(language, "تعذر الوصول إلى هذا الموقع الآن. تأكد من الرابط وحاول مرة أخرى — لم يُخصم الرصيد.", "This website could not be reached. Check the URL and try again — nothing was charged."),
@@ -1867,7 +1867,7 @@ export default function Home() {
         // Reverse Lab (premium, 2026-11-03): the member uploads his own
         // tool/app (up to 50MB, direct to the dedicated storage bucket),
         // the server takes it apart (deep static analysis) and returns a
-        // professional developer report for a flat 20 tokens; failures
+        // professional developer report for a flat 20 balance; failures
         // and unsupported files refund in full (the server debits only
         // after real evidence exists). The binary is auto-deleted after
         // 3 days; the report stays in the conversation.
@@ -1894,7 +1894,7 @@ export default function Home() {
               reverse_file_missing: serverMsg || tr(language, "لم نجد الملف المرفوع — أعد رفعه وحاول مرة أخرى. لم يُخصم شيء.", "The uploaded file was not found — upload it again and retry. Nothing was charged."),
               unsupported_binary: serverMsg || tr(language, "الملف لا يبدو برنامجًا أو تطبيقًا قابلًا للتحليل (ندعم Windows PE وELF وAPK وDEX وMach-O) — لم يُخصم شيء.", "This file does not look like an analyzable program or app (we support Windows PE, ELF, APK, DEX and Mach-O) — nothing was charged."),
               file_too_large: serverMsg || tr(language, "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء.", "The file exceeds 50 MB — nothing was charged."),
-              insufficient_credits: tr(language, "الهندسة العكسية تحتاج إلى 20 توكين. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Reverse engineering costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              insufficient_credits: tr(language, "الهندسة العكسية تحتاج إلى 20 رصيد. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Reverse engineering needs a balance of 20. Your balance is not enough; top up or grab the HotLucky pack."),
               reverse_failed: tr(language, "تعذر إتمام تحليل الهندسة العكسية الآن. لم يُخصم الرصيد — حاول مرة أخرى.", "The reverse-engineering analysis could not be completed. Nothing was charged — please try again."),
               reverse_not_configured: tr(language, "خدمة الهندسة العكسية غير مُعدّة على الخادم بعد.", "The reverse-engineering service is not configured on the server yet."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
@@ -1920,7 +1920,7 @@ export default function Home() {
         // Leak check (premium, 2026-11-03): the report family's third
         // twin — the draft is an email or a domain, the server checks
         // real breach indexes (XposedOrNot + Have I Been Pwned) for a
-        // flat 20 tokens and returns an Arabic report with the findings
+        // flat 20 balance and returns an Arabic report with the findings
         // and the actions to take; failures refund in full.
         setReportWait("leak");
         try {
@@ -1929,7 +1929,7 @@ export default function Home() {
           if (!leakResponse.ok || !leakPayload.content) {
             const leakErrors: Record<string, string> = {
               invalid_leak_request: tr(language, "اكتب إيميلًا صحيحًا (name@company.com) أو دومينًا صحيحًا (company.com) ثم أعد المحاولة — لم يُخصم الرصيد.", "Enter a valid email (name@company.com) or domain (company.com), then try again — nothing was charged."),
-              insufficient_credits: tr(language, "كشف التسريب يحتاج إلى 20 توكين. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Leak check costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              insufficient_credits: tr(language, "كشف التسريب يحتاج إلى 20 رصيد. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Leak check needs a balance of 20. Your balance is not enough; top up or grab the HotLucky pack."),
               leak_failed: tr(language, "تعذر إتمام كشف التسريب الآن. لم يُخصم الرصيد — حاول مرة أخرى.", "The leak check could not be completed. Nothing was charged — please try again."),
               leak_not_configured: tr(language, "خدمة كشف التسريب غير مُعدّة على الخادم بعد.", "The leak check service is not configured on the server yet."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
@@ -1952,7 +1952,7 @@ export default function Home() {
 
       if (seoMode) {
         // SEO audit (premium, 2026-10-27): the scan's twin — the draft
-        // is the target URL, the server charges a flat 20 tokens,
+        // is the target URL, the server charges a flat 20 balance,
         // collects real on-page/technical evidence, and returns the
         // finished report with a growth plan; failures refund in full.
         setReportWait("seo");
@@ -1964,12 +1964,12 @@ export default function Home() {
               invalid_seo_request: tr(language, "أدخل رابط موقع صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة.", "Enter a valid website URL and make sure the conversation is valid, then try again."),
               auth_unavailable: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
               supabase_server_not_configured: tr(language, "خدمة فحص SEO غير مُعدّة على الخادم بعد.", "The SEO audit service is not configured on the server yet."),
-              insufficient_credits: tr(language, "فحص SEO يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "SEO auditing costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              insufficient_credits: tr(language, "فحص SEO يحتاج رصيد 20. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "SEO auditing needs a balance of 20. Your balance is not enough; top up or grab the HotLucky pack."),
               invalid_url: tr(language, "الرابط غير صالح. اكتب رابطًا كاملًا مثل https://example.com — لم يُخصم الرصيد.", "That URL looks invalid. Enter a full URL like https://example.com — nothing was charged."),
               seo_target_not_public: tr(language, "لا يمكن فحص روابط داخلية أو محلية. جرّب موقعًا عامًا — لم يُخصم الرصيد.", "Internal or local addresses cannot be audited. Try a public website — nothing was charged."),
               seo_target_unreachable: tr(language, "تعذر الوصول إلى هذا الموقع الآن. تأكد من الرابط وحاول مرة أخرى — لم يُخصم الرصيد.", "This website could not be reached. Check the URL and try again — nothing was charged."),
-              seo_failed: tr(language, "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.", "The report was too long to complete. Please retry; your tokens will not be charged."),
-              seo_report_length_failed: tr(language, "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.", "The report was too long to complete. Please retry; your tokens will not be charged."),
+              seo_failed: tr(language, "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.", "The report was too long to complete. Please retry; your balance will not be charged."),
+              seo_report_length_failed: tr(language, "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.", "The report was too long to complete. Please retry; your balance will not be charged."),
               seo_not_configured: tr(language, "خدمة فحص SEO غير مُعدّة على الخادم بعد.", "The SEO audit service is not configured on the server yet."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
             };
@@ -1990,7 +1990,7 @@ export default function Home() {
       if (siteMode) {
         // Website builder (premium, 2026-11-01): the draft is the site
         // description or an edit request. The server classifies from
-        // history — new build 20 tokens, edit of a completed site 10,
+        // history — new build 20 balance, edit of a completed site 10,
         // completing a cut build free — and returns the finished
         // single-file site; total failures refund in full. The mode
         // stays ON after sending so follow-ups keep editing this site.
@@ -2001,7 +2001,7 @@ export default function Home() {
           if (!siteResponse.ok || !sitePayload.content) {
             const siteErrors: Record<string, string> = {
               invalid_site_request: tr(language, "اكتب وصف الموقع أو طلب التعديل بشكل أوضح ثم أعد المحاولة.", "Describe the site or the edit more clearly, then try again."),
-              insufficient_credits: tr(language, "رصيدك غير كافٍ: بناء موقع جديد يحتاج 20 توكن، وتعديل موقع موجود يحتاج 10. اشحن أو خد باقة HotLucky.", "Your balance is not enough: a new build costs 20 tokens and an edit costs 10. Top up or grab the HotLucky pack."),
+              insufficient_credits: tr(language, "رصيدك غير كافٍ: بناء موقع جديد يحتاج رصيد 20، وتعديل موقع موجود يحتاج 10. اشحن أو خد باقة HotLucky.", "Your balance is not enough: a new build needs a balance of 20 and an edit 10. Top up or grab the HotLucky pack."),
               site_not_configured: tr(language, "خدمة بناء المواقع غير مُعدّة على الخادم بعد.", "The website builder is not configured on the server yet."),
               site_failed: tr(language, "تعذر بناء الموقع الآن. لم يُخصم من رصيدك — حاول مرة أخرى.", "The site could not be built now. Nothing was charged — please try again."),
               login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
@@ -2022,7 +2022,7 @@ export default function Home() {
       }
       if (leadsMode) {
         // Lead extraction (premium, 2026-10-29): the draft is the
-        // business type + area. The server charges a flat 20 tokens,
+        // business type + area. The server charges a flat 20 balance,
         // runs the Google Maps extraction, and returns up to 30
         // businesses; failures refund in full.
         setReportWait("leads");
@@ -2031,7 +2031,7 @@ export default function Home() {
           const leadsPayload = await leadsResponse.json().catch(() => ({}));
           if (!leadsResponse.ok || !leadsPayload.content) {
             const leadsErrors: Record<string, string> = {
-              insufficient_credits: tr(language, "استخراج العملاء يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Lead extraction costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+              insufficient_credits: tr(language, "استخراج العملاء يحتاج رصيد 20. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Lead extraction needs a balance of 20. Your balance is not enough; top up or grab the HotLucky pack."),
               invalid_leads_request: tr(language, "اكتب نوع النشاط والمنطقة بشكل أوضح — مثال: مطاعم في مدينة نصر. لم يُخصم الرصيد.", "Describe the business type and area more clearly — e.g. restaurants in Nasr City. Nothing was charged."),
               leads_no_results: tr(language, "لم يتم العثور على شركات مطابقة لبحثك. جرّب منطقة أو نشاطًا مختلفًا — تم استرداد الرصيد بالكامل.", "No matching businesses were found. Try a different area or business type — you were fully refunded."),
               leads_no_more: tr(language, "مفيش نتائج جديدة كفاية للبحث ده — تم استرداد الرصيد بالكامل. جرّب منطقة أو نشاطًا مختلفًا.", "There are not enough new results for this search — you were fully refunded. Try a different area or activity."),
@@ -2188,7 +2188,7 @@ export default function Home() {
             provider_rate_limited: "النموذج مشغول حاليًا. لم يُخصم الرصيد، حاول بعد قليل.",
             provider_request_failed: "تعذر الاتصال بالنموذج. لم يُخصم الرصيد، حاول مرة أخرى.",
             provider_empty_response: "لم يُرجع النموذج إجابة مكتملة. لم يُخصم الرصيد.",
-            insufficient_credits: "الإجابة تحتاج رصيدًا إضافيًا حسب طولها وعمقها. لم يُخصم أي رصيد عن هذه المحاولة؛ اشترِ باقة مناسبة أو جرّب طلبًا أقصر.",
+            insufficient_credits: "الإجابة تحتاج رصيدًا إضافيًا حسب طولها وعمقها. لم يُخصم أي رصيد عن هذه المحاولة؛ اشترِ اشتراكًا مناسبًا أو جرّب طلبًا أقصر.",
           };
           throw new Error(streamErrors[streamError] || "تعذر إكمال الإجابة. لم يُخصم الرصيد.");
         }
@@ -2212,7 +2212,7 @@ export default function Home() {
           rate_limited: "تم إرسال طلبات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مجددًا.",
           provider_timeout: "استغرق النموذج وقتًا أطول من المتوقع. حاول مرة أخرى.",
           provider_request_failed: "تعذر الاتصال بالنموذج حاليًا. حاول مرة أخرى بعد قليل.",
-          pro_required: "هذه الميزة متاحة للمشتركين في الباقات المدفوعة فقط. اشترك لتفعيل الوضع المطلوب.",
+          pro_required: "هذه الميزة متاحة للمشتركين في الخطط المدفوعة فقط. اشترك لتفعيل الوضع المطلوب.",
           web_search_not_configured: "البحث على الإنترنت غير مُعدّ على الخادم بعد. أضف مفتاح خدمة البحث إلى Vercel.",
           web_search_failed: "تعذر البحث على الإنترنت الآن. حاول مرة أخرى لاحقًا.",
           invalid_attachment: "تعذر إرسال الملف. تأكد أن حجمه لا يتجاوز 10 ميجابايت.",
@@ -2221,7 +2221,7 @@ export default function Home() {
           attachment_read_failed: "تعذر قراءة الملف. جرّب حفظه مرة أخرى ثم ارفعه.",
           attachment_no_text: "لم أتمكن من استخراج نص من الملف. إذا كان PDF ممسوحًا ضوئيًا كصورة، فسيحتاج إلى OCR.",
           login_required: "انتهت جلسة الدخول. سجّل الدخول ثم حاول مجددًا.",
-          insufficient_credits: attachment ? "تحليل الملفات يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة." : effectiveWebSearch ? "البحث المتقدم يحتاج إلى 5 توكينات لكل عملية. رصيدك غير كافٍ؛ اختر باقة مناسبة." : darkWebEnabled ? "تبدأ تكلفة الدارك ويب من 3 توكينات، وقد تصل إلى 9 حسب طول الإجابة وعمقها. رصيدك غير كافٍ؛ اختر باقة مناسبة." : selectedModel === "dadgpt-beast" ? "تتراوح تكلفة الوحش PRO بين 3 و9 توكينات حسب طول الإجابة وعمقها. اشترِ باقة مناسبة." : "لقد نفذ رصيدك المجاني. اختر باقتك من هنا",
+          insufficient_credits: attachment ? "تحليل الملفات يحتاج رصيد 3. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا." : effectiveWebSearch ? "البحث المتقدم يحتاج إلى 5 من رصيدك لكل عملية. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا." : darkWebEnabled ? "تبدأ تكلفة الدارك ويب من 3 رصيد، وقد تصل إلى 9 حسب طول الإجابة وعمقها. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا." : selectedModel === "dadgpt-beast" ? "تتراوح تكلفة الوحش PRO بين 3 و9 رصيد حسب طول الإجابة وعمقها. اشترِ اشتراكًا مناسبًا." : "لقد نفذ رصيدك المجاني. اختر اشتراكك من هنا",
           billing_unavailable: "تعذر التحقق من رصيدك حاليًا. حاول بعد قليل.",
           conversations_unavailable: "تعذر حفظ المحادثة في قاعدة البيانات.",
         };
@@ -2231,7 +2231,7 @@ export default function Home() {
       if (payload.liveSearch === "unavailable") {
         setRequestError(tr(language, "البحث الحي في الدارك ويب لم يُرجع نتائج لهذا الاستعلام — تمت الإجابة من المعرفة العامة ولم يُخصم رسم البحث الحي.", "Live dark-web search returned no results for this query — answered from general knowledge; the live fee was not charged."));
       } else if (payload.liveSearch === "locked") {
-        setRequestError(tr(language, "البحث الحي في الدارك ويب يحتاج رصيد 20 توكن أو أكثر.", "Live dark-web search needs a balance of 20+ tokens."));
+        setRequestError(tr(language, "البحث الحي في الدارك ويب يحتاج رصيد اشتراك 20 أو أكثر.", "Live dark-web search needs a subscription balance of 20+."));
       }
       if (typeof payload.wallet?.freeAnswersRemaining === "number") setFreeAnswersRemaining(Math.max(0, payload.wallet.freeAnswersRemaining));
       const finalAssistantContent = payload.content!;
@@ -2302,7 +2302,7 @@ export default function Home() {
       const morePayload = await moreResponse.json().catch(() => ({}));
       if (!moreResponse.ok || !morePayload.content) {
         const moreErrors: Record<string, string> = {
-          insufficient_credits: tr(language, "استخراج المزيد يحتاج إلى 20 توكن. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Extracting more costs 20 tokens. Your balance is not enough; top up or grab the HotLucky pack."),
+          insufficient_credits: tr(language, "استخراج المزيد يحتاج رصيد 20. رصيدك غير كافٍ؛ اشحن أو خد باقة HotLucky.", "Extracting more needs a balance of 20. Your balance is not enough; top up or grab the HotLucky pack."),
           leads_no_more: tr(language, "مفيش نتائج جديدة كفاية للبحث ده — تم استرداد الرصيد بالكامل. جرّب منطقة أو نشاطًا مختلفًا.", "There are not enough new results for this search — you were fully refunded. Try a different area or activity."),
           leads_failed: tr(language, "تعذر إتمام الاستخراج الآن. تم استرداد الرصيد بالكامل؛ حاول مرة أخرى.", "The extraction could not be completed. You were fully refunded; please try again."),
           leads_not_configured: tr(language, "خدمة استخراج العملاء غير مُعدّة على الخادم بعد.", "The lead extraction service is not configured on the server yet."),
@@ -2356,7 +2356,7 @@ export default function Home() {
     setMessages(current => current.map(m => m.id === target.id ? { ...m, continuationDisabled: true, continuationLabel: tr(language, "جارٍ الإكمال...", "Continuing...") } : m));
     try {
       const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ continueMessageId: target.id, stream: true, mode: darkLiveMode ? "darklive" : darkWebEnabled ? "darkweb" : (webSearchEnabled || selectedModel === "dadgpt-beast") ? "Beast pro" : "default" }), signal: AbortSignal.timeout(120000) });
-      if (!response.ok) { const err = await response.json().catch(() => ({})); if (response.status === 402 || err.error === "insufficient_credits") { if (typeof err.user_credits === "number") setWalletBalance(err.user_credits); throw new Error(tr(language, `الرصيد غير كافٍ لإكمال الشرح؛ تحتاج إلى ${contCost} توكن.`, `Not enough credits to continue; ${contCost} credits are required.`)); } throw new Error(String(err.error || "تعذر إكمال الشرح.")); }
+      if (!response.ok) { const err = await response.json().catch(() => ({})); if (response.status === 402 || err.error === "insufficient_credits") { if (typeof err.user_credits === "number") setWalletBalance(err.user_credits); throw new Error(tr(language, `الرصيد غير كافٍ لإكمال الشرح؛ تحتاج إلى ${contCost} رصيد.`, `Not enough credits to continue; ${contCost} credits are required.`)); } throw new Error(String(err.error || "تعذر إكمال الشرح.")); }
       let payload: any = {}, pending = "";
       if (response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
         const reader = response.body.getReader(), decoder = new TextDecoder();
@@ -2589,7 +2589,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           <div className="topbar-actions hotgpt-topbar-actions">
             {walletBalance > 0 && (
               <>
-                <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance} توكن`, `Balance: ${walletBalance} tokens`)}>
+                <a href="/billing" className="token-balance" aria-label={tr(language, `الرصيد: ${walletBalance}`, `Balance: ${walletBalance}`)}>
                   <Coins size={20} /><span>{walletBalance}</span>
                 </a>
 
@@ -2616,11 +2616,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       <div className="profile-menu-identity">
                         <strong>{auth.user?.name || tr(language, "المستخدم", "User")}</strong>
                         <span>{auth.user?.email}</span>
-                        <a href="/billing" className="profile-token-badge"><Coins size={17} /> {walletBalance} {tr(language, "توكن", "tokens")}</a>
+                        <a href="/billing" className="profile-token-badge"><Coins size={17} /> {tr(language, "رصيد ", "")}{walletBalance}</a>
 
                       </div>
                       <a role="menuitem" href="/billing" className="profile-menu-item"><Crown size={19} /> <span>{tr(language, "الترقية إلى Pro", "Upgrade to Pro")}</span></a>
-                      <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والباقات", "Billing & plans")}</span></a>
+                      <a role="menuitem" href="/billing" className="profile-menu-item"><CreditCard size={19} /> <span>{tr(language, "الفوترة والاشتراك", "Billing & subscription")}</span></a>
                       <a role="menuitem" href="/rewards" className="profile-menu-item"><Users size={19} /> <span>{tr(language, "إدع صديق واكسب", "Invite a friend & earn")}</span></a>
                       <button role="menuitem" className="profile-menu-item" onClick={() => { setProfileMenuOpen(false); setActiveView("settings"); }}><Settings size={19} /> <span>{tr(language, "الإعدادات", "Settings")}</span></button>
                       <button role="menuitem" className="profile-menu-item profile-menu-logout" onClick={handleLogout}><LogOut size={19} /> <span>{tr(language, "تسجيل الخروج", "Sign out")}</span></button>
@@ -2681,7 +2681,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onScan={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2694,7 +2694,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onSeo={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2708,7 +2708,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onLeak={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2722,7 +2722,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onSite={() => {
                     if (walletBalance < 10) {
-                      setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج 20 توكن والتعديل 10. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Website building is Premium: a new build needs 20 tokens and an edit 10. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج رصيد 20 والتعديل 10. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Website building is Premium: a new build needs a balance of 20 and an edit 10. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2738,7 +2738,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onReverse={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2757,7 +2757,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onLeads={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
                     setRequestError(null);
@@ -2773,7 +2773,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onImage={() => {
                     if (walletBalance < 3) {
-                      setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 3 tokens. Your balance is not enough."));
+                      setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough."));
                       return;
                     }
                     setRequestError(null);
@@ -2792,7 +2792,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   }}
                   onDarkLive={() => {
                     if (walletBalance < 20) {
-                      setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Live dark-web search is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2."));
+                      setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Live dark-web search is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
                     if (!requireProFeature("darkweb")) return;
@@ -2831,9 +2831,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 </div>
               )}
             </div>
-            {auth.isAuthenticated && walletBalance <= 1 && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="mx-auto mb-3 flex w-full max-w-[760px] flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,.45)]"><p className="min-w-0 flex-1 text-sm leading-6 text-[#f5e7c8]">{tr(language, "جرّب HotGPT بـ100 توكن مقابل 100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with 100 tokens for 100 EGP — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay.")}</p><a href="/billing?pack=100" className="shrink-0 rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-5 py-2 text-sm font-black text-[#231300] shadow-[0_8px_22px_rgba(232,160,32,.35)]">{tr(language, "شراء باقة 100 توكن", "Buy the 100-token pack")}</a></div>}
-            {approvalNotice && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="fixed left-1/2 top-24 z-[70] w-[min(92vw,430px)] -translate-x-1/2 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)]"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Coins size={18} /></span><div className="min-w-0 flex-1"><strong className="block text-[15px] text-[#f3d27a]">{tr(language, "تم شحن رصيدك بنجاح", "Your balance was topped up")}</strong><p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{approvalNotice.count > 1 ? tr(language, `تمت الموافقة على ${approvalNotice.count} من طلبات الشحن، وأُضيف مجموع ${approvalNotice.totalTokens.toLocaleString("en-US")} توكين إلى حسابك.`, `${approvalNotice.count} top-up requests were approved — a total of ${approvalNotice.totalTokens.toLocaleString("en-US")} tokens was added to your account.`) : tr(language, `تمت الموافقة على طلب الشحن، وأُضيف ${approvalNotice.totalTokens.toLocaleString("en-US")} توكين إلى حسابك.`, `Your top-up was approved — ${approvalNotice.totalTokens.toLocaleString("en-US")} tokens were added to your account.`)}</p></div><button className="icon-button shrink-0" onClick={() => setApprovalNotice(null)} aria-label={tr(language, "إخفاء التنبيه", "Dismiss notification")}><X size={15} /></button></div></div>}
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر باقتك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر باقتك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("المشتركين في الباقات المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الباقات المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الباقات والاشتراك", "View plans and subscribe")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
+            {auth.isAuthenticated && walletBalance <= 1 && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="mx-auto mb-3 flex w-full max-w-[760px] flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,.45)]"><p className="min-w-0 flex-1 text-sm leading-6 text-[#f5e7c8]">{tr(language, "جرّب HotGPT بالاشتراك الشهري بـ100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with the monthly subscription for just $2 — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay.")}</p><a href="/billing?pack=100" className="shrink-0 rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-5 py-2 text-sm font-black text-[#231300] shadow-[0_8px_22px_rgba(232,160,32,.35)]">{tr(language, "اشتراك شهري بـ100 جنيه", "Subscribe monthly for $2")}</a></div>}
+            {approvalNotice && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="fixed left-1/2 top-24 z-[70] w-[min(92vw,430px)] -translate-x-1/2 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)]"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Coins size={18} /></span><div className="min-w-0 flex-1"><strong className="block text-[15px] text-[#f3d27a]">{tr(language, "تم شحن رصيدك بنجاح", "Your balance was topped up")}</strong><p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{approvalNotice.count > 1 ? tr(language, `تمت الموافقة على ${approvalNotice.count} من طلبات الشحن، وأُضيف مجموع ${approvalNotice.totalBalance.toLocaleString("en-US")} رصيد إلى حسابك.`, `${approvalNotice.count} top-up requests were approved — a total of ${approvalNotice.totalBalance.toLocaleString("en-US")} balance was added to your account.`) : tr(language, `تمت الموافقة على طلب الشحن، وأُضيف ${approvalNotice.totalBalance.toLocaleString("en-US")} رصيد إلى حسابك.`, `Your top-up was approved — ${approvalNotice.totalBalance.toLocaleString("en-US")} balance were added to your account.`)}</p></div><button className="icon-button shrink-0" onClick={() => setApprovalNotice(null)} aria-label={tr(language, "إخفاء التنبيه", "Dismiss notification")}><X size={15} /></button></div></div>}
+            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفذ رصيدك المجاني. اختر اشتراكك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر اشتراكك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("للمشتركين في الخطط المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الخطط المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الاشتراكات", "View subscriptions")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
               {showScrollDown && (
                 <button type="button" className="scroll-to-bottom-btn" aria-label={tr(language, "انزل لآخر المحادثة", "Jump to latest")} title={tr(language, "انزل لآخر المحادثة", "Jump to latest")} onClick={() => { stickToBottomRef.current = true; setShowScrollDown(false); scrollMessagesToBottom(); }}>
@@ -2903,7 +2903,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 ))}
                 {imageMode && messages.some(m => m.imageUrl) && (
                   <div className="attachment-cost-note" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span>{freshDesignNext ? tr(language, "🎨 الطلب الجاي: تصميم جديد من الصفر (3 توكين — وCGI بـ 10).", "🎨 Next request: a brand-new design from scratch (3 tokens — CGI 10).") : tr(language, "🎨 طلبك الجاي: تعديل على آخر صورة (3 توكين — وCGI بـ 10).", "🎨 Next request: an edit of the last image (3 tokens — CGI 10).")}</span>
+                    <span>{freshDesignNext ? tr(language, "🎨 الطلب الجاي: تصميم جديد من الصفر (3 رصيد — وCGI بـ 10).", "🎨 Next request: a brand-new design from scratch (3 from balance — CGI 10).") : tr(language, "🎨 طلبك الجاي: تعديل على آخر صورة (3 رصيد — وCGI بـ 10).", "🎨 Next request: an edit of the last image (3 from balance — CGI 10).")}</span>
                     <button type="button" onClick={() => setFreshDesignNext(v => !v)} style={{ color: "#F6C453", fontWeight: 700 }}>{freshDesignNext ? tr(language, "لا — عدّل على آخر صورة", "No — edit the last image") : tr(language, "تصميم جديد من الصفر", "New design from scratch")}</button>
                   </div>
                 )}
@@ -2911,7 +2911,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
                     <span>{tr(language, "بحث", "Search")}</span><span>PRO</span>
                   </button>
-                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setReverseMode(false); setReverseFile(null); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 توكن", "Scan a URL — full security report · 20 tokens")}>
+                  <button type="button" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setReverseMode(false); setReverseFile(null); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 رصيد", "Scan a URL — full security report · 20 balance")}>
                     <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
                   </button>
                   <button type="button" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
@@ -2921,10 +2921,10 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     <>
                       <div onClick={() => setImageMenuPos(null)} style={{ position: "fixed", inset: 0, zIndex: 900 }} />
                       <div role="menu" dir={language === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", left: imageMenuPos.left, bottom: imageMenuPos.bottom, zIndex: 901, minWidth: 200, background: "#1A0505", border: "1px solid rgba(201,162,39,.55)", borderRadius: 12, padding: 6, boxShadow: "0 18px 50px rgba(0,0,0,.55)" }}>
-                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 3) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 توكينات. رصيدك غير كافٍ؛ اختر باقة مناسبة.", "Image generation costs 3 tokens. Your balance is not enough.")); return; } setRequestError(null); setImageKind("normal"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
+                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 3) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough.")); return; } setRequestError(null); setImageKind("normal"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
                           <ImageIcon size={15} /><span>{tr(language, "صورة عادية", "Normal image")}</span>
                         </button>
-                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الباقات — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from Plans — prices are on the Models page.")); return; } setRequestError(null); setImageKind("cgi"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
+                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الاشتراك — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from the Subscription page — prices are on the Models page.")); return; } setRequestError(null); setImageKind("cgi"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
                           <Sparkles size={15} style={{ color: "#FBBF24" }} /><span>{tr(language, "صورة CGI", "CGI image")}</span>
                         </button>
                       </div>
@@ -2934,7 +2934,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false);
                     if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
                     if (!requireProFeature("beast")) return;
-                    if (walletBalance < 3) { setRequestError(tr(language, "تحتاج إلى 3 توكينات على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 توكينات).", "At least 3 tokens are required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 tokens).")); return; }
+                    if (walletBalance < 3) { setRequestError(tr(language, "تحتاج رصيد 3 على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 من رصيدك).", "A balance of at least 3 is required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 from your balance).")); return; }
                     setRequestError(null); setSelectedModel("dadgpt-beast");
                   }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "الوحش PRO", "الوحش PRO")}>
                     <span>{tr(language, "الوحش", "Beast")}</span><span>PRO</span>
@@ -2944,28 +2944,28 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
                     <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
                   </button>
-                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setReverseMode(false); setReverseFile(null); setLeakMode(false); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 توكن", "SEO audit — full report with a growth plan · 20 tokens")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
+                  <button type="button" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setReverseMode(false); setReverseFile(null); setLeakMode(false); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 رصيد", "SEO audit — full report with a growth plan · 20 balance")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
                     <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={leakMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode} title={tr(language, "كشف التسريب — هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 توكين", "Leak check — did your email or domain appear in data breaches? · 20 tokens")} style={{ color: "#F87171", ...(leakMode ? { borderColor: "#F87171", background: "rgba(248,113,113,.12)", boxShadow: "0 0 10px rgba(248,113,113,.28)" } : {}) }}>
+                  <button type="button" className={leakMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode} title={tr(language, "كشف التسريب — هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 رصيد", "Leak check — did your email or domain appear in data breaches? · 20 balance")} style={{ color: "#F87171", ...(leakMode ? { borderColor: "#F87171", background: "rgba(248,113,113,.12)", boxShadow: "0 0 10px rgba(248,113,113,.28)" } : {}) }}>
                     <ShieldAlert size={16} /><span style={{ fontSize: 11 }}>{tr(language, "التسريبات", "Leaks")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد 20 توكن أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 توكن", "Lead extraction — business data from Google Maps · 20 tokens")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
+                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 رصيد", "Lead extraction — business data from Google Maps · 20 balance")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
                     <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={reverseMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد 20 توكين أو أكثر. اشحن من صفحة الباقات أو خد باقة HotLucky. عندنا أرخص باقة استخدام بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a balance of 20+ tokens. Top up from Plans or grab the HotLucky pack. We have the cheapest usage pack at just 100 EGP or $2.")); return; } setRequestError(null); setReverseMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={reverseMode} title={tr(language, "هندسة عكسية — ارفع برنامجك أو تطبيقك والمنصة تفكّه وتحلّله · 20 توكين", "Reverse engineering — upload your program or app and the platform takes it apart · 20 tokens")} style={{ color: "#A78BFA", ...(reverseMode ? { borderColor: "#A78BFA", background: "rgba(167,139,250,.12)", boxShadow: "0 0 10px rgba(167,139,250,.28)" } : {}) }}>
+                  <button type="button" className={reverseMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setReverseMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={reverseMode} title={tr(language, "هندسة عكسية — ارفع برنامجك أو تطبيقك والمنصة تفكّه وتحلّله · 20 رصيد", "Reverse engineering — upload your program or app and the platform takes it apart · 20 balance")} style={{ color: "#A78BFA", ...(reverseMode ? { borderColor: "#A78BFA", background: "rgba(167,139,250,.12)", boxShadow: "0 0 10px rgba(167,139,250,.28)" } : {}) }}>
                     <Cpu size={16} /><span style={{ fontSize: 11 }}>{tr(language, "العكسية", "Reverse")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
               </div>
-              {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 فحص أمني كامل للرابط من بيانات حقيقية — 20 توكن، واسترداد كامل لو تعذّر الفحص. للأغراض الدفاعية والبحثية فقط.", "🔍 A full security scan of the URL from real collected data — 20 tokens, fully refunded if the scan cannot run. For defensive and research purposes only.")}</div>}
-              {seoMode && <div className="attachment-cost-note">{tr(language, "📈 تقرير SEO كامل بخطة نمو من بيانات حقيقية — 20 توكن، واسترداد كامل لو تعذّر الفحص.", "📈 A full SEO report with a growth plan from real collected data — 20 tokens, fully refunded if the audit cannot run.")}</div>}
+              {scanMode && <div className="attachment-cost-note">{tr(language, "🔍 فحص أمني كامل للرابط من بيانات حقيقية — 20 رصيد، واسترداد كامل لو تعذّر الفحص. للأغراض الدفاعية والبحثية فقط.", "🔍 A full security scan of the URL from real collected data — 20 balance, fully refunded if the scan cannot run. For defensive and research purposes only.")}</div>}
+              {seoMode && <div className="attachment-cost-note">{tr(language, "📈 تقرير SEO كامل بخطة نمو من بيانات حقيقية — 20 رصيد، واسترداد كامل لو تعذّر الفحص.", "📈 A full SEO report with a growth plan from real collected data — 20 balance, fully refunded if the audit cannot run.")}</div>}
               {routeNotice && <div className="attachment-cost-note">{routeNotice}</div>}
-              {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 فحص إيميلك أو دومينك في فهارس التسريبات العالمية + تقرير بالخطوات — 20 توكن، واسترداد كامل لو تعذّر الفحص. افحص بياناتك فقط.", "🔐 We check your email or domain across global breach indexes and report the findings and next steps — 20 tokens, fully refunded if the check cannot run. Only check your own data.")}</div>}
-              {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 بيانات لحد 30 شركة من خرائط جوجل (اسم وتليفون وعنوان وتقييم) — 20 توكن، واسترداد كامل لو تعذّر الاستخراج.", "📇 Data for up to 30 businesses from Google Maps (name, phone, address, rating) — 20 tokens, fully refunded if the extraction cannot run.")}</div>}
-              {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 فكّ وتحليل ملفك (حتى 50 ميجا): بنية وقدرات وحماية وخارطة عمل — 20 توكن واسترداد كامل عند الفشل. الملف يُحذف بعد 3 أيام ويبقى التقرير.", "🧩 We take your file apart (up to 50 MB): structure, capabilities, protections and a work plan — 20 tokens, fully refunded on failure. The file is deleted after 3 days; the report stays.")}</div>}
+              {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 فحص إيميلك أو دومينك في فهارس التسريبات العالمية + تقرير بالخطوات — 20 رصيد، واسترداد كامل لو تعذّر الفحص. افحص بياناتك فقط.", "🔐 We check your email or domain across global breach indexes and report the findings and next steps — 20 balance, fully refunded if the check cannot run. Only check your own data.")}</div>}
+              {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 بيانات لحد 30 شركة من خرائط جوجل (اسم وتليفون وعنوان وتقييم) — 20 رصيد، واسترداد كامل لو تعذّر الاستخراج.", "📇 Data for up to 30 businesses from Google Maps (name, phone, address, rating) — 20 balance, fully refunded if the extraction cannot run.")}</div>}
+              {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 فكّ وتحليل ملفك (حتى 50 ميجا): بنية وقدرات وحماية وخارطة عمل — 20 رصيد واسترداد كامل عند الفشل. الملف يُحذف بعد 3 أيام ويبقى التقرير.", "🧩 We take your file apart (up to 50 MB): structure, capabilities, protections and a work plan — 20 balance, fully refunded on failure. The file is deleted after 3 days; the report stays.")}</div>}
               {darkWebEnabled && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
-              {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 توكينات.", "File analysis costs 3 tokens.")}</div>}
+              {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 من رصيدك.", "File analysis costs 3 balance.")}</div>}
               <div className="composer-footer">
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>
               </div>
@@ -2976,7 +2976,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           <nav className="home-footer-links">
             <a href="/about">{tr(language, "من نحن", "About us")}</a>
             <a href="/models">{tr(language, "نماذجنا", "Our models")}</a>
-            <a href="/billing">{tr(language, "الباقات", "Plans")}</a>
+            <a href="/billing">{tr(language, "الاشتراك", "Subscription")}</a>
             <a href="/faq">{tr(language, "الأسئلة الشائعة", "FAQ")}</a>
             <a href="/payment-guide">{tr(language, "وسائل الدفع والاشتراك", "Payment & subscribing")}</a>
             <a href="/rewards">{tr(language, "الجوائز", "Rewards")}</a>
@@ -2998,10 +2998,10 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <h2 id="hotlucky-win-title" style={{fontSize:25,fontWeight:950,lineHeight:1.5,margin:"12px 0"}}>🎉 مبروك يا بطل!</h2>
             <p style={{fontSize:17,lineHeight:1.9,color:"#f5f5f5"}}>كسبت <strong style={{color:"#f7cf65"}}>{hotLuckyPrize.label}</strong> من HotLucky</p>
             {(/Pro|Ultra/i.test(hotLuckyPrize.label) && hotLuckyPrize.date) && <p style={{fontSize:13,color:"#d5d5d5",marginTop:4}}>ينتهي في {new Date(new Date(hotLuckyPrize.date).getTime() + (/7 أيام|7 ايام/.test(hotLuckyPrize.label) ? 7 : 30) * 86400000).toLocaleDateString("ar-EG",{timeZone:"Africa/Cairo"})}</p>}
-            <p style={{marginTop:14,padding:"12px",borderRadius:14,border:"1px solid rgba(247,207,101,.25)",background:"rgba(247,207,101,.06)",color:"#f7cf65",fontSize:15,fontWeight:800}}>رصيدك الآن: {walletBalance.toLocaleString("en-US")} توكن</p>
+            <p style={{marginTop:14,padding:"12px",borderRadius:14,border:"1px solid rgba(247,207,101,.25)",background:"rgba(247,207,101,.06)",color:"#f7cf65",fontSize:15,fontWeight:800}}>رصيدك الآن: {walletBalance.toLocaleString("en-US")}</p>
             <CheapestLine />
             <div style={{display:"flex",gap:10,marginTop:20}}>
-              <button type="button" onClick={() => { setShowWinModal(false); window.setTimeout(() => { document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(); document.querySelector(".composer")?.scrollIntoView({behavior:"smooth",block:"center"}); },100); }} style={{flex:1,borderRadius:12,padding:"12px 10px",background:"linear-gradient(90deg,#f7cf65,#e8ad28)",color:"#111",fontWeight:900}}>استخدم توكنزك الآن</button>
+              <button type="button" onClick={() => { setShowWinModal(false); window.setTimeout(() => { document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(); document.querySelector(".composer")?.scrollIntoView({behavior:"smooth",block:"center"}); },100); }} style={{flex:1,borderRadius:12,padding:"12px 10px",background:"linear-gradient(90deg,#f7cf65,#e8ad28)",color:"#111",fontWeight:900}}>استخدم رصيدك الآن</button>
               <button type="button" onClick={() => { try { localStorage.setItem("hotlucky-win-acknowledged:" + (hotLuckyPrize.code || ""), "1"); } catch {} setShowWinModal(false); }} style={{borderRadius:12,padding:"12px 20px",background:"#292929",border:"1px solid #444",color:"#eee",fontWeight:800}}>شكراً</button>
             </div>
           </section>
@@ -3016,7 +3016,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <h2 id="visitor-modal-title">{tr(language, "أهلًا بك في HOT GPT", "Welcome to HOT GPT")}</h2>
             <p className="welcome-modal-lead">{tr(language, "سجّل الدخول أو أنشئ حسابًا للمتابعة.", "Log in or create an account to continue.")}</p>
             <CheapestLine />
-            <p style={{ marginTop: 12, textAlign: "center", color: "#FFFFFF", fontSize: 13.5, fontWeight: 800 }}>{language === "en" ? "✅ Registration is free — start with 20 welcome tokens" : egEgp ? "✅ التسجيل مجاني — ابدأ بهدية اشتراك ٢٠ جنيه" : "✅ التسجيل مجاني — ابدأ بـ ٢٠ توكين هدية ترحيب"}</p>
+            <p style={{ marginTop: 12, textAlign: "center", color: "#FFFFFF", fontSize: 13.5, fontWeight: 800 }}>{language === "en" ? "✅ Registration is free — start with a welcome gift balance of 20" : egEgp ? "✅ التسجيل مجاني — ابدأ بهدية اشتراك ٢٠ جنيه" : "✅ التسجيل مجاني — ابدأ برصيد هدية ترحيب ٢٠"}</p>
             <a href="/auth?mode=login" className="welcome-modal-cta">{tr(language, "تسجيل الدخول", "Log in")}</a>
             <a href="/auth?mode=signup" className="welcome-modal-cta visitor-signup-cta">{tr(language, "إنشاء حساب", "Create account")}</a>
           </section>
@@ -3029,11 +3029,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <div style={{fontSize:34,marginBottom:8}}>🌐</div>
             <div style={{fontSize:14,fontWeight:800,color:"#FBBF24",marginBottom:10}}>Free Internet</div>
             <h2 id="free-usage-title" style={{fontSize:21,fontWeight:900,color:"#FBBF24",margin:"0 0 12px"}}>{tr(language,"انتهى استخدامك المجاني","Free usage ended")}</h2>
-            <p style={{fontSize:15,lineHeight:1.9,color:"#FFFFFF",margin:"0 0 22px"}}>{tr(language,"للأسف، استخدامك المجاني خلص. بس عندنا مكافآت وهدايا وباقات من أول 100 جنيه.","Sorry, your free usage has ended. But we have rewards, gifts and plans starting from just $2.")}</p>
+            <p style={{fontSize:15,lineHeight:1.9,color:"#FFFFFF",margin:"0 0 22px"}}>{tr(language,"للأسف، استخدامك المجاني خلص. بس عندنا مكافآت وهدايا واشتراكات من أول 100 جنيه.","Sorry, your free usage has ended. But we have rewards, gifts and plans starting from just $2.")}</p>
             <CheapestLine />
             <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:14}}>
               <a href="/rewards" style={{display:"block",borderRadius:11,padding:"13px 16px",background:"#FBBF24",color:"#1A0505",fontWeight:900,textDecoration:"none"}}>{tr(language,"صفحة الجوائز","Rewards")}</a>
-              <a href="/billing" style={{display:"block",borderRadius:11,padding:"13px 16px",background:"#DC2626",color:"#FFFFFF",fontWeight:900,textDecoration:"none"}}>{tr(language,"صفحة الباقات","Plans")}</a>
+              <a href="/billing" style={{display:"block",borderRadius:11,padding:"13px 16px",background:"#DC2626",color:"#FFFFFF",fontWeight:900,textDecoration:"none"}}>{tr(language,"صفحة الاشتراك","Subscription")}</a>
             </div>
           </section>
         </div>
@@ -3045,7 +3045,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <div className="welcome-modal-brand"><BrandMark compact /></div>
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
             <h2 id="welcome-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
-            {welcomeGiftJustGranted && <p className="welcome-modal-lead">{language === "en" ? "🎁 Congratulations! A 20-token welcome gift just landed in your balance — build a full website, scan your site's security, or have 20 chats." : egEgp ? "🎁 مبروك! كسبت هدية اشتراك ٢٠ جنيه — ٢٠ توكين وصلت رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة." : "🎁 مبروك! كسبت هدية اشتراك ٢٠ توكين — وصلت رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة."}</p>}
+            {welcomeGiftJustGranted && <p className="welcome-modal-lead">{language === "en" ? "🎁 Congratulations! A welcome gift balance of 20 just landed in your account — build a full website, scan your site's security, or have 20 chats." : egEgp ? "🎁 مبروك! كسبت هدية اشتراك ٢٠ جنيه وصلت رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة." : "🎁 مبروك! كسبت هدية اشتراك: رصيد ٢٠ وصل رصيدك: ابنِ موقع كامل، أو افحص أمان موقعك، أو اعمل ٢٠ محادثة."}</p>}
             <CheapestLine />
             {!termsAccepted && (
               <div style={{ marginTop: 16, textAlign: "center" }}>
@@ -3066,7 +3066,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             {termsAccepted && (
             <div className="post-login-welcome-actions">
               <a href="/rewards" className="post-login-rewards-cta">{tr(language, "🎁 صفحة الجوائز", "🎁 Rewards")}</a>
-              <a href="/billing" className="post-login-plans-cta">{tr(language, "💎 صفحة الباقات", "💎 Plans")}</a>
+              <a href="/billing" className="post-login-plans-cta">{tr(language, "💎 صفحة الاشتراك", "💎 Subscription")}</a>
             </div>
             )}
           </section>

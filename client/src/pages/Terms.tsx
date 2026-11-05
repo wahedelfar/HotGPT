@@ -24,9 +24,9 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    h: ["٣. التوكنات", "3. Tokens"],
+    h: ["٣. رصيد الاشتراك", "3. Subscription balance"],
     p: [
-      "التوكن هو رصيد رقمي داخلي يُستهلك مقابل الإجراءات داخل المنصة بالأسعار المعلنة قبل التنفيذ (رسالة، بحث، صورة، مرحلة إجابة، تقرير فحص، وغيرها). التوكنات ليست نقودًا، ولا تُحوَّل بين الحسابات، ولا تُستبدل بنقد بأي صورة. هدية الترحيب (٥ توكنات) تُمنح مرة واحدة لكل حساب عند أول استخدام.",
+      "رصيد الاشتراك هو رصيد رقمي داخلي يُستهلك مقابل الإجراءات داخل المنصة بالأسعار المعلنة قبل التنفيذ (رسالة، بحث، صورة، مرحلة إجابة، تقرير فحص، وغيرها). الرصيد ليس نقودًا، ولا يُحوَّل بين الحسابات، ولا يُستبدل بنقد بأي صورة. هدية الترحيب تُمنح مرة واحدة لكل حساب عند أول استخدام.",
       "A token is an internal digital credit consumed by in-platform actions at the prices published before execution (a message, a search, an image, an answer stage, a scan report, and others). Tokens are not money, are not transferable between accounts, and are never redeemable for cash. The welcome gift (5 tokens) is granted once per account on first use.",
     ],
   },
@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
   {
     h: ["٧. مسؤولية الاستخدام", "7. Liability for use"],
     p: [
-      "تنطبق هذه المادة على جميع خدمات HotGPT وباقاتها. تُقدَّم الخدمة كما هي، كأداة ذكاء اصطناعي عامة، والمستخدم وحده مسؤول قانونيًا عن كل طلب يرسله وعن أي استخدام أو نشر أو تنفيذ لمخرجات الخدمة، ولا تتحمل المنصة أي مسؤولية عن استخدام يخالف قوانين بلد المستخدم. استمرارك في الاستخدام يعني قبولك بهذا البند.",
+      "تنطبق هذه المادة على جميع خدمات HotGPT واشتراكاتها. تُقدَّم الخدمة كما هي، كأداة ذكاء اصطناعي عامة، والمستخدم وحده مسؤول قانونيًا عن كل طلب يرسله وعن أي استخدام أو نشر أو تنفيذ لمخرجات الخدمة، ولا تتحمل المنصة أي مسؤولية عن استخدام يخالف قوانين بلد المستخدم. استمرارك في الاستخدام يعني قبولك بهذا البند.",
       "This section applies to all HotGPT services and plans. The service is provided as is, as a general AI tool; the user alone is legally responsible for every request they send and for any use, publication, or execution of the service's outputs, and the platform bears no responsibility for any use that violates the laws of the user's country. Your continued use constitutes acceptance of this clause.",
     ],
   },

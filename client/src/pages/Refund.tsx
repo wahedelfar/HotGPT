@@ -12,7 +12,7 @@ const SECTIONS: Section[] = [
   {
     h: ["١. طبيعة المنتج", "1. Nature of the product"],
     p: [
-      "التوكنات أرصدة رقمية تُسلَّم فورًا إلى حسابك داخل المنصة وتُستهلك عند تنفيذ الإجراءات. قواعد الاسترداد التالية تفصل بين ما لم يُسلَّم، وما سُلِّم ولم يُستخدم، وما استُخدم فعليًا.",
+      "رصيد الاشتراك رصيد رقمي يُسلَّم فورًا إلى حسابك داخل المنصة وتُستهلك عند تنفيذ الإجراءات. قواعد الاسترداد التالية تفصل بين ما لم يُسلَّم، وما سُلِّم ولم يُستخدم، وما استُخدم فعليًا.",
       "Tokens are digital credits delivered instantly to your in-platform account and consumed as actions are executed. The rules below distinguish between what was never delivered, what was delivered but unused, and what has actually been consumed.",
     ],
   },
@@ -26,14 +26,14 @@ const SECTIONS: Section[] = [
   {
     h: ["٣. رصيد مُسلَّم ولم يُستخدم", "3. Delivered but unused balance"],
     p: [
-      "إذا أُضيف رصيد باقة إلى حسابك ولم يُنفق منه شيء، يمكنك طلب استرداد قيمته إلى وسيلة الدفع نفسها خلال ٧ أيام من الشراء. عند الاسترداد يُخصم الرصيد غير المستخدم بالكامل من الحساب.",
+      "إذا أُضيف رصيد اشتراك إلى حسابك ولم يُنفق منه شيء، يمكنك طلب استرداد قيمته إلى وسيلة الدفع نفسها خلال ٧ أيام من الشراء. عند الاسترداد يُخصم الرصيد غير المستخدم بالكامل من الحساب.",
       "If a purchased pack was credited to your account and none of it was spent, you may request a refund to the same payment method within 7 days of purchase. On refund, the unused balance is removed from the account in full.",
     ],
   },
   {
     h: ["٤. الرصيد المستخدم", "4. Consumed balance"],
     p: [
-      "التوكنات التي استُهلكت فعليًا في إجابات أو عمليات بحث أو صور أو تقارير أو مراحل مكتملة لا تُسترد قيمتها، لأن الخدمة الرقمية المقابلة نُفذت وسُلّمت. إذا فشل إجراء تقنيًا ورغم ذلك خُصم سعره، يُعاد سعره تلقائيًا إلى رصيدك (كما يحدث في تقارير الفحص الفاشلة).",
+      "الرصيد الذي استُهلك فعليًا في إجابات أو عمليات بحث أو صور أو تقارير أو مراحل مكتملة لا تُسترد قيمتها، لأن الخدمة الرقمية المقابلة نُفذت وسُلّمت. إذا فشل إجراء تقنيًا ورغم ذلك خُصم سعره، يُعاد سعره تلقائيًا إلى رصيدك (كما يحدث في تقارير الفحص الفاشلة).",
       "Tokens actually consumed on answers, searches, images, reports, or completed stages are non-refundable, because the corresponding digital service was executed and delivered. If an action fails technically yet its price was charged, the price is automatically returned to your balance (as already happens with failed scan reports).",
     ],
   },

@@ -8,8 +8,8 @@ const SECTIONS: Section[] = [
   {
     hAr: "منصة عربية من نوعها",
     hEn: "An Arabic platform of its kind",
-    bAr: "HotGPT منصة عربية بتجمع في مكان واحد نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة، وباني مواقع احترافي، واستخراج عملاء، وفحص أمان وSEO للمواقع — بباقات بالجنيه المصري تبدأ من 100 جنيه، والدفع فودافون كاش - إنستاباي أو PayPal، من غير فيزا ولا اشتراكات بالدولار.",
-    bEn: "HotGPT is an Arabic platform that brings together, in one place, AI models with no limits on research and programming, a professional website builder, lead extraction, and website security & SEO audits — with packs in Egyptian pounds starting at 100 EGP, paying by Vodafone Cash - InstaPay or PayPal, with no Visa and no dollar subscriptions needed.",
+    bAr: "HotGPT منصة عربية بتجمع في مكان واحد نماذج ذكاء اصطناعي بدون قيود على البحث والبرمجة، وباني مواقع احترافي، واستخراج عملاء، وفحص أمان وSEO للمواقع — باشتراك شهري بالجنيه المصري بيبدأ من 100 جنيه، والدفع فودافون كاش - إنستاباي أو PayPal، من غير فيزا ولا اشتراكات بالدولار.",
+    bEn: "HotGPT is an Arabic platform that brings together, in one place, AI models with no limits on research and programming, a professional website builder, lead extraction, and website security & SEO audits — with a monthly subscription in Egyptian pounds starting at 100 EGP, paying by Vodafone Cash - InstaPay or PayPal, with no Visa and no dollar subscriptions needed.",
   },
   {
     hAr: "ما هو HotGPT؟",
@@ -26,8 +26,8 @@ const SECTIONS: Section[] = [
   {
     hAr: "لمن صُنع HotGPT؟",
     hEn: "Who is HotGPT made for?",
-    bAr: "صُنع لمن يبنون أنفسهم مهنيًا: مطورون ومسوقون وشركات تطوير مواقع يحتاجون أدوات قوية بلا اشتراكات أجنبية غالية وبلا فيزا للدفع بالدولار. لذلك أسعارنا بالجنيه المصري، والدفع بفودافون كاش وإنستاباي وPayPal، وباقاتنا تبدأ من 100 جنيه — أرخص اشتراك في مصر.",
-    bEn: "It is made for people building themselves professionally: developers, marketers and web development companies who need powerful tools without expensive foreign subscriptions or a Visa for dollar payments. That is why our pricing is in Egyptian pounds, payment is by Vodafone Cash, InstaPay and PayPal, and our packs start at 100 EGP — the cheapest subscription in Egypt.",
+    bAr: "صُنع لمن يبنون أنفسهم مهنيًا: مطورون ومسوقون وشركات تطوير مواقع يحتاجون أدوات قوية بلا اشتراكات أجنبية غالية وبلا فيزا للدفع بالدولار. لذلك أسعارنا بالجنيه المصري، والدفع بفودافون كاش وإنستاباي وPayPal، واشتراكنا الشهري بيبدأ من 100 جنيه.",
+    bEn: "It is made for people building themselves professionally: developers, marketers and web development companies who need powerful tools without expensive foreign subscriptions or a Visa for dollar payments. That is why our pricing is in Egyptian pounds, payment is by Vodafone Cash, InstaPay and PayPal, and our monthly subscription starts at 100 EGP.",
   },
   {
     hAr: "وعدنا لك",
@@ -38,8 +38,8 @@ const SECTIONS: Section[] = [
   {
     hAr: "تواصل معنا",
     hEn: "Contact us",
-    bAr: "الدعم الفني: support@hotgpt.pro — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: 20 توكين هدية، وجرّب بنفسك قبل ما تدفع أي حاجة.",
-    bEn: "Technical support: support@hotgpt.pro — Administration: wawavip@proton.me. Create your account and claim the welcome gift: 20 free tokens, and try everything yourself before paying anything.",
+    bAr: "الدعم الفني: support@hotgpt.pro — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: رصيد هدية 20، وجرّب بنفسك قبل ما تدفع أي حاجة.",
+    bEn: "Technical support: support@hotgpt.pro — Administration: wawavip@proton.me. Create your account and claim the welcome gift: a free balance of 20, and try everything yourself before paying anything.",
   },
 ];
 
@@ -79,7 +79,7 @@ export default function AboutPage() {
               href="/auth?mode=signup"
               className="inline-block rounded-xl bg-gradient-to-l from-amber-300 to-amber-500 px-8 py-3 text-base font-black text-[#1A0505] hover:brightness-110"
             >
-              {ar ? "ابدأ مجانًا — ٢٠ توكين هدية" : "Start free — 20 gift tokens"}
+              {ar ? "ابدأ مجانًا — رصيد هدية ٢٠" : "Start free — gift balance of 20"}
             </a>
           </div>
           <p className="mt-8 text-center text-xs text-slate-500"><a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{ar ? "مدونة HotGPT" : "HotGPT Blog"}</a></p>

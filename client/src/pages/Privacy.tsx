@@ -20,7 +20,7 @@ const SECTIONS: Section[] = [
   {
     h: ["٢. كيف تُستخدم البيانات", "2. How data is used"],
     p: [
-      "تُستخدم البيانات لتشغيل الخدمة فقط: إنشاء حسابك وتسجيل دخولك، تنفيذ طلباتك وتوليد الإجابات والخدمات، احتساب التوكنات وإضافتها، مراجعة المدفوعات واعتمادها، الرد على طلبات الدعم، والحفاظ على أمان الخدمة ومنع إساءة الاستخدام والتحايل، والامتثال للالتزامات القانونية. لا نبيع بيانات المستخدمين لأي طرف، ولا نشاركها لأغراض تسويقية أو إعلانية، ولا نستخدم محادثاتك أو بيانات Google الخاصة بك في تدريب نماذج ذكاء اصطناعي.",
+      "تُستخدم البيانات لتشغيل الخدمة فقط: إنشاء حسابك وتسجيل دخولك، تنفيذ طلباتك وتوليد الإجابات والخدمات، احتساب رصيد الاشتراك وإضافته، مراجعة المدفوعات واعتمادها، الرد على طلبات الدعم، والحفاظ على أمان الخدمة ومنع إساءة الاستخدام والتحايل، والامتثال للالتزامات القانونية. لا نبيع بيانات المستخدمين لأي طرف، ولا نشاركها لأغراض تسويقية أو إعلانية، ولا نستخدم محادثاتك أو بيانات Google الخاصة بك في تدريب نماذج ذكاء اصطناعي.",
       "Data is used solely to operate the service: creating your account and signing you in, executing your requests and generating answers and services, metering and crediting tokens, reviewing and approving payments, responding to support requests, keeping the service secure and preventing abuse and fraud, and meeting legal obligations. We do not sell user data to anyone, do not share it for marketing or advertising purposes, and do not use your conversations or your Google user data to train AI models.",
     ],
   },

@@ -95,7 +95,7 @@ function PrizeWheel({ rotation, spinning }: { rotation: number; spinning: boolea
             <g key={sl.tokens}>
               <path d={wedgePath(C, C, R, sl.start, sl.end)} fill={sl.fill} stroke="#0d0b06" strokeWidth="2" />
               <text x={tx} y={ty} fill={sl.text} fontSize="23" fontWeight="900" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${sl.mid} ${tx} ${ty})`}>{sl.tokens}</text>
-              <text x={sx} y={sy} fill={sl.text} opacity="0.85" fontSize="11" fontWeight="700" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${sl.mid} ${sx} ${sy})`}>{language === "ar" ? "توكن" : "tokens"}</text>
+              <text x={sx} y={sy} fill={sl.text} opacity="0.85" fontSize="11" fontWeight="700" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${sl.mid} ${sx} ${sy})`}>{language === "ar" ? "رصيد" : "balance"}</text>
             </g>
           );
         })}
@@ -127,7 +127,7 @@ function ReferralSection() {
     return () => { alive = false; };
   }, []);
   const link = info?.code ? `https://hotgpt.pro/auth?mode=signup&ref=${info.code}` : "";
-  const shareText = language === "en" ? "Try HotGPT — AI for developers, marketers & web development companies. Sign up with my link and buy your first pack, and we both get 25 free tokens." : egEgp ? "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد ٢٥ جنيه هدية." : "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشتري أول باقة، وكل واحد فينا ياخد ٢٥ توكين هدية.";
+  const shareText = language === "en" ? "Try HotGPT — AI for developers, marketers & web development companies. Sign up with my link and buy your first subscription, and we both get 25 free in balance." : egEgp ? "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشترك لأول مرة، وكل واحد فينا ياخد ٢٥ جنيه هدية." : "جرّب HotGPT — ذكاء اصطناعي للمطورين والمسوقين وشركات تطوير المواقع. سجّل من رابطي واشترك لأول مرة، وكل واحد فينا ياخد ٢٥ رصيد هدية.";
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(link); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { /* the link stays visible for manual copy */ }
   };
@@ -135,7 +135,7 @@ function ReferralSection() {
     <section className="hl-card mb-8 p-5 sm:p-6">
       <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-3 py-1 text-[11px] font-bold tracking-wide text-amber-200"><Users size={13} /> {t("برنامج الإحالة", "REFERRAL PROGRAM")}</span>
       <h2 className="mt-3 text-2xl font-black">{t("ادعُ صديقًا — واكسبا معًا", "Invite a friend — earn together")}</h2>
-      <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">{language === "en" ? "Share your invite link. When your friend buys their first pack, each of you gets 25 free tokens credited automatically — the reward unlocks on the first real purchase, not on signup alone." : egEgp ? "شارك رابط الدعوة بتاعك. لما صديقك يشتري أول باقة، كل واحد فيكم ياخد ٢٥ جنيه هدية تنزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل." : "شارك رابط الدعوة بتاعك. لما صديقك يشتري أول باقة، كل واحد فيكم ياخد ٢٥ توكين هدية تنزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل."}</p>
+      <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">{language === "en" ? "Share your invite link. When your friend buys their first subscription, each of you gets 25 free in balance credited automatically — the reward unlocks on the first real purchase, not on signup alone." : egEgp ? "شارك رابط الدعوة بتاعك. لما صديقك يشترك لأول مرة، كل واحد فيكم ياخد ٢٥ جنيه هدية تنزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل." : "شارك رابط الدعوة بتاعك. لما صديقك يشترك لأول مرة، كل واحد فيكم ياخد ٢٥ رصيد هدية ينزل في رصيده تلقائيًا — المكافأة بتتفتح مع أول شراء فعلي، مش بمجرد التسجيل."}</p>
       {guest ? (
         <p className="mt-4 text-sm text-slate-300">{t("سجّل دخولك عشان يظهر رابط الدعوة الخاص بيك.", "Sign in to reveal your personal invite link.")} <a href="/auth?mode=signup" className="font-bold text-amber-300 underline underline-offset-4">{t("إنشاء حساب", "Create account")}</a></p>
       ) : info?.ready && info.code ? (
@@ -149,10 +149,10 @@ function ReferralSection() {
           <div className="mt-4 flex flex-wrap gap-5 text-sm text-slate-300">
             <span>{t("مدعوون", "Invited")}: <strong className="text-white">{info.invited}</strong></span>
             <span>{t("أكملوا أول شراء", "Completed first purchase")}: <strong className="text-white">{info.rewarded}</strong></span>
-            <span>{t("توكينات كسبتها", "Tokens earned")}: <strong className="hl-gold">{info.earnedTokens}</strong></span>
+            <span>{t("رصيد كسبته", "Balance earned")}: <strong className="hl-gold">{info.earnedTokens}</strong></span>
           </div>
-          {info.myStatus === "pending" && <p className="mt-3 text-sm text-amber-200">{language === "en" ? "You joined through a friend's invite — buy your first pack and you both earn 25 tokens." : egEgp ? "انت سجلت عن طريق دعوة صديق — اشتري أول باقة وكلاكما يكسب ٢٥ جنيه." : "انت سجلت عن طريق دعوة صديق — اشتري أول باقة وكلاكما يكسب ٢٥ توكين."}</p>}
-          {info.myStatus === "rewarded" && <p className="mt-3 text-sm text-emerald-300">{t("وصلتك مكافأة الإحالة: 25 توكين اتضافت لرصيدك.", "Your referral reward arrived: 25 tokens were added to your balance.")}</p>}
+          {info.myStatus === "pending" && <p className="mt-3 text-sm text-amber-200">{language === "en" ? "You joined through a friend's invite — buy your first subscription and you both earn 25 in balance." : egEgp ? "انت سجلت عن طريق دعوة صديق — اشترك لأول مرة وكلاكما يكسب ٢٥ جنيه." : "انت سجلت عن طريق دعوة صديق — اشترك لأول مرة وكلاكما يكسب ٢٥ رصيد."}</p>}
+          {info.myStatus === "rewarded" && <p className="mt-3 text-sm text-emerald-300">{t("وصلتك مكافأة الإحالة: رصيد 25 اتضاف لحسابك.", "Your referral reward arrived: 25 in balance was added to your account.")}</p>}
         </>
       ) : (
         <p className="mt-4 text-sm text-slate-400">{t("رابط الدعوة بيجهز…", "Your invite link is being prepared…")}</p>
@@ -370,11 +370,11 @@ export default function LuckyPage() {
 
       <header className="py-9 text-center sm:py-12">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/10 px-4 py-2 text-xs font-bold tracking-wide text-amber-200"><Sparkles size={15} /> {t("HOTLUCKY · لعبة لفّات الحظ", "HOTLUCKY · SPIN GAME")}</div>
-        <h1 className="text-3xl font-black leading-tight sm:text-5xl">{t("لفّ واكسب توكنات", "Spin & win tokens")} <span className="hl-gold">| HotLucky</span></h1>
-        <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-slate-200 sm:text-lg">{t(`باقة HotLucky: بـ ${price} جنيه خد من 25 لـ 100 رسالة (أو بالدولار عبر باقات PayPal). الجوائز توكنات تُضاف لرصيدك فورًا بعد اللفة — `, `The HotLucky pack: ${price} EGP gets you 25 to 100 messages (or pay in dollars via PayPal bundles). Prizes are tokens credited to your balance the moment you spin — `)}<strong className="text-amber-200">{t("ومفيش جائزة صفرية", "and there is NO zero prize")}</strong>{t(`: أقل نتيجة بترجعلك نص قيمة التذكرة.`, `: the worst result still returns half your ticket.`)}</p>
+        <h1 className="text-3xl font-black leading-tight sm:text-5xl">{t("لفّ واكسب رصيد", "Spin & win balance")} <span className="hl-gold">| HotLucky</span></h1>
+        <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-slate-200 sm:text-lg">{t(`باقة HotLucky: بـ ${price} جنيه خد من 25 لـ 100 رسالة (أو بالدولار عبر لفات PayPal). الجوائز رصيد يُضاف لحسابك فورًا بعد اللفة — `, `The HotLucky pack: ${price} EGP gets you 25 to 100 messages (or pay in dollars via PayPal spin bundles). Prizes are balance credited to your account the moment you spin — `)}<strong className="text-amber-200">{t("ومفيش جائزة صفرية", "and there is NO zero prize")}</strong>{t(`: أقل نتيجة بترجعلك نص قيمة التذكرة.`, `: the worst result still returns half your ticket.`)}</p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Users size={16} className="hl-gold" />{ticketsSold} {t("تذكرة مشاركة حتى الآن", "tickets played so far")}</span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Coins size={16} className="hl-gold" />{t("متوسط العائد المعلن: 48.75 توكن لكل لفة", "Published average return: 48.75 tokens per spin")}</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-slate-300"><Coins size={16} className="hl-gold" />{t("متوسط العائد المعلن: 48.75 رصيد لكل لفة", "Published average return: 48.75 balance per spin")}</span>
         </div>
       </header>
 
@@ -382,12 +382,12 @@ export default function LuckyPage() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {PRIZES.map(p => <article key={p.tokens} className="hl-card flex min-h-40 flex-col items-center justify-center p-4 text-center transition duration-200 hover:-translate-y-1 hover:border-amber-200/80">
             <div className="text-4xl" aria-hidden="true">{p.icon}</div>
-            <h3 className="mt-3 text-base font-extrabold leading-6">{p.tokens} {t("توكن", "tokens")}</h3>
+            <h3 className="mt-3 text-base font-extrabold leading-6">{p.tokens} {t("رصيد", "balance")}</h3>
             <span className="mt-2 rounded-full border border-amber-200/25 bg-amber-200/10 px-3 py-1 text-xs font-bold text-amber-200">{t(`احتمال ${p.chance}`, `${p.chance} chance`)}</span>
             <p className="mt-2 text-[11px] leading-5 text-slate-500">{language === "ar" ? p.detail : p.detailEn}</p>
           </article>)}
         </div>
-        <p className="mt-4 text-center text-base font-black text-amber-200">{t("أقل حاجة هتاخدها 25 توكن، مفيش خسارة", "The least you'll get is 25 tokens — no loss")}</p>
+        <p className="mt-4 text-center text-base font-black text-amber-200">{t("أقل حاجة هتاخدها رصيد 25، مفيش خسارة", "The least you'll get is 25 in balance — no loss")}</p>
         <p className="mt-2 text-center text-xs leading-6 text-slate-500">{t("الاحتمالات منشورة بالكامل هنا وفي ", "The odds are published in full here and in the ")}<a className="text-amber-200 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a>{t("، ومجموعها 100%. السحب يتم على الخادم ونتيجته نهائية ومسجلة في حسابك.", ", and total 100%. The draw runs on the server; its result is final and recorded in your account.")}</p>
       </section>
 
@@ -404,8 +404,8 @@ export default function LuckyPage() {
         {spinCredits <= 0 && !spinning && <p className="mt-3 text-xs text-slate-500">{t("اشتري تذكرة من قسم الدفع بالأسفل — اليدوي بيظهر بعد موافقة الإدارة، و PayPal فوري.", "Buy a ticket in the payment section below — manual payments appear after admin approval; PayPal is instant.")}</p>}
         {lastWin && <div className="hl-pop mx-auto mt-6 max-w-md rounded-2xl border border-amber-200/50 bg-amber-200/[.09] p-5">
           <p className="text-sm text-amber-200">{t("🎉 مبروك! كسبت", "🎉 Congratulations! You won")}</p>
-          <p className="mt-1 text-4xl font-black">{lastWin.tokens} {t("توكن", "tokens")}</p>
-          <p className="mt-2 text-xs text-slate-400">{t("أُضيفت إلى رصيدك فورًا", "Credited to your balance instantly")}{typeof lastWin.balance === "number" ? t(` — رصيدك الآن ${lastWin.balance} توكن`, ` — your balance is now ${lastWin.balance} tokens`) : ""}.</p>
+          <p className="mt-1 text-4xl font-black">{lastWin.tokens} {t("رصيد", "balance")}</p>
+          <p className="mt-2 text-xs text-slate-400">{t("أُضيفت إلى رصيدك فورًا", "Credited to your balance instantly")}{typeof lastWin.balance === "number" ? t(` — رصيدك الآن ${lastWin.balance}`, ` — your balance is now ${lastWin.balance}`) : ""}.</p>
         </div>}
       </section>
 
@@ -443,7 +443,7 @@ export default function LuckyPage() {
           </>}
 
           {method === "paypal" && <div className="mt-5">
-            <p className="text-sm font-semibold">{t("اختر الباقة (رسوم PayPal الثابتة خلت اللفة الواحدة غير عملية — الباقات أوفر لك):", "Choose a bundle (PayPal's fixed fees make single spins impractical — bundles are better value):")}</p>
+            <p className="text-sm font-semibold">{t("اختر عدد اللفات (رسوم PayPal الثابتة خلت اللفة الواحدة غير عملية — اللفات المجمعة أوفر لك):", "Choose your spins (PayPal's fixed fees make single spins impractical — spin bundles are better value):")}</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {(config?.paypalBundles ?? [{ spins: 2, usd: "2.00" }, { spins: 5, usd: "5.00" }]).map(b => <button key={b.spins} type="button" onClick={() => { setBundle(b.spins); paypalRenderedFor.current = ""; }} className={`rounded-xl border p-3 text-sm font-bold ${bundle === b.spins ? "border-sky-300 bg-sky-400/10 text-sky-100" : "border-white/10 text-slate-300"}`}>{b.spins} {t("لفات", "spins")} · ${Number(b.usd).toFixed(0)}</button>)}
             </div>
@@ -460,11 +460,11 @@ export default function LuckyPage() {
           <div className="hl-card p-5"><div className="flex items-center gap-3"><Gift className="hl-gold" size={22} /><h2 className="text-lg font-black">{t("جوائزي", "My Prizes")}</h2></div>
             {prizes.length ? <div className="mt-4 space-y-3">{prizes.slice(0, 8).map((p, i) => <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><div><p className="text-sm font-semibold">{p.label}</p>{p.date && <p className="mt-1 text-[11px] text-slate-500">{new Date(p.date).toLocaleString(locale, { timeZone: "Africa/Cairo" })}</p>}</div>{p.credited ? <span className="text-xs font-bold text-emerald-300">{t("أُضيفت لرصيدك ✓", "Credited ✓")}</span> : null}</div>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-500">{t("لسه معندكش جوائز — أول لفة مستنياك.", "No prizes yet — your first spin is waiting.")}</p>}
           </div>
-          <div className="hl-card p-5"><div className="flex items-center gap-3"><ShieldCheck className="hl-gold" size={22} /><h2 className="text-lg font-black">{t("شروط مختصرة وواضحة", "The short, clear terms")}</h2></div><ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300"><li>{t("• اللعب للبالغين 18+ فقط.", "• Players must be 18+.")}</li><li>{t("• التذكرة = لفة واحدة؛ الجوائز توكنات رقمية تُضاف للرصيد، وليست نقودًا ولا تُستبدل نقدًا.", "• One ticket = one spin; prizes are digital tokens credited to your balance — not money, and not redeemable for cash.")}</li><li>{t("• أقل جائزة 25 توكن (نصف القيمة) — لا توجد نتيجة صفرية.", "• Minimum prize is 25 tokens (half the value) — there is no zero result.")}</li><li>{t("• السحب يتم على الخادم بالاحتمالات المعلنة ونتيجته نهائية.", "• The draw runs on the server at the published odds and its result is final.")}</li></ul><a href="/lucky-terms" className="mt-4 inline-block text-sm font-bold text-amber-200 underline underline-offset-4">{t("قراءة الشروط والأحكام كاملة", "Read the full Terms & Conditions")}</a></div>
+          <div className="hl-card p-5"><div className="flex items-center gap-3"><ShieldCheck className="hl-gold" size={22} /><h2 className="text-lg font-black">{t("شروط مختصرة وواضحة", "The short, clear terms")}</h2></div><ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300"><li>{t("• اللعب للبالغين 18+ فقط.", "• Players must be 18+.")}</li><li>{t("• التذكرة = لفة واحدة؛ الجوائز رصيد رقمي يُضاف لحسابك، وليس نقودًا ولا يُستبدل نقدًا.", "• One ticket = one spin; prizes are digital balance credited to your account — not money, and not redeemable for cash.")}</li><li>{t("• أقل جائزة رصيد 25 (نصف القيمة) — لا توجد نتيجة صفرية.", "• Minimum prize is 25 in balance (half the value) — there is no zero result.")}</li><li>{t("• السحب يتم على الخادم بالاحتمالات المعلنة ونتيجته نهائية.", "• The draw runs on the server at the published odds and its result is final.")}</li></ul><a href="/lucky-terms" className="mt-4 inline-block text-sm font-bold text-amber-200 underline underline-offset-4">{t("قراءة الشروط والأحكام كاملة", "Read the full Terms & Conditions")}</a></div>
           <div className="hl-card p-5"><div className="flex items-center gap-3"><Users className="hl-gold" size={22} /><h2 className="text-lg font-black">{t("آخر الجوائز المسجلة", "Latest recorded prizes")}</h2></div>{winners.length ? <div className="mt-4 space-y-3">{winners.map((w, i) => <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-black/20 p-3"><div><p className="text-sm font-semibold">{w.member}</p>{w.date && <p className="mt-1 text-[11px] text-slate-500">{new Date(w.date).toLocaleString(locale, { timeZone: "Africa/Cairo" })}</p>}</div><span className="text-left text-xs font-bold text-amber-200">{w.prize}</span></div>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-500">{t("ستظهر الجوائز الحقيقية هنا بعد تسجيلها. لا تُعرض نتائج وهمية.", "Real prizes will appear here once recorded. No fake results are ever shown.")}</p>}</div>
         </aside>
       </section>
-      <footer className="mt-12 border-t border-amber-100/10 pt-6 text-center text-xs leading-6 text-slate-500">{t("HotLucky لعبة ترويجية رقمية. الجوائز توكنات داخل المنصة فقط.", "HotLucky is a digital promotional game. Prizes are in-platform tokens only.")} <a className="text-amber-200 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a> · <a className="text-amber-200 underline" href="/">HotGPT</a> · <a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{t("مدونة HotGPT", "HotGPT Blog")}</a></footer>
+      <footer className="mt-12 border-t border-amber-100/10 pt-6 text-center text-xs leading-6 text-slate-500">{t("HotLucky لعبة ترويجية رقمية. الجوائز رصيد داخل المنصة فقط.", "HotLucky is a digital promotional game. Prizes are in-platform balance only.")} <a className="text-amber-200 underline" href="/lucky-terms">{t("الشروط والأحكام", "Terms & Conditions")}</a> · <a className="text-amber-200 underline" href="/">HotGPT</a> · <a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{t("مدونة HotGPT", "HotGPT Blog")}</a></footer>
     </div>
   </main></LocalizedText>;
 }
