@@ -69,7 +69,7 @@ export default function AdminLuckyPage() {
   return <main dir="rtl" className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-7xl"><LanguageToggle />
     <a href="/" className="text-sm text-cyan-300">العودة إلى HotGPT</a>
     <div className="mt-6 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-black">إدارة HotLucky 🎰</h1><a href="/admin" className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5">إدارة الأعضاء والرصيد ←</a></div>
-    <p className="mt-2 text-sm text-slate-400">التذكرة الجديدة = لفة واحدة (50 جنيه). الاعتماد يمنح اللفة، والجائزة بتتحدد بسحب الخادم وتتضاف للرصيد لحظة اللف. طلبات الباقة القديمة (100) شغالة بقواعدها الأصلية.</p>
+    <p className="mt-2 text-sm text-slate-400">التذكرة الجديدة = لفة واحدة (50 جنيه). الاعتماد يمنح اللفة، والجائزة بتتحدد بسحب الخادم وتتضاف للرصيد لحظة اللف. طلبات HotLucky القديمة (100) شغالة بقواعدها الأصلية.</p>
     {message && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">{message}</p>}
     <section className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
       {[
@@ -78,7 +78,7 @@ export default function AdminLuckyPage() {
         { label: "دخل جنيه (معتمد)", value: totals.egpIn + " جنيه" },
         { label: "دخل PayPal (معتمد)", value: "$" + totals.usdIn },
         { label: "لفات اتلعبت", value: totals.spinsPlayed },
-        { label: "توكينات خرجت جوائز", value: totals.tokensOut },
+        { label: "رصيد خرج جوائز", value: totals.tokensOut },
       ].map(c => <div key={c.label} className="rounded-2xl border border-white/10 bg-white/[.03] p-4"><p className="text-xs text-slate-400">{c.label}</p><p className="mt-1 text-xl font-black text-amber-200">{c.value}</p></div>)}
     </section>
     <div className="mt-5 flex gap-2"><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="بحث بالبريد" className="w-full rounded-xl border border-white/10 bg-white/5 p-3 md:max-w-md" /><button onClick={() => void load()} className="rounded-xl border border-white/20 px-4">تحديث</button></div>
@@ -89,7 +89,7 @@ export default function AdminLuckyPage() {
           <span className="text-slate-200">{METHOD_LABELS[o.payment_method] || o.payment_method}</span>
           {" · "}{o.amount_label || ""}
           {" · "}<span className={o.status === "pending" ? "text-amber-200" : o.status === "approved" ? "text-emerald-300" : "text-slate-400"}>{STATUS_LABELS[o.status] || o.status}</span>
-          {isNewTicket(o) ? <span className="mr-2 rounded-full border border-amber-200/30 bg-amber-200/10 px-2 py-0.5 text-[11px] text-amber-200">تذكرة لفة 🎰</span> : <span className="mr-2 rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-slate-400">باقة قديمة</span>}
+          {isNewTicket(o) ? <span className="mr-2 rounded-full border border-amber-200/30 bg-amber-200/10 px-2 py-0.5 text-[11px] text-amber-200">تذكرة لفة 🎰</span> : <span className="mr-2 rounded-full border border-white/15 px-2 py-0.5 text-[11px] text-slate-400">طلب قديم</span>}
           {o.paypal_auto && <span className="mr-2 rounded-full border border-sky-300/30 bg-sky-300/10 px-2 py-0.5 text-[11px] text-sky-200">دفع تلقائي موثّق</span>}
         </p>
         {o.spun_at ? <p className="mt-3 text-sm text-slate-300">🎰 لُعبت في {new Date(o.spun_at).toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })} — الجائزة: <strong className="text-amber-200">{o.prize_label}</strong>{isNewTicket(o) ? " (أُضيفت للرصيد تلقائيًا)" : ""}</p>
@@ -97,11 +97,11 @@ export default function AdminLuckyPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           {o.status === "pending" && <>{isNewTicket(o)
             ? <button disabled={!!busy} onClick={() => void action(o, "approve")} className="rounded-xl bg-emerald-300 px-4 py-2 font-bold text-slate-950">اعتماد التذكرة 🎰 (منح لفة)</button>
-            : <button disabled={!!busy} onClick={() => void action(o, "approve")} className="rounded-xl bg-emerald-300 px-4 py-2 font-bold text-slate-950">تأكيد التحويل + 100 توكين</button>}
+            : <button disabled={!!busy} onClick={() => void action(o, "approve")} className="rounded-xl bg-emerald-300 px-4 py-2 font-bold text-slate-950">تأكيد التحويل + رصيد 100</button>}
             <button disabled={!!busy} onClick={() => void action(o, "reject")} className="rounded-xl border border-red-300/30 px-4 py-2 text-red-200">رفض</button></>}
           {!isNewTicket(o) && o.status === "approved" && o.prize_label && !o.reward_issued && ["tokens_50", "tokens_100", "tokens_200", "tokens_500"].includes(o.prize_key || "") && <button disabled={!!busy} onClick={() => void action(o, "award")} className="rounded-xl bg-cyan-300 px-4 py-2 font-bold text-slate-950">إضافة الهدية لحساب العضو</button>}
           {!isNewTicket(o) && o.status === "approved" && o.prize_label && !o.reward_issued && !["tokens_50", "tokens_100", "tokens_200", "tokens_500"].includes(o.prize_key || "") && <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-3 text-sm text-amber-200">هذه الهدية تشمل اشتراك Pro/Ultra؛ لن تُعلَّم كمصروفة حتى يتم ربطها بنظام الاشتراكات الفعلي.</p>}
-          {!isNewTicket(o) && o.status === "approved" && !o.consolation_awarded && <button disabled={!!busy} onClick={() => void action(o, "consolation")} className="rounded-xl border border-amber-300/30 px-4 py-2 text-amber-200">هدية ترضية 10 توكن</button>}
+          {!isNewTicket(o) && o.status === "approved" && !o.consolation_awarded && <button disabled={!!busy} onClick={() => void action(o, "consolation")} className="rounded-xl border border-amber-300/30 px-4 py-2 text-amber-200">هدية ترضية: رصيد 10</button>}
           {o.reward_issued && !isNewTicket(o) && <span className="text-sm text-emerald-200">أضيفت الهدية للحساب</span>}
           {o.consolation_awarded && <span className="text-sm text-amber-200">تم صرف هدية الترضية</span>}
         </div>
