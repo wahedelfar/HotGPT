@@ -68,7 +68,7 @@ export default function AdminLuckyPage() {
 
   return <main dir="rtl" className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-7xl"><LanguageToggle />
     <a href="/" className="text-sm text-cyan-300">العودة إلى HotGPT</a>
-    <div className="mt-6 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-black">إدارة HotLucky 🎰</h1><a href="/admin" className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5">إدارة الأعضاء والتوكينات ←</a></div>
+    <div className="mt-6 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-black">إدارة HotLucky 🎰</h1><a href="/admin" className="rounded-xl border border-white/15 px-3 py-1.5 text-sm text-slate-300 hover:bg-white/5">إدارة الأعضاء والرصيد ←</a></div>
     <p className="mt-2 text-sm text-slate-400">التذكرة الجديدة = لفة واحدة (50 جنيه). الاعتماد يمنح اللفة، والجائزة بتتحدد بسحب الخادم وتتضاف للرصيد لحظة اللف. طلبات الباقة القديمة (100) شغالة بقواعدها الأصلية.</p>
     {message && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">{message}</p>}
     <section className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
