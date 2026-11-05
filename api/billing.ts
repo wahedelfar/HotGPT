@@ -257,13 +257,13 @@ async function sendTelegramPaymentAlert(args: {
     });
     if (!proofResponse.ok) { console.error("[Telegram] Proof fetch failed", proofResponse.status); return; }
     const bytes = await proofResponse.arrayBuffer();
-    const bridgeText = args.bridge === "granted" ? "مُنحت (٥ توكين)"
+    const bridgeText = args.bridge === "granted" ? "مُنحت (رصيد ٥)"
       : args.bridge === "blocked" ? "محظورة"
       : args.bridge === "duplicate" ? "مكررة — عنده جسر قائم" : "لم تُمنح";
     const caption = [
       "طلب دفع جديد — HotGPT",
       `العضو: ${args.request.email}`,
-      `الباقة: ${args.request.packageTokens} توكين — ${args.request.amountEgp} جنيه`,
+      `الاشتراك: رصيد ${args.request.packageTokens} — ${args.request.amountEgp} جنيه`,
       `الوسيلة: ${args.request.paymentMethod === "instapay" ? "إنستا باي" : args.request.paymentMethod === "binance_pay" ? "Binance Pay (USDT)" : args.request.paymentMethod === "bybit_pay" ? "Bybit Pay (USDT)" : "فودافون كاش"}`,
       `رقم العملية: ${args.request.transferReference || "—"}`,
       `هدية الجسر: ${bridgeText}`,
@@ -274,7 +274,7 @@ async function sendTelegramPaymentAlert(args: {
     form.append("caption", caption);
     form.append("reply_markup", JSON.stringify({
       inline_keyboard: [
-        [{ text: "✅ موافقة وإضافة التوكنات", callback_data: `pay:approve:${args.request.id}` }],
+        [{ text: "✅ موافقة وإضافة الرصيد", callback_data: `pay:approve:${args.request.id}` }],
         [{ text: "❌ رفض – إثبات غير صحيح", callback_data: `pay:reject_fake:${args.request.id}` }],
         [{ text: "🔁 رفض – صورة غير واضحة", callback_data: `pay:reject_unclear:${args.request.id}` }],
       ],
@@ -306,14 +306,14 @@ async function sendTelegramPaymentAlert(args: {
 const INTAKE_PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 440, 1000: 500 };
 const INTAKE_PACK_BUTTONS = {
   inline_keyboard: [
-    [{ text: "باقة 100 توكين — 100 جنيه", callback_data: "pack:100" }],
-    [{ text: "باقة 500 توكين — 300 جنيه", callback_data: "pack:500" }],
-    [{ text: "باقة 800 توكين — 500 جنيه", callback_data: "pack:800" }],
-    [{ text: "باقة 1000 توكين — 700 جنيه", callback_data: "pack:1000" }],
+    [{ text: "اشتراك البداية — 100 جنيه شهريًا", callback_data: "pack:100" }],
+    [{ text: "الاشتراك الأساسي — 300 جنيه شهريًا", callback_data: "pack:500" }],
+    [{ text: "الاشتراك الأكبر — 440 جنيه شهريًا", callback_data: "pack:800" }],
+    [{ text: "الاشتراك الشامل — 500 جنيه شهريًا", callback_data: "pack:1000" }],
   ],
 };
 const INTAKE_ACTIVATE_KEYBOARD = {
-  keyboard: [[{ text: "🚀 فعّل باقتي" }]],
+  keyboard: [[{ text: "🚀 فعّل اشتراكي" }]],
   resize_keyboard: true,
   is_persistent: true,
 };
@@ -322,7 +322,7 @@ const INTAKE_WELCOME_TEXT = [
   "━━━━━━━━━━━━━━",
   "منصة ذكاء اصطناعي عربية للمطورين والمسوقين وشركات تطوير المواقع — أجوبة بدون قيود على البحث والبرمجة، وبأرخص أسعار بالجنيه المصري.",
   "",
-  "🎁 هدية ترحيب: ٥ توكين مجانًا أول ما تنشئ حسابك.",
+  "🎁 هدية ترحيب: رصيد 20 مجانًا أول ما تنشئ حسابك.",
   "",
   "🌐 زور الموقع وجرّب بنفسك:",
   "https://hotgpt.pro",
@@ -337,13 +337,13 @@ const INTAKE_WELCOME_MARKUP = {
     ],
   ],
 };
-const INTAKE_GATEWAY_TEXT = "أهلاً بك في بوابة دفع HOT GPT الذكية 🔥\nمن فضلك اختر باقتك المراد تفعيلها 👇";
+const INTAKE_GATEWAY_TEXT = "أهلاً بك في بوابة دفع HOT GPT الذكية 🔥\nمن فضلك اختر اشتراكك المراد تفعيله 👇";
 function intakeProofRequestText(packTokens: number) {
   const price = INTAKE_PACKAGES[packTokens];
   return [
-    `اخترت باقة ${packTokens} توكين — ${price} جنيه ✔`,
+    `اخترت الاشتراك: رصيد ${packTokens} — ${price} جنيه شهريًا ✔`,
     "",
-    "حوّل مبلغ الباقة إلى:",
+    "حوّل مبلغ اشتراكك إلى:",
     "📱 فودافون كاش: 01063537686",
     "💳 إنستاباي: wahedelfar@instapay",
     "https://ipn.eg/S/wahedelfar/instapay/4LnUCo",
@@ -351,7 +351,7 @@ function intakeProofRequestText(packTokens: number) {
     "وبعد التحويل، ابعت هنا اسكرين التحويل — يكون واضح — واكتب في تعليقه:",
     "١. الإيميل المسجل به في الموقع",
     "٢. الرقم المحول منه",
-    "لسرعة المراجعة وإضافة الباقة لحسابك ⚡",
+    "لسرعة المراجعة وإضافة اشتراكك لحسابك ⚡",
     "",
     "⚠️ مهم: الاسكرين لازم يكون كاملًا ويبان فيه رقم العملية وتاريخها بوضوح — من غيرهم الطلب بيتحول للمراجعة اليدوية وبتستغرق من ١٠ ل ٣٠ دقيقة.",
     "",
@@ -382,7 +382,7 @@ async function handleTelegramIntakeMessage(update: any) {
     console.log("[Telegram Intake] welcome+gateway chat", chatId);
     return;
   }
-  if (text.includes("فعّل باقتي")) {
+  if (text.includes("فعّل باقتي") || text.includes("فعّل اشتراكي")) {
     await intakeSend(chatId, INTAKE_GATEWAY_TEXT, INTAKE_PACK_BUTTONS);
     console.log("[Telegram Intake] gateway chat", chatId);
     return;
@@ -402,14 +402,14 @@ async function handleTelegramIntakeMessage(update: any) {
     if (!sender) missing.push("الرقم المحول منه");
     if (missing.length) {
       console.log("[Telegram Intake] incomplete photo chat", chatId, "missing:", missing.join(","));
-      await intakeSend(chatId, `وصلت الصورة ✔\nفاضل: ${missing.join("، ")}\nاكتبهم في تعليق على الاسكرين وابعت الصورة تاني — ولو عايز تبدأ من الأول اختار باقتك 👇`, INTAKE_PACK_BUTTONS);
+      await intakeSend(chatId, `وصلت الصورة ✔\nفاضل: ${missing.join("، ")}\nاكتبهم في تعليق على الاسكرين وابعت الصورة تاني — ولو عايز تبدأ من الأول اختار اشتراكك 👇`, INTAKE_PACK_BUTTONS);
       return;
     }
     const name = String(who.first_name || "").trim();
     const memberLine = name + (who.username ? ` (@${who.username})` : "");
     const adminCaption = [
       "🔔 طلب تفعيل جديد من البوت",
-      pack ? `الباقة: ${pack} توكين — ${INTAKE_PACKAGES[pack]} جنيه` : "الباقة: غير مذكورة في التعليق — المبلغ باين في الصورة",
+      pack ? `الاشتراك: رصيد ${pack} — ${INTAKE_PACKAGES[pack]} جنيه` : "الاشتراك: غير مذكور في التعليق — المبلغ باين في الصورة",
       `الإيميل: ${email}`,
       `الرقم المحول منه: ${sender}`,
       `العضو: ${memberLine}`,
@@ -436,7 +436,7 @@ async function handleTelegramIntakeMessage(update: any) {
     console.log("[Telegram Intake] submission forwarded chat", chatId, "pack", pack || "-", "email", email, "sender", sender);
     await intakeSend(
       chatId,
-      "شكرًا لحضرتك 🙏\nدقيقة هراجع التحويل، ويمكنك العودة للموقع من <a href=\"https://hotgpt.pro\">هنا</a> واستخدام الهدية.\nوستصلك الباقة حالًا ⚡",
+      "شكرًا لحضرتك 🙏\nدقيقة هراجع التحويل، ويمكنك العودة للموقع من <a href=\"https://hotgpt.pro\">هنا</a> واستخدام الهدية.\nوسيصلك اشتراكك حالًا ⚡",
       INTAKE_ACTIVATE_KEYBOARD,
       "HTML",
     );
@@ -489,7 +489,7 @@ async function handleTelegramWebhook(req: any, res: any) {
     // Visitor intake: pack selection from the member's own chat.
     const pack = Number(data.slice(5));
     if (INTAKE_PACKAGES[pack]) {
-      await answer(`اخترت باقة ${pack} توكين`);
+      await answer(`اخترت الاشتراك: رصيد ${pack}`);
       await intakeSend(chatId, intakeProofRequestText(pack));
       console.log("[Telegram Intake] pack chosen chat", chatId, "pack", pack);
     } else {
@@ -510,7 +510,7 @@ async function handleTelegramWebhook(req: any, res: any) {
     const approved = signal[1] === "ok";
     console.log("[Telegram Intake] admin decision", approved ? "approved" : "rejected", "member", memberChat);
     if (approved) {
-      await intakeSend(memberChat, "🎉 تم تفعيل باقتك بنجاح!\nالتوكنات اتضافت لحسابك على الموقع — افتح حسابك وهتلاقي رصيدك الجديد.\nhttps://hotgpt.pro");
+      await intakeSend(memberChat, "🎉 تم تفعيل اشتراكك بنجاح!\nالرصيد اتضاف لحسابك على الموقع — افتح حسابك وهتلاقي رصيدك الجديد.\nhttps://hotgpt.pro");
       await answer("تم إبلاغ العضو بالتفعيل");
     } else {
       await intakeSend(memberChat, "تعذّر تفعيل طلبك هذه المرة.\nمن فضلك تأكد أن اسكرين التحويل واضح، وأن الإيميل هو المسجل به في الموقع، وأعد المحاولة — أو ادفع من صفحة الدفع في الموقع:\nhttps://hotgpt.pro");
@@ -542,7 +542,7 @@ async function handleTelegramWebhook(req: any, res: any) {
     console.log("[Telegram Webhook] review", decision, "payment", paymentId);
     const time = new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Cairo" });
     const resultLine = decision === "approve"
-      ? `تمت الموافقة ✔ أُضيفت ${result.packageTokens} توكين — ${time}`
+      ? `تمت الموافقة ✔ أُضيف رصيد ${result.packageTokens} — ${time}`
       : decision === "reject_fake"
         ? "تم الرفض ❌ إثبات غير صحيح — سُحبت هدية الجسر وحُظر العضو منها"
         : "تم الرفض 🔁 صورة غير واضحة — العضو يقدر يعيد الإرسال";
