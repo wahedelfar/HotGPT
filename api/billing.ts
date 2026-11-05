@@ -241,8 +241,102 @@ async function telegramPayApi(method: string, body: FormData | Record<string, un
   const payload = await response.json().catch(() => null);
   return { ok: Boolean((payload as any)?.ok), payload };
 }
+// --- Auto proof verification (owner-approved 2026-11-05, validated on
+// synthetic + real Vodafone Cash screenshots before build): our own
+// vision model (DeepSeek V4.1 Flash via APInex — the same key the chat
+// stack uses) only EXTRACTS the receipt fields; deterministic rules
+// decide. Clean pass -> approval runs through the same shared review as
+// the admin buttons and the admin gets a no-buttons notification.
+// Anything else (unreadable, mismatch, stale, reused, model down) falls
+// back to the exact manual flow, with the machine reading attached to
+// the caption as decision support. Vodafone Cash + InstaPay only;
+// Binance/Bybit proof formats are not validated yet and stay manual.
+const AUTO_VERIFY_RECIPIENTS: Record<string, string[]> = {
+  vodafone_cash: ["01063537686", "201063537686", "+201063537686"],
+  instapay: ["wahedelfar@instapay"],
+};
+const AUTO_VERIFY_PROMPT = "You are an extraction engine for payment receipts. Read the attached receipt image and extract ONLY these fields. Reply with a single JSON object and nothing else: {\"amount\": <number or null>, \"currency\": \"EGP\", \"recipient\": \"<phone number or handle exactly as shown, or null>\", \"datetime\": \"<YYYY-MM-DD HH:MM or null>\", \"txn_ref\": \"<transaction/reference id exactly as shown, or null>\", \"confidence\": <0 to 1>}. Do not guess values that are not visible.";
+const AUTO_VERIFY_REASONS_AR: Record<string, string> = {
+  amount_mismatch: "المبلغ المقروء لا يطابق مبلغ الاشتراك المطلوب",
+  recipient_mismatch: "المستلم المقروء ليس رقم/حساب الاستقبال",
+  ref_missing: "رقم العملية غير مقروء من الصورة",
+  declared_ref_mismatch: "رقم العملية لا يطابق الرقم المكتوب في الطلب",
+  datetime_unreadable: "تاريخ العملية غير مقروء",
+  datetime_stale: "تاريخ العملية خارج نافذة ٤٨ ساعة",
+  proof_reused: "الإثبات أو رقم العملية مستخدم في طلب مقبول من قبل",
+};
+type ProofExtraction = { amount: number | null; recipient: string | null; datetime: string | null; txn_ref: string | null };
+
+async function extractProofFields(bytes: ArrayBuffer, proofPath: string): Promise<ProofExtraction | null> {
+  const key = (process.env.APINEX_API_KEY || "").trim();
+  if (!key) return null;
+  const ext = (proofPath.split(".").pop() || "jpeg").toLowerCase();
+  const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+  const model = (process.env.APINEX_VISION_MODEL || "free/deepseek-v4.1-flash").trim();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const response = await fetch("https://api.apinex.bond/v1/chat/completions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        model, temperature: 0,
+        messages: [{ role: "user", content: [
+          { type: "text", text: AUTO_VERIFY_PROMPT },
+          { type: "image_url", image_url: { url: `data:${mime};base64,${Buffer.from(bytes).toString("base64")}` } },
+        ] }],
+      }),
+      signal: ctrl.signal, cache: "no-store",
+    });
+    if (!response.ok) { console.error("[AutoVerify] Model HTTP", response.status); return null; }
+    const data: any = await response.json().catch(() => null);
+    const txt = String(data?.choices?.[0]?.message?.content || "");
+    const s = txt.indexOf("{"), e = txt.lastIndexOf("}");
+    if (s < 0 || e <= s) return null;
+    const parsed = JSON.parse(txt.slice(s, e + 1));
+    const amount = parsed?.amount != null && !Number.isNaN(Number(parsed.amount)) ? Number(parsed.amount) : null;
+    return {
+      amount,
+      recipient: parsed?.recipient != null ? String(parsed.recipient) : null,
+      datetime: parsed?.datetime != null ? String(parsed.datetime) : null,
+      txn_ref: parsed?.txn_ref != null ? String(parsed.txn_ref) : null,
+    };
+  } catch (error) {
+    console.error("[AutoVerify] Extraction failed", error instanceof Error ? error.message : "unknown");
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function cairoNowMinutes(): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value || 0);
+  return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour") % 24, get("minute")) / 60000;
+}
+
+function judgeProof(request: { paymentMethod: string; amountEgp: number; transferReference: string | null }, extraction: ProofExtraction): { approve: boolean; reason: string } {
+  const allowed = AUTO_VERIFY_RECIPIENTS[request.paymentMethod];
+  if (!allowed) return { approve: false, reason: "method_not_covered" };
+  if (extraction.amount == null || extraction.amount !== request.amountEgp) return { approve: false, reason: "amount_mismatch" };
+  const recipient = (extraction.recipient || "").replace(/[\s-]/g, "").toLowerCase();
+  if (!recipient || !allowed.map((r) => r.toLowerCase()).includes(recipient)) return { approve: false, reason: "recipient_mismatch" };
+  if (!extraction.txn_ref) return { approve: false, reason: "ref_missing" };
+  const declared = (request.transferReference || "").trim();
+  if (declared && declared !== extraction.txn_ref) return { approve: false, reason: "declared_ref_mismatch" };
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(extraction.datetime || "");
+  if (!m) return { approve: false, reason: "datetime_unreadable" };
+  const when = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5])) / 60000;
+  const diff = cairoNowMinutes() - when;
+  if (diff < -60 || diff > 48 * 60) return { approve: false, reason: "datetime_stale" };
+  return { approve: true, reason: "all_checks_passed" };
+}
+
 async function sendTelegramPaymentAlert(args: {
-  request: { id: string; email: string; paymentMethod: string; packageTokens: number; amountEgp: number; transferReference: string | null; proofPath: string };
+  request: { id: string; userId: string; email: string; paymentMethod: string; packageTokens: number; amountEgp: number; transferReference: string | null; proofPath: string; proofHash: string | null };
   bridge: string;
 }) {
   try {
@@ -268,10 +362,61 @@ async function sendTelegramPaymentAlert(args: {
       `رقم العملية: ${args.request.transferReference || "—"}`,
       `هدية الجسر: ${bridgeText}`,
     ].join("\n");
+    // Auto-verification runs on the bytes already fetched for the photo.
+    // It never throws: any failure leaves autoNote empty (or carrying the
+    // machine reading) and the manual buttons flow below proceeds.
+    let autoNote = "";
+    if (args.request.paymentMethod === "vodafone_cash" || args.request.paymentMethod === "instapay") {
+      try {
+        const extraction = await extractProofFields(bytes, args.request.proofPath);
+        if (extraction) {
+          const verdict = judgeProof(args.request, extraction);
+          let reused = false;
+          if (verdict.approve) {
+            // Fail closed: an error in the reuse lookup means manual.
+            reused = await db.findApprovedProofReuse(args.request.id, args.request.proofHash ?? null, extraction.txn_ref).catch(() => true);
+          }
+          const finalReason = verdict.approve && reused ? "proof_reused" : verdict.reason;
+          const autoDecision = verdict.approve && !reused ? "approve" : "manual";
+          await db.recordAutoProofCheck(args.request.id, extraction.txn_ref, {
+            at: new Date().toISOString(),
+            model: (process.env.APINEX_VISION_MODEL || "free/deepseek-v4.1-flash").trim(),
+            extraction, decision: autoDecision, reason: finalReason,
+          }).catch(() => {});
+          if (autoDecision === "approve") {
+            try {
+              const result = await db.reviewPaymentRequestShared({ paymentId: args.request.id, decision: "approve", source: "auto", reviewer: "auto-vision" });
+              const autoForm = new FormData();
+              autoForm.append("chat_id", cfg.adminChatId);
+              autoForm.append("photo", new Blob([bytes]), "proof.jpg");
+              autoForm.append("caption", [
+                caption,
+                "🤖✅ قُبل واتفعّل تلقائيًا — قراءة آلية موثّقة",
+                `المبلغ المقروء: ${extraction.amount} جنيه — المستلم: ${extraction.recipient}`,
+                `رقم العملية: ${extraction.txn_ref} — التاريخ: ${extraction.datetime}`,
+                `أُضيف رصيد ${result.packageTokens} للعضو. للمراجعة أو السحب: لوحة الإدارة.`,
+              ].join("\n"));
+              const sentAuto = await telegramPayApi("sendPhoto", autoForm);
+              if (sentAuto.ok && sentAuto.payload?.result?.message_id) {
+                await db.setPaymentRequestTelegramMessageId(args.request.id, Number(sentAuto.payload.result.message_id)).catch(() => {});
+              }
+              console.log("[AutoVerify] Auto-approved request", args.request.id);
+              return;
+            } catch (error) {
+              console.error("[AutoVerify] Auto-approve failed, falling back to manual", error instanceof Error ? error.message : "unknown");
+            }
+          } else {
+            autoNote = `\n🤖 قراءة آلية: مبلغ ${extraction.amount ?? "—"} — مستلم ${extraction.recipient ?? "—"} — عملية ${extraction.txn_ref ?? "—"}\nلم يُقبل تلقائيًا: ${AUTO_VERIFY_REASONS_AR[finalReason] || finalReason} — القرار لك 👇`;
+          }
+        }
+      } catch (error) {
+        console.error("[AutoVerify] Check failed, manual flow", error instanceof Error ? error.message : "unknown");
+      }
+    }
     const form = new FormData();
     form.append("chat_id", cfg.adminChatId);
     form.append("photo", new Blob([bytes]), "proof.jpg");
-    form.append("caption", caption);
+    form.append("caption", caption + autoNote);
     form.append("reply_markup", JSON.stringify({
       inline_keyboard: [
         [{ text: "✅ موافقة وإضافة الرصيد", callback_data: `pay:approve:${args.request.id}` }],

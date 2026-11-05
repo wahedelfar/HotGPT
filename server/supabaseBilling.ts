@@ -504,6 +504,31 @@ export async function reviewPaymentRequestShared(input: {
   return { id: row.id, status: row.status, packageTokens: row.packageTokens, bridgeStatus };
 }
 
+// --- Auto proof verification support (build part D): the audit write and
+// the duplicate check behind the vision auto-approval in api/billing.ts.
+// A proof may fund exactly one approval, ever: reuse is detected by the
+// byte fingerprint stored at submission and by the transaction reference
+// the reader extracted (or the member declared on a manually approved row).
+export async function recordAutoProofCheck(requestId: string, reference: string | null, check: Record<string, unknown>) {
+  await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}`, {
+    method: "PATCH", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ auto_reference: reference, auto_check: check }),
+  });
+}
+
+export async function findApprovedProofReuse(excludeId: string, proofHash: string | null, txnRef: string | null): Promise<boolean> {
+  if (proofHash) {
+    const byHash = await rest(`payment_requests?status=eq.approved&proof_hash=eq.${encodeURIComponent(proofHash)}&id=neq.${encodeURIComponent(excludeId)}&select=id&limit=1`);
+    if (byHash?.[0]) return true;
+  }
+  if (txnRef) {
+    const ref = encodeURIComponent(txnRef);
+    const byRef = await rest(`payment_requests?status=eq.approved&id=neq.${encodeURIComponent(excludeId)}&or=(auto_reference.eq.${ref},transfer_reference.eq.${ref})&select=id&limit=1`);
+    if (byRef?.[0]) return true;
+  }
+  return false;
+}
+
 export async function setPaymentRequestTelegramMessageId(requestId: string, messageId: number) {
   await rest(`payment_requests?id=eq.${encodeURIComponent(requestId)}`, {
     method: "PATCH", headers: { Prefer: "return=minimal" },
