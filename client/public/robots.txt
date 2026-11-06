@@ -1,3 +1,16 @@
+# AI crawlers and search bots are explicitly welcome on all public pages.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Google-Extended
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
 User-agent: *
 Allow: /
 Disallow: /admin

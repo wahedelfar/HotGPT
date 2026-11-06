@@ -1,0 +1,33 @@
+# HotGPT
+
+> HotGPT (https://hotgpt.pro) is an AI platform for developers, marketers, and website companies: AI chat, code writing and debugging, file analysis, live web search, image and CGI generation, and professional tools — website security scanning, SEO audit, data-leak checking, reverse engineering, lead extraction, and one-click website building. It runs free, unrestricted models for writing any programming code, plus specialized models for search, SEO, and lead extraction. The interface is fully Arabic and English and adapts to the visitor's country.
+
+## الاشتراك والأسعار
+
+الاشتراك شهري برصيد واضح: 100 توكين / 100 جنيه مصري ($2)، 500 توكين / 300 جنيه ($6)، 800 توكين / 440 جنيهًا ($8)، 1000 توكين / 500 جنيه ($10). كل مشترك جديد يحصل على هدية ترحيب 5 توكين للتجربة. الدفع بفودافون كاش وإنستاباي وبايبال، والموافقة آليًا وإضافة الرصيد فورًا لإثبات التحويل الصحيح، ولا يتم تخزين أي بيانات دفع في الموقع.
+
+Monthly subscription: 100 tokens / EGP 100 ($2), 500 tokens / EGP 300 ($6), 800 tokens / EGP 440 ($8), 1000 tokens / EGP 500 ($10). New members get a 5-token welcome gift. Payment by Vodafone Cash, InstaPay, and PayPal, with automatic approval and instant credit for a correct payment proof.
+
+## الأدوات (Tools)
+
+- محادثة وبرمجة: نماذج حرة بدون قيود على كتابة أي كود برمجي — كتابة وتصحيح وشرح الأكواد وتحليل الملفات.
+- الفحص الأمني للمواقع: كشف الثغرات ونقاط الضعف في موقعك مع تقرير إصلاح واضح، بسعر ثابت معلوم مسبقًا.
+- الهندسة العكسية: تحليل ساكن عميق للملفات والتطبيقات (حتى 50MB) مع تقرير منظم.
+- بناء المواقع: موقع كامل من صفحة واحدة بضغطة واحدة، وتعديلات لاحقة بطلبات نصية.
+- توليد الصور وCGI: صور إعلانية ومشاهد CGI من وصف نصي، وتعديل الصور الموجودة.
+- بحث PRO واستخراج العملاء وفحص SEO وكشف التسريبات: نماذج متخصصة — بحث ويب حي، بيانات عملاء من خرائط جوجل، قياس صحة SEO، والتحقق من ظهور بياناتك في تسريبات معروفة.
+
+## روابط أساسية (Key pages)
+
+- الرئيسية: https://hotgpt.pro/
+- الباقات والاشتراك: https://hotgpt.pro/billing
+- النماذج والأدوات: https://hotgpt.pro/models
+- دليل الدفع: https://hotgpt.pro/payment-guide
+- الأسئلة الشائعة: https://hotgpt.pro/faq
+- من نحن: https://hotgpt.pro/about
+- المدونة التعليمية: https://hot-gpt.blogspot.com
+
+## تواصل (Contact)
+
+- الدعم: support@hotgpt.pro
+- تيليجرام: https://t.me/HOTGPTPro
