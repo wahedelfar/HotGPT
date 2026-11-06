@@ -172,7 +172,7 @@ export default function ModelsPage() {
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
               {t(
                 "التسجيل مجاني وبيبدأ برصيد هدية ترحيب 5 — واشتراك البداية بـ 100 جنيه شهريًا يكفي تقريبًا 100 رسالة أو 33 صورة.",
-                "Registration is free and starts with a welcome gift balance of 20 — and the Starter monthly subscription at $2 covers roughly 100 messages or 33 images."
+                "Registration is free and starts with a welcome gift balance of 5 — and the Starter monthly subscription at $2 covers roughly 100 messages or 33 images."
               )}
             </p>
             <a href="/billing" className="mt-5 inline-block rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-8 py-3 font-black text-[#231300] shadow-[0_10px_28px_rgba(232,160,32,.35)] transition hover:brightness-110">
