@@ -9,6 +9,7 @@ import {
   CreditCard,
   Check,
   Copy,
+  Share2,
   ChevronDown,
   CircleHelp,
   FileText,
@@ -194,6 +195,11 @@ function Sidebar({
   activeId,
   onSelect,
   onDelete,
+  shareUrls,
+  onShareCheck,
+  onShareOpen,
+  onCopyShare,
+  onRevokeShare,
   onDeleteAll,
   onNew,
   onSettings,
@@ -212,6 +218,11 @@ function Sidebar({
   activeId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  shareUrls: Record<string, string>;
+  onShareCheck: (id: string) => void;
+  onShareOpen: (conversation: Conversation) => void;
+  onCopyShare: (url: string) => void;
+  onRevokeShare: (conversation: Conversation) => void;
   onDeleteAll: () => void;
   onNew: () => void;
   onSettings: () => void;
@@ -372,12 +383,44 @@ function Sidebar({
                   aria-haspopup="menu"
                   aria-expanded={openConversationMenu === conversation.id}
                   title={tr(language, "خيارات المحادثة", "Conversation options")}
-                  onClick={() => setOpenConversationMenu(current => current === conversation.id ? null : conversation.id)}
+                  onClick={() => { setOpenConversationMenu(current => current === conversation.id ? null : conversation.id); onShareCheck(conversation.id); }}
                 >
                   <MoreHorizontal size={16} />
                 </button>
                 {openConversationMenu === conversation.id && (
                   <div className="conversation-context-menu" role="menu">
+                    {shareUrls[conversation.id] ? (
+                      <>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="conversation-share-action"
+                          onClick={() => { setOpenConversationMenu(null); onCopyShare(shareUrls[conversation.id]); }}
+                        >
+                          <Copy size={14} />
+                          {tr(language, "نسخ رابط المشاركة", "Copy share link")}
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="conversation-share-action"
+                          onClick={() => { setOpenConversationMenu(null); onRevokeShare(conversation); }}
+                        >
+                          <Share2 size={14} />
+                          {tr(language, "إيقاف المشاركة", "Stop sharing")}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="conversation-share-action"
+                        onClick={() => { setOpenConversationMenu(null); onShareOpen(conversation); }}
+                      >
+                        <Share2 size={14} />
+                        {tr(language, "مشاركة", "Share")}
+                      </button>
+                    )}
                     <button
                       type="button"
                       role="menuitem"
@@ -1359,6 +1402,48 @@ export default function Home() {
   const [freePopupSeen, setFreePopupSeen] = useState(() => { try { return sessionStorage.getItem("hotgpt-free-usage-popup-seen") === "1"; } catch { return false; } });
   const [hotLuckyPrize, setHotLuckyPrize] = useState<{ label: string; code?: string; date?: string } | null>(null);
   const [showWinModal, setShowWinModal] = useState(false);
+  const [shareUrls, setShareUrls] = useState<Record<string, string>>({});
+  const [shareModal, setShareModal] = useState<{ conversationId: string; stage: "confirm" | "done"; url: string } | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareCheck = (id: string) => {
+    void (async () => {
+      try {
+        const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shareMode: "status", conversationId: id }) });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload.shared && payload.url) setShareUrls(current => ({ ...current, [id]: payload.url }));
+      } catch {}
+    })();
+  };
+  const shareCreate = async () => {
+    if (!shareModal || shareBusy) return;
+    setShareBusy(true);
+    try {
+      const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shareMode: "create", conversationId: shareModal.conversationId }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.url) throw new Error(payload.error || "share_failed");
+      setShareUrls(current => ({ ...current, [shareModal.conversationId]: payload.url }));
+      setShareModal({ conversationId: shareModal.conversationId, stage: "done", url: payload.url });
+      setShareCopied(false);
+    } catch {
+      setRequestError(tr(language, "تعذرت المشاركة. حاول مرة أخرى.", "Could not share. Please try again."));
+      setShareModal(null);
+    } finally { setShareBusy(false); }
+  };
+  const shareRevoke = (conversation: Conversation) => {
+    const confirmed = window.confirm(tr(language, "إيقاف مشاركة هذه المحادثة؟ الرابط العام سيتوقف فورًا.", "Stop sharing this conversation? The public link will stop working immediately."));
+    if (!confirmed) return;
+    void (async () => {
+      try {
+        const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shareMode: "revoke", conversationId: conversation.id }) });
+        if (!response.ok) throw new Error("share_revoke_failed");
+        setShareUrls(current => { const next = { ...current }; delete next[conversation.id]; return next; });
+      } catch {
+        setRequestError(tr(language, "تعذر إيقاف المشاركة. حاول مرة أخرى.", "Could not stop sharing. Please try again."));
+      }
+    })();
+  };
+  const copyShareLink = (url: string) => { void navigator.clipboard?.writeText(url).catch(() => {}); };
   const promptedPrizeCode = useRef<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
@@ -2520,6 +2605,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             }).catch(() => setRequestError("تعذر فتح المحادثة المحفوظة. حاول مرة أخرى."));
           }}
           onNew={startNew}
+          shareUrls={shareUrls}
+          onShareCheck={shareCheck}
+          onShareOpen={conversation => { setShareCopied(false); setShareModal({ conversationId: conversation.id, stage: "confirm", url: "" }); }}
+          onCopyShare={copyShareLink}
+          onRevokeShare={shareRevoke}
           onDelete={id => {
             void (async () => {
               try {
@@ -3006,6 +3096,33 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               <button type="button" onClick={() => { setShowWinModal(false); window.setTimeout(() => { document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(); document.querySelector(".composer")?.scrollIntoView({behavior:"smooth",block:"center"}); },100); }} style={{flex:1,borderRadius:12,padding:"12px 10px",background:"linear-gradient(90deg,#f7cf65,#e8ad28)",color:"#111",fontWeight:900}}>استخدم رصيدك الآن</button>
               <button type="button" onClick={() => { try { localStorage.setItem("hotlucky-win-acknowledged:" + (hotLuckyPrize.code || ""), "1"); } catch {} setShowWinModal(false); }} style={{borderRadius:12,padding:"12px 20px",background:"#292929",border:"1px solid #444",color:"#eee",fontWeight:800}}>شكراً</button>
             </div>
+          </section>
+        </div>
+      )}
+      {shareModal && auth.isAuthenticated && (
+        <div className="welcome-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !shareBusy) setShareModal(null); }} style={{zIndex:1200,background:"rgba(0,0,0,.82)",backdropFilter:"blur(7px)"}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="share-modal-title" dir={language === "ar" ? "rtl" : "ltr"} style={{position:"relative",width:"min(92vw,460px)",border:"1px solid rgba(247,207,101,.85)",borderRadius:24,padding:"30px 24px",textAlign:"center",color:"#fff",background:"radial-gradient(ellipse at top,rgba(247,207,101,.18),transparent 55%),#0a0a0a",boxShadow:"0 20px 80px rgba(247,207,101,.18)"}}>
+            <button type="button" aria-label={tr(language,"إغلاق","Close")} onClick={() => { if (!shareBusy) setShareModal(null); }} style={{position:"absolute",top:12,left:12,width:32,height:32,borderRadius:999,background:"#222",color:"#ddd",border:"1px solid #444",fontSize:20}}>×</button>
+            {shareModal.stage === "confirm" ? (
+              <>
+                <h2 id="share-modal-title" style={{fontSize:22,fontWeight:950,lineHeight:1.5,margin:"6px 0 12px"}}>{tr(language, "مشاركة هذه المحادثة؟", "Share this conversation?")}</h2>
+                <p style={{fontSize:14.5,lineHeight:1.9,color:"#f5f5f5"}}>{tr(language, "أي شخص معه الرابط يقدر يشوف نص المحادثة كاملًا في صفحة عامة تظهر في نتائج البحث. اسمك وإيميلك مش هيظهروا. تقدر توقف المشاركة في أي وقت.", "Anyone with the link can read the full text of this conversation on a public page that can appear in search results. Your name and email are never shown. You can stop sharing at any time.")}</p>
+                <div style={{display:"flex",gap:10,marginTop:20}}>
+                  <button type="button" disabled={shareBusy} onClick={() => { void shareCreate(); }} style={{flex:1,borderRadius:12,padding:"12px 10px",background:"linear-gradient(90deg,#f7cf65,#e8ad28)",color:"#111",fontWeight:900}}>{shareBusy ? tr(language, "جارٍ المشاركة…", "Sharing…") : tr(language, "مشاركة", "Share")}</button>
+                  <button type="button" disabled={shareBusy} onClick={() => setShareModal(null)} style={{borderRadius:12,padding:"12px 20px",background:"#292929",border:"1px solid #444",color:"#eee",fontWeight:800}}>{tr(language, "إلغاء", "Cancel")}</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="share-modal-title" style={{fontSize:22,fontWeight:950,lineHeight:1.5,margin:"6px 0 12px"}}>{tr(language, "المشاركة مفعّلة", "Sharing is on")}</h2>
+                <p style={{fontSize:14,lineHeight:1.9,color:"#d5d5d5"}}>{tr(language, "الرابط العام لمحادثتك جاهز — أي حد معاه الرابط يقدر يقرأها.", "Your public link is ready — anyone with it can read the conversation.")}</p>
+                <p dir="ltr" style={{marginTop:12,padding:"10px 12px",borderRadius:10,border:"1px solid rgba(247,207,101,.35)",background:"rgba(247,207,101,.07)",color:"#f7cf65",fontSize:13.5,fontWeight:700,wordBreak:"break-all"}}>{shareModal.url}</p>
+                <div style={{display:"flex",gap:10,marginTop:20}}>
+                  <button type="button" onClick={() => { copyShareLink(shareModal.url); setShareCopied(true); }} style={{flex:1,borderRadius:12,padding:"12px 10px",background:"linear-gradient(90deg,#f7cf65,#e8ad28)",color:"#111",fontWeight:900}}>{shareCopied ? tr(language, "تم النسخ", "Copied") : tr(language, "نسخ الرابط", "Copy link")}</button>
+                  <button type="button" onClick={() => setShareModal(null)} style={{borderRadius:12,padding:"12px 20px",background:"#292929",border:"1px solid #444",color:"#eee",fontWeight:800}}>{tr(language, "إغلاق", "Close")}</button>
+                </div>
+              </>
+            )}
           </section>
         </div>
       )}

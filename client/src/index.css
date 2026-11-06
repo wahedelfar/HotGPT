@@ -660,6 +660,8 @@ html[data-theme="light"] .composer-mode.pro-mode > span:last-child { background:
 .conversation-more-button[aria-expanded="true"] { opacity: 1; color: #e7f0f2; background: #292e34; }
 .conversation-context-menu { position: absolute; z-index: 80; inset-inline-end: 0; top: calc(100% + 3px); min-width: 154px; padding: 4px; border: 1px solid #343a40; border-radius: 10px; background: #111315; box-shadow: 0 10px 28px rgba(0,0,0,.42); }
 .conversation-delete-action { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 7px; text-align: start; color: #f28b82; background: transparent; font-size: 12px; }
+.conversation-share-action { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 7px; text-align: start; color: #e8edf1; background: transparent; font-size: 12px; }
+.conversation-share-action:hover { background: rgba(251,191,36,.12); }
 .conversation-delete-action:hover { background: rgba(242,139,130,.12); }
 html[data-theme="light"] .conversation-more-button { color: #56616a; }
 html[data-theme="light"] .conversation-row-wrap:hover .conversation-more-button,

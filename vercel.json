@@ -14,6 +14,10 @@
       "destination": "/api/billing?action=re-sweep"
     },
     {
+      "source": "/s/:slug",
+      "destination": "/api/model/chat?action=share_page&slug=:slug"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

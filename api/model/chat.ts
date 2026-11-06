@@ -1868,8 +1868,206 @@ async function handleLeadExtraction(req: any, res: any, body: any) {
   }
 }
 
+
+// ─── Conversation sharing (owner opt-in, 2026-11-06) ────────────────────
+// A member may publish ONE frozen snapshot of a conversation they own at
+// https://hotgpt.pro/s/<slug> (vercel.json rewrites /s/:slug to this
+// function with action=share_page). The snapshot lives as a JSON document
+// in the PRIVATE hotgpt-payment-proofs bucket (service-role access only):
+//   shares/s/<slug>.json  — the share document (title, messages, views)
+//   shares/c/<conversationId>.json — owner pointer {slug, userId}
+// Revoking deletes both objects; the public page then answers 410. The
+// public page NEVER carries the owner's name or email — only the content
+// the owner chose to publish. Text only; attachments are not published.
+const SHARE_BUCKET = "hotgpt-payment-proofs";
+const SHARE_URL_BASE = "https://hotgpt.pro/s/";
+const SHARE_DAILY_LIMIT = 20;
+
+async function shareStorage(method: string, path: string, body?: string) {
+  const url = supabaseUrl();
+  const key = serviceKey();
+  if (!url || !key) throw new Error("supabase_server_not_configured");
+  return await fetch(`${url}/storage/v1/object/${SHARE_BUCKET}/${path}`, {
+    method,
+    headers: {
+      apikey: key,
+      authorization: `Bearer ${key}`,
+      ...(body ? { "content-type": "application/json" } : {}),
+      ...(method === "POST" ? { "x-upsert": "true" } : {}),
+    },
+    body,
+    cache: "no-store",
+  });
+}
+
+async function readShareJson(path: string): Promise<any | null> {
+  try {
+    const response = await shareStorage("GET", path);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch { return null; }
+}
+
+function shareEsc(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function newShareSlug(): string {
+  const raw = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).replace(/-/g, "");
+  return raw.slice(0, 10).toLowerCase();
+}
+
+async function handleShareStatus(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const conversationId = String(body?.conversationId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
+  const pointer = await readShareJson(`shares/c/${conversationId}.json`);
+  if (!pointer || pointer.userId !== user.id || !pointer.slug) return res.status(200).json({ shared: false });
+  const doc = await readShareJson(`shares/s/${pointer.slug}.json`);
+  if (!doc) return res.status(200).json({ shared: false });
+  return res.status(200).json({ shared: true, url: `${SHARE_URL_BASE}${pointer.slug}` });
+}
+
+async function handleShareCreate(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const conversationId = String(body?.conversationId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
+  // Ownership: the conversation must belong to the caller.
+  const owners = await supabaseRest(`conversations?id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,title&limit=1`).catch(() => []);
+  if (!Array.isArray(owners) || owners.length === 0) return res.status(403).json({ error: "not_your_conversation" });
+  // Idempotent: an active share for this conversation is returned as-is.
+  const existing = await readShareJson(`shares/c/${conversationId}.json`);
+  if (existing && existing.userId === user.id && existing.slug) {
+    const doc = await readShareJson(`shares/s/${existing.slug}.json`);
+    if (doc) return res.status(200).json({ url: `${SHARE_URL_BASE}${existing.slug}`, already: true });
+  }
+  // Daily creation cap, counted on the existing analytics ledger.
+  const dayStart = new Date().toISOString().slice(0, 10) + "T00:00:00Z";
+  const todays = await supabaseRest(`analytics_events?user_id=eq.${encodeURIComponent(user.id)}&event_name=eq.share_created&created_at=gte.${encodeURIComponent(dayStart)}&select=id`).catch(() => []);
+  if (Array.isArray(todays) && todays.length >= SHARE_DAILY_LIMIT) return res.status(429).json({ error: "share_daily_limit" });
+  // Build the frozen snapshot: text messages only, oldest first.
+  const rows = await supabaseRest(`messages?conversation_id=eq.${encodeURIComponent(conversationId)}&user_id=eq.${encodeURIComponent(user.id)}&select=role,content,created_at&order=created_at.asc&limit=100`).catch(() => []);
+  const clean: { role: string; content: string }[] = [];
+  for (const m of Array.isArray(rows) ? rows : []) {
+    if (!m || (m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string" || !m.content.trim()) continue;
+    clean.push({ role: m.role, content: m.content });
+  }
+  if (clean.length === 0) return res.status(400).json({ error: "empty_conversation" });
+  // Total cap 200k chars: keep head and tail with an omission marker.
+  let snapshot = clean;
+  const totalChars = clean.reduce((sum, m) => sum + m.content.length, 0);
+  if (totalChars > 200000) {
+    const head: typeof clean = [];
+    const tail: typeof clean = [];
+    let acc = 0;
+    for (const m of clean) { if (acc + m.content.length > 120000) break; head.push(m); acc += m.content.length; }
+    acc = 0;
+    for (let i = clean.length - 1; i >= head.length; i--) { if (acc + clean[i].content.length > 80000) break; tail.unshift(clean[i]); acc += clean[i].content.length; }
+    snapshot = [...head, { role: "assistant", content: "…" }, ...tail];
+  }
+  const firstUser = clean.find((m) => m.role === "user");
+  const title = String(owners[0]?.title || firstUser?.content || "محادثة HotGPT").trim().slice(0, 120) || "محادثة HotGPT";
+  const slug = newShareSlug();
+  const doc = { slug, conversationId, userId: user.id, title, snapshot, createdAt: new Date().toISOString(), views: 0 };
+  const upload = await shareStorage("POST", `shares/s/${slug}.json`, JSON.stringify(doc));
+  if (!upload.ok) { console.error("[Share] document upload failed", upload.status); return res.status(502).json({ error: "share_store_failed" }); }
+  const pointerUpload = await shareStorage("POST", `shares/c/${conversationId}.json`, JSON.stringify({ slug, userId: user.id }));
+  if (!pointerUpload.ok) { console.error("[Share] pointer upload failed", pointerUpload.status); return res.status(502).json({ error: "share_store_failed" }); }
+  void supabaseRest("analytics_events", {
+    method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ user_id: user.id, event_name: "share_created", path: "/api/model/chat", metadata: { slug } }),
+  }).catch(() => null);
+  return res.status(200).json({ url: `${SHARE_URL_BASE}${slug}` });
+}
+
+async function handleShareRevoke(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const conversationId = String(body?.conversationId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(conversationId)) return res.status(400).json({ error: "invalid_conversation_id" });
+  const pointer = await readShareJson(`shares/c/${conversationId}.json`);
+  if (!pointer || pointer.userId !== user.id) return res.status(200).json({ ok: true, already: true });
+  await shareStorage("DELETE", `shares/s/${pointer.slug}.json`).catch(() => null);
+  await shareStorage("DELETE", `shares/c/${conversationId}.json`).catch(() => null);
+  void supabaseRest("analytics_events", {
+    method: "POST", headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ user_id: user.id, event_name: "share_revoked", path: "/api/model/chat", metadata: { slug: pointer.slug } }),
+  }).catch(() => null);
+  return res.status(200).json({ ok: true });
+}
+
+function sharePageShell(inner: string, title: string, description: string, slug: string): string {
+  return `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${shareEsc(title)} — HotGPT</title>
+<meta name="description" content="${shareEsc(description)}">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="${SHARE_URL_BASE}${shareEsc(slug)}">
+<meta property="og:title" content="${shareEsc(title)} — HotGPT">
+<meta property="og:description" content="${shareEsc(description)}">
+<meta property="og:type" content="article">
+<style>
+body{margin:0;background:#050505;color:#f5f5f5;font-family:'IBM Plex Sans Arabic',system-ui,sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:20px 16px 48px}
+.banner{border:1px solid #242424;border-radius:14px;padding:16px;text-align:center;margin-bottom:20px;background:#090909}
+.banner b{color:#FBBF24}
+.cta{display:inline-block;margin-top:10px;background:#FBBF24;color:#11181c;font-weight:700;padding:10px 22px;border-radius:10px;text-decoration:none}
+h1{font-size:20px;line-height:1.6;margin:8px 0 18px}
+.msg{border:1px solid #242424;border-radius:12px;padding:12px 14px;margin-bottom:12px;background:#0b0b0b;white-space:normal;line-height:1.9;font-size:15px;overflow-wrap:anywhere}
+.msg .who{font-size:12px;font-weight:700;margin-bottom:6px}
+.user .who{color:#FBBF24}
+.assistant .who{color:#9be15d}
+.foot{color:#8b959d;font-size:12.5px;text-align:center;margin-top:26px;line-height:1.9}
+.foot a{color:#FBBF24;text-decoration:none}
+</style>
+</head>
+<body><div class="wrap">${inner}</div></body>
+</html>`;
+}
+
+async function handleSharePage(req: any, res: any) {
+  const slug = String(req.query?.slug || "").toLowerCase();
+  if (!/^[0-9a-z]{10}$/.test(slug)) { res.status(404).send("not found"); return; }
+  const doc = await readShareJson(`shares/s/${slug}.json`);
+  if (!doc || !Array.isArray(doc.snapshot)) {
+    const inner = `<div class="banner"><div>تم إيقاف هذه المشاركة من صاحبها</div><a class="cta" href="https://hotgpt.pro">الذهاب إلى HotGPT</a></div>`;
+    res.setHeader("content-type", "text/html; charset=utf-8");
+    res.status(410).send(sharePageShell(inner, "مشاركة موقوفة", "تم إيقاف هذه المشاركة من صاحبها.", slug));
+    return;
+  }
+  // Best-effort view counter; never blocks the page.
+  doc.views = (typeof doc.views === "number" ? doc.views : 0) + 1;
+  void shareStorage("POST", `shares/s/${slug}.json`, JSON.stringify(doc)).catch(() => null);
+  const firstAnswer = doc.snapshot.find((m: any) => m?.role === "assistant" && typeof m?.content === "string");
+  const description = String(firstAnswer?.content || doc.title || "").replace(/\s+/g, " ").slice(0, 160);
+  const messagesHtml = doc.snapshot.map((m: any) => {
+    const role = m?.role === "user" ? "user" : "assistant";
+    const who = role === "user" ? "سؤال" : "إجابة HotGPT";
+    const content = shareEsc(String(m?.content || "")).replace(/\n/g, "<br>");
+    return `<div class="msg ${role}"><div class="who">${who}</div>${content}</div>`;
+  }).join("\n");
+  const inner = `<div class="banner"><div><b>نماذج حرة بدون قيود على كتابة أي كود برمجي</b> — جرّب HotGPT بنفسك</div><a class="cta" href="https://hotgpt.pro">ابدأ مجانًا</a></div>
+<h1>${shareEsc(String(doc.title || "محادثة HotGPT"))}</h1>
+${messagesHtml}
+<div class="foot">صفحة مشاركة نشرها عضو في HotGPT باختياره — المحتوى مسؤولية ناشره.<br><a href="https://hotgpt.pro">hotgpt.pro</a></div>`;
+  res.setHeader("content-type", "text/html; charset=utf-8");
+  res.status(200).send(sharePageShell(inner, String(doc.title || "محادثة HotGPT"), description, slug));
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
+
+  if (req.method === "GET" && String(req.query?.action || "") === "share_page") return await handleSharePage(req, res);
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -1892,6 +2090,9 @@ export default async function handler(req: any, res: any) {
   if (body?.reverseMode === true) return await handleReverseAnalysis(req, res, body);
   if (body?.siteMode === true) return await handleSiteBuild(req, res, body);
   if (body?.leadsMode === true) return await handleLeadExtraction(req, res, body);
+  if (body?.shareMode === "create") return await handleShareCreate(req, res, body);
+  if (body?.shareMode === "revoke") return await handleShareRevoke(req, res, body);
+  if (body?.shareMode === "status") return await handleShareStatus(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
   // to OpenRouter when OPENROUTER_API_KEY is configured (see engine routing below).
   if (!hasPrimaryProvider) {
