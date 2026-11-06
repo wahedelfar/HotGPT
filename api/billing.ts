@@ -253,7 +253,7 @@ async function telegramPayApi(method: string, body: FormData | Record<string, un
 // Binance/Bybit proof formats are not validated yet and stay manual.
 const AUTO_VERIFY_RECIPIENTS: Record<string, string[]> = {
   vodafone_cash: ["01063537686", "201063537686", "+201063537686"],
-  instapay: ["wahedelfar@instapay"],
+  instapay: ["wahedelfar@instapay", "01063537686", "201063537686", "+201063537686"],
 };
 const AUTO_VERIFY_PROMPT = "You are an extraction engine for payment receipts. Read the attached receipt image and extract ONLY these fields. Reply with a single JSON object and nothing else: {\"amount\": <number or null>, \"currency\": \"EGP\", \"recipient\": \"<phone number or handle exactly as shown, or null>\", \"datetime\": \"<YYYY-MM-DD HH:MM or null>\", \"txn_ref\": \"<transaction/reference id exactly as shown, or null>\", \"confidence\": <0 to 1>}. Do not guess values that are not visible.";
 const AUTO_VERIFY_REASONS_AR: Record<string, string> = {
