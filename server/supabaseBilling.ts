@@ -81,7 +81,7 @@ export async function getWallet(userId: string) {
   const row = rows[0];
   let tokenBalance = Number(row.token_balance);
   let welcomeGiftGranted = false;
-  // Welcome gift (product decision, 2026-10-26; raised 5 → 20 on 2026-11-02): every wallet claims 20 gift
+  // Welcome gift (product decision, 2026-10-26; raised 5 → 20 on 2026-11-02, lowered back to 5 on 2026-11-06 — the 20-token gift let members live on free credit and never reach the paywall): every wallet claims 5 gift
   // tokens exactly once, on its first wallet read. The claim is atomic — the
   // PATCH only matches while welcome_gift_claimed is still false, so racing
   // requests can never grant it twice. This replaces the retired 2-free-
@@ -91,7 +91,7 @@ export async function getWallet(userId: string) {
     try {
       const claimed = await rest(`wallets?user_id=eq.${encodeURIComponent(userId)}&welcome_gift_claimed=eq.false`, {
         method: "PATCH", headers: { Prefer: "return=representation" },
-        body: JSON.stringify({ token_balance: tokenBalance + 20, welcome_gift_claimed: true, updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ token_balance: tokenBalance + 5, welcome_gift_claimed: true, updated_at: new Date().toISOString() }),
       });
       if (Array.isArray(claimed) && claimed.length > 0) {
         tokenBalance = Number(claimed[0].token_balance);

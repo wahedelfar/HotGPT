@@ -467,7 +467,7 @@ const INTAKE_WELCOME_TEXT = [
   "━━━━━━━━━━━━━━",
   "منصة ذكاء اصطناعي عربية للمطورين والمسوقين وشركات تطوير المواقع — أجوبة بدون قيود على البحث والبرمجة، وبأرخص أسعار بالجنيه المصري.",
   "",
-  "🎁 هدية ترحيب: رصيد 20 مجانًا أول ما تنشئ حسابك.",
+  "🎁 هدية ترحيب: رصيد 5 مجانًا أول ما تنشئ حسابك.",
   "",
   "🌐 زور الموقع وجرّب بنفسك:",
   "https://hotgpt.pro",
@@ -784,7 +784,7 @@ export default async function handler(req: any, res: any) {
       packages: [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 440 }, { tokens: 1000, priceEgp: 500 }],
       packagesUsd,
       usdEgpRate,
-      freeAnswers: 0, welcomeGiftTokens: 20, creditsPerAnswer: 1,
+      freeAnswers: 0, welcomeGiftTokens: 5, creditsPerAnswer: 1,
     });
   }
   if (action === "public-requests") {

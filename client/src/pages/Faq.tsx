@@ -15,8 +15,8 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     qAr: "كم تبلغ أسعار HotGPT؟",
     qEn: "How much does HotGPT cost?",
-    aAr: "الأسعار من رصيد اشتراكك ومعروفة قبل ما تبعت: الرسالة العادية 1، وتحليل الملفات 3، والبحث على الويب 5، والصورة 3، وتقارير فحص الأمان والـ SEO وكشف التسريب والهندسة العكسية بـ 20 للتقرير. الاشتراكات الشهرية: البداية بـ 100 جنيه، والأساسي بـ 300، والأكبر بـ 440، والشامل بـ 500. وكل حساب جديد له هدية ترحيب: رصيد 20.",
-    aEn: "Pricing comes out of your subscription balance and is shown before you send: a normal message is 1, file analysis 3, web search 5, an image 3, and security, SEO audit, leak-check and reverse-engineering reports are 20 per report. Monthly subscriptions: 100 EGP ($2), 300 EGP ($6), 440 EGP ($8), and 500 EGP ($10). Every new account gets a welcome gift balance of 20.",
+    aAr: "الأسعار من رصيد اشتراكك ومعروفة قبل ما تبعت: الرسالة العادية 1، وتحليل الملفات 3، والبحث على الويب 5، والصورة 3، وتقارير فحص الأمان والـ SEO وكشف التسريب والهندسة العكسية بـ 20 للتقرير. الاشتراكات الشهرية: البداية بـ 100 جنيه، والأساسي بـ 300، والأكبر بـ 440، والشامل بـ 500. وكل حساب جديد له هدية ترحيب: رصيد 5.",
+    aEn: "Pricing comes out of your subscription balance and is shown before you send: a normal message is 1, file analysis 3, web search 5, an image 3, and security, SEO audit, leak-check and reverse-engineering reports are 20 per report. Monthly subscriptions: 100 EGP ($2), 300 EGP ($6), 440 EGP ($8), and 500 EGP ($10). Every new account gets a welcome gift balance of 5.",
   },
   {
     qAr: "كيف أدفع في HotGPT؟",

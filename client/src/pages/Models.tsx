@@ -171,7 +171,7 @@ export default function ModelsPage() {
             <h2 className="text-xl font-bold">{t("جاهز تبدأ؟", "Ready to start?")}</h2>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">
               {t(
-                "التسجيل مجاني وبيبدأ برصيد هدية ترحيب 20 — واشتراك البداية بـ 100 جنيه شهريًا يكفي تقريبًا 100 رسالة أو 33 صورة.",
+                "التسجيل مجاني وبيبدأ برصيد هدية ترحيب 5 — واشتراك البداية بـ 100 جنيه شهريًا يكفي تقريبًا 100 رسالة أو 33 صورة.",
                 "Registration is free and starts with a welcome gift balance of 20 — and the Starter monthly subscription at $2 covers roughly 100 messages or 33 images."
               )}
             </p>

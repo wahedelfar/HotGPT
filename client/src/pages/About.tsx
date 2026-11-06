@@ -38,7 +38,7 @@ const SECTIONS: Section[] = [
   {
     hAr: "تواصل معنا",
     hEn: "Contact us",
-    bAr: "الدعم الفني: support@hotgpt.pro — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: رصيد هدية 20، وجرّب بنفسك قبل ما تدفع أي حاجة.",
+    bAr: "الدعم الفني: support@hotgpt.pro — الإدارة: wawavip@proton.me. سجّل حسابك وخد هدية الترحيب: رصيد هدية 5، وجرّب بنفسك قبل ما تدفع أي حاجة.",
     bEn: "Technical support: support@hotgpt.pro — Administration: wawavip@proton.me. Create your account and claim the welcome gift: a free balance of 20, and try everything yourself before paying anything.",
   },
 ];
@@ -79,7 +79,7 @@ export default function AboutPage() {
               href="/auth?mode=signup"
               className="inline-block rounded-xl bg-gradient-to-l from-amber-300 to-amber-500 px-8 py-3 text-base font-black text-[#1A0505] hover:brightness-110"
             >
-              {ar ? "ابدأ مجانًا — رصيد هدية ٢٠" : "Start free — gift balance of 20"}
+              {ar ? "ابدأ مجانًا — رصيد هدية ٥" : "Start free — gift balance of 5"}
             </a>
           </div>
           <p className="mt-8 text-center text-xs text-slate-500"><a className="text-amber-200 underline" href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{ar ? "مدونة HotGPT" : "HotGPT Blog"}</a></p>
