@@ -1,6 +1,6 @@
 import { LanguageToggle, LocalizedText, useAppLanguage } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
-import FbFollow, { BlogFollow } from "@/components/FbFollow";
+import FbFollow, { BlogFollow , RedditFollow, YoutubeFollow } from "@/components/FbFollow";
 
 type Section = { hAr: string; hEn: string; bAr: string; bEn: string };
 
@@ -56,7 +56,7 @@ export default function AboutPage() {
             </a>
             <LanguageToggle inline />
           </div>
-          <div className="mt-3 flex justify-end gap-2"><FbFollow /><BlogFollow /></div>
+          <div className="mt-3 flex justify-end gap-2"><FbFollow /><BlogFollow /><RedditFollow /><YoutubeFollow /></div>
           <BrandClaim />
           <header className="my-8 rounded-3xl border border-amber-200/35 bg-gradient-to-br from-amber-200/10 to-transparent p-6 sm:p-9">
             <h1 className="text-3xl font-black sm:text-4xl">{ar ? "من نحن" : "About Us"}</h1>

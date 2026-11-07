@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { authFetch } from "@/lib/auth";
 import { LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
 import BrandClaim from "@/components/BrandClaim";
-import FbFollow, { BlogFollow, SmolBadge } from "@/components/FbFollow";
+import FbFollow, { BlogFollow, SmolBadge , RedditFollow, YoutubeFollow } from "@/components/FbFollow";
 import { Gift, ShieldCheck, Users, Upload, Coins, Sparkles, Ticket, Facebook, MessageCircle } from "lucide-react";
 
 // HotLucky — spin game (restructured 2026-10-27).
@@ -362,7 +362,7 @@ export default function LuckyPage() {
           <LanguageToggle inline />
         </span>
       </nav>
-      <div className="mt-3 flex justify-end gap-2"><FbFollow /><BlogFollow /><SmolBadge /></div>
+      <div className="mt-3 flex justify-end gap-2"><FbFollow /><BlogFollow /><RedditFollow /><YoutubeFollow /><SmolBadge /></div>
 
       <BrandClaim />
 

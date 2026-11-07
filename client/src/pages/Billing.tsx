@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { authFetch } from "@/lib/auth";
 import { trackFunnelEvent } from "@/lib/analytics";
 import { LanguageFlag, LanguageToggle, LocalizedText, useAppLanguage, useAudience } from "@/contexts/LanguageContext";
-import FbFollow, { BlogFollow, SmolBadge } from "@/components/FbFollow";
+import FbFollow, { BlogFollow, SmolBadge , RedditFollow, YoutubeFollow } from "@/components/FbFollow";
 
 type PackageOption = { tokens: number; priceEgp: number };
 type PaymentRequest = { id: string; paymentMethod: "vodafone_cash" | "instapay" | "paypal" | "binance_pay" | "bybit_pay"; packageTokens: number; amountEgp: number; status: string; createdAt: string; reviewedAt?: string | null; notifyOnApproval?: boolean; approvalNoticeSeenAt?: string | null; memberNoticeText?: string | null; test?: boolean };
@@ -275,7 +275,7 @@ export default function BillingPage() {
         <p className="mt-3 text-5xl font-black tracking-wide text-amber-400">HotGPT</p>
         <p className="mt-2 text-sm font-bold text-amber-200">{t("منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
       </div>
-      <div className="mb-6 flex justify-end gap-2"><FbFollow /><BlogFollow /><SmolBadge /></div>
+      <div className="mb-6 flex justify-end gap-2"><FbFollow /><BlogFollow /><RedditFollow /><YoutubeFollow /><SmolBadge /></div>
       <div className="mt-2 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-center text-base font-bold leading-7 text-amber-200">
         {t("لأي مشكلة أو صعوبة في الدفع: الدعم الفني معاك ٢٤ ساعة — تواصل معاه ", "For any problem or difficulty while paying: technical support is with you 24/7 — contact it ")}<a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="text-amber-300 underline decoration-2 underline-offset-4 hover:text-amber-200">{t("من هنا", "here")}</a>{t(" وسيتم حلها فورًا.", " and it will be resolved immediately.")}
       </div>
