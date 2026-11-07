@@ -3068,6 +3068,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
           <nav className="home-footer-links">
             <a href="/about">{tr(language, "من نحن", "About us")}</a>
             <a href="/models">{tr(language, "نماذجنا", "Our models")}</a>
+            <a href="/tools/">{tr(language, "أدواتنا", "Our tools")}</a>
             <a href="/billing">{tr(language, "الاشتراك", "Subscription")}</a>
             <a href="/faq">{tr(language, "الأسئلة الشائعة", "FAQ")}</a>
             <a href="/payment-guide">{tr(language, "وسائل الدفع والاشتراك", "Payment & subscribing")}</a>
