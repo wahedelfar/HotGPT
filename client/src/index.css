@@ -1299,7 +1299,7 @@ html[data-theme="dark"] .composer-mode-row > .composer-mode.darkweb-mode.active 
 /* Home site footer — slim link row + copyright under the composer (Wahid, 2026-10-30) */
 .home-site-footer{flex-shrink:0;text-align:center;padding:5px 10px 6px;border-top:1px solid rgba(251,191,36,.10);background:rgba(0,0,0,.18)}
 .home-footer-links{display:flex;flex-wrap:wrap;justify-content:center;gap:1px 9px;line-height:1.5}
-.home-footer-links a{color:#a08d8d;font-size:10px;font-weight:500}
+.home-footer-links a{color:#a08d8d;font-size:9px;font-weight:500}
 .home-footer-links a:hover{color:#FBBF24}
 .home-footer-copy{margin:2px 0 0;color:#776666;font-size:9px;letter-spacing:.04em}
 
