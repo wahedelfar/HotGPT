@@ -48,7 +48,6 @@ import {
 } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { Button } from "@/components/ui/button";
-import FbFollow, { BlogFollow, RedditFollow, YoutubeFollow } from "@/components/FbFollow";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { authFetch } from "@/lib/auth";
 import { trackFunnelEvent } from "@/lib/analytics";
@@ -3079,7 +3078,6 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             <a href="/refund">{tr(language, "سياسة الاسترداد", "Refund policy")}</a>
             <a href="https://hot-gpt.blogspot.com" target="_blank" rel="noopener noreferrer">{tr(language, "مدونة HotGPT", "HotGPT Blog")}</a>
           </nav>
-          <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap",margin:"10px 0 2px"}}><FbFollow /><BlogFollow /><RedditFollow /><YoutubeFollow /></div>
           <p className="home-footer-copy">{tr(language, "تسجيل الدخول عبر Google يُستخدم لإنشاء حسابك وتسجيل دخولك فقط، ولا تُستخدم بيانات Google في توليد المحتوى أو تدريب نماذج الذكاء الاصطناعي.", "Google sign-in is used only to create and sign in to your account; Google data is never used to generate content or train AI models.")}</p>
           <p className="home-footer-copy">© {new Date().getFullYear()} HotGPT — {tr(language, "جميع الحقوق محفوظة", "All rights reserved")}</p>
         </footer>
