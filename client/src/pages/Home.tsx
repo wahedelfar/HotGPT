@@ -1447,6 +1447,99 @@ export default function Home() {
     })();
   };
   const copyShareLink = (url: string) => { void navigator.clipboard?.writeText(url).catch(() => {}); };
+  // Telegram bot builder (pilot, 2026-11-08): a 3-field form (bot name +
+  // free-text description + token in a secure card) — never a chat prompt.
+  // The server classifies the description onto an engine template and the
+  // member gets back a live bot link + a 6-digit claim code.
+  const [myBots, setMyBots] = useState<any[]>([]);
+  const [botForm, setBotForm] = useState({ name: "", description: "", token: "" });
+  const [botEditId, setBotEditId] = useState<string | null>(null);
+  const [botBusy, setBotBusy] = useState(false);
+  const [botError, setBotError] = useState<string | null>(null);
+  const [botSuccess, setBotSuccess] = useState<any | null>(null);
+  const botTemplateName = (t: string) => t === "orders_intake" ? tr(language, "استقبال طلبات", "Orders intake") : t === "location_request" ? tr(language, "طلب موقع العميل", "Customer location") : tr(language, "ترحيب وروابط", "Welcome & links");
+  const botErrorText = (code: string) => {
+    const map: Record<string, string> = {
+      invalid_token: tr(language, "التوكن ده مش شغال — اتأكد إنك ناسخه كامل من BotFather وجرب تاني", "That token does not work — copy it fully from BotFather and try again"),
+      bot_exists: tr(language, "البوت ده مربوط بحساب عندنا بالفعل — لو هو بوتك ادخل قسم بوتاتي", "This bot is already registered with us — if it is yours, see My Bots below"),
+      bot_limit: tr(language, "عندك بوت نشط بالفعل — التجربة الحالية بوت واحد لكل عضو. أوقف بوتك الحالي أو احذفه واعمل واحد جديد", "You already have an active bot — the pilot allows one bot per member. Stop or delete it first"),
+      bot_publish_failed: tr(language, "النشر فشل من ناحيتنا وماتخصمش حاجة — جرب تاني بعد دقائق", "Publishing failed on our side and nothing was charged — try again in a few minutes"),
+      bot_not_configured: tr(language, "النشر فشل من ناحيتنا وماتخصمش حاجة — جرب تاني بعد دقائق", "Publishing failed on our side and nothing was charged — try again in a few minutes"),
+      bot_closed: tr(language, "صانع البوتات في تجربة مغلقة حاليًا — هيتفتح قريب لكل الأعضاء", "The bot builder is in a closed pilot right now — it opens to all members soon"),
+      bot_input_missing: tr(language, "اكتب اسم البوت وشرحه الأول", "Write the bot name and description first"),
+      insufficient_credits: tr(language, "رصيدك غير كافٍ: نشر البوت يحتاج رصيد 20. اشحن من صفحة الاشتراك أو خد باقة HotLucky.", "Your balance is not enough: publishing a bot needs a balance of 20. Top up or grab the HotLucky pack."),
+      bot_desc_no_match: tr(language, "الشرح ده بره أنواع التجربة الحالية. التجربة بتبني ٣ أنواع: بوت ترحيب وروابط — بوت استقبال طلبات (اسم وتليفون وتفاصيل بتوصلك) — بوت طلب موقع العميل للتوصيل. عدّل شرحك لواحد منهم وجرب تاني — مفيش حاجة اتخصمش.", "This description is outside the pilot's three bot types: a welcome & links bot — an orders-intake bot (name, phone, details forwarded to you) — a customer-location bot for delivery. Adjust your description to one of them and try again — nothing was charged."),
+      login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+      auth_unavailable: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
+    };
+    return map[code] || tr(language, "حصلت مشكلة — مفيش حاجة اتخصمش. جرب تاني.", "Something went wrong — nothing was charged. Try again.");
+  };
+  const loadMyBots = () => {
+    void (async () => {
+      try {
+        const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ botMode: "list" }) });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && Array.isArray(payload.bots)) setMyBots(payload.bots);
+        if (typeof payload.tokenBalance === "number") setWalletBalance(payload.tokenBalance);
+      } catch {}
+    })();
+  };
+  useEffect(() => { if (botMode) loadMyBots(); }, [botMode]);
+  const submitBotForm = async () => {
+    if (botBusy) return;
+    setBotBusy(true);
+    setBotError(null);
+    setBotSuccess(null);
+    try {
+      const payloadBody = botEditId
+        ? { botMode: "edit", engine_id: botEditId, name: botForm.name, description: botForm.description, token: botForm.token }
+        : { botMode: "create", name: botForm.name, description: botForm.description, token: botForm.token };
+      const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadBody) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.bot) throw new Error(botErrorText(String(payload.error || "")));
+      if (Array.isArray(payload.bots)) setMyBots(payload.bots);
+      if (typeof payload.tokenBalance === "number") setWalletBalance(payload.tokenBalance);
+      setBotSuccess(payload.bot);
+      setBotEditId(null);
+      setBotForm({ name: "", description: "", token: "" });
+    } catch (e) {
+      setBotError(e instanceof Error ? e.message : botErrorText(""));
+    } finally { setBotBusy(false); }
+  };
+  const botStop = (bot: any) => {
+    void (async () => {
+      try {
+        const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ botMode: "stop", engine_id: bot.engine_id }) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(botErrorText(String(payload.error || "")));
+        if (Array.isArray(payload.bots)) setMyBots(payload.bots);
+      } catch (e) {
+        setBotError(e instanceof Error ? e.message : botErrorText(""));
+      }
+    })();
+  };
+  const botDelete = (bot: any) => {
+    const confirmed = window.confirm(tr(language, "حذف البوت نهائيًا؟ التوكن المسجل هيتمسح والبوت هيقف.", "Delete this bot permanently? Its stored token is wiped and the bot stops."));
+    if (!confirmed) return;
+    void (async () => {
+      try {
+        const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ botMode: "delete", engine_id: bot.engine_id }) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(botErrorText(String(payload.error || "")));
+        if (Array.isArray(payload.bots)) setMyBots(payload.bots);
+        if (botEditId === bot.engine_id) { setBotEditId(null); setBotForm({ name: "", description: "", token: "" }); }
+      } catch (e) {
+        setBotError(e instanceof Error ? e.message : botErrorText(""));
+      }
+    })();
+  };
+  const botStartEdit = (bot: any) => {
+    setBotEditId(bot.engine_id);
+    setBotForm({ name: bot.name || "", description: bot.description || "", token: "" });
+    setBotSuccess(null);
+    setBotError(null);
+  };
+
   const promptedPrizeCode = useRef<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
@@ -2075,6 +2168,16 @@ export default function Home() {
           setIsSearchingWeb(false);
           setSeoMode(false);
         }
+        return;
+      }
+      if (botMode) {
+        // Bot builder is form-driven, never a chat: typed text becomes the
+        // form's description so nothing the member wrote is lost, and the
+        // member is pointed at the form above the composer.
+        setBotForm(current => ({ ...current, description: current.description || trimmed }));
+        setDraft("");
+        setBotSuccess(null);
+        setBotError(tr(language, "صانع البوتات بيشتغل بالنموذج اللي فوق صندوق الكتابة: كمّل اسم البوت والتوكن ودوس «حفظ ونشر»", "The bot builder works through the form above the composer: add the bot name and token, then press Save & Publish"));
         return;
       }
       if (siteMode) {
@@ -2951,6 +3054,67 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             {approvalNotice && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="fixed left-1/2 top-24 z-[70] w-[min(92vw,430px)] -translate-x-1/2 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)]"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Coins size={18} /></span><div className="min-w-0 flex-1"><strong className="block text-[15px] text-[#f3d27a]">{tr(language, "تم شحن رصيدك بنجاح", "Your balance was topped up")}</strong><p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{approvalNotice.count > 1 ? tr(language, `تمت الموافقة على ${approvalNotice.count} من طلبات الشحن، وأُضيف مجموع ${approvalNotice.totalBalance.toLocaleString("en-US")} رصيد إلى حسابك.`, `${approvalNotice.count} top-up requests were approved — a total of ${approvalNotice.totalBalance.toLocaleString("en-US")} balance was added to your account.`) : tr(language, `تمت الموافقة على طلب الشحن، وأُضيف ${approvalNotice.totalBalance.toLocaleString("en-US")} رصيد إلى حسابك.`, `Your top-up was approved — ${approvalNotice.totalBalance.toLocaleString("en-US")} balance were added to your account.`)}</p></div><button className="icon-button shrink-0" onClick={() => setApprovalNotice(null)} aria-label={tr(language, "إخفاء التنبيه", "Dismiss notification")}><X size={15} /></button></div></div>}
             {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفد رصيدك المجاني. لإجابات أكثر تطورًا استخدم نموذج الوحش — ضمن باقة الاشتراك الشهري ١٠٠ جنيه. اختر اشتراكك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر اشتراكك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("للمشتركين في الخطط المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الخطط المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الاشتراكات", "View subscriptions")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
             <div className="composer-area">
+              {botMode && (
+                <div className="bot-builder-panel">
+                  <div className="bot-builder-intro">
+                    <strong>{tr(language, "🤖 صانع بوتات تليجرام", "🤖 Telegram Bot Builder")}</strong>
+                    <p>{tr(language, "اعمل بوت تليجرام شغال ومستضاف عندنا ٢٤ ساعة: اكتب اسمه وشرحه والصق توكن البوت — ويرجع لك رابط بوت حي. النشر بـ٢٠ رصيد، واسترداد كامل لو النشر تعذّر.", "Get a working Telegram bot hosted on our servers 24/7: name it, describe it, paste its token — and get back a live bot link. Publishing costs 20 balance, fully refunded if publishing fails.")}</p>
+                    <p>{tr(language, "جهّز التوكن: افتح ", "Get the token ready: open ")}<a href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a>{tr(language, " ← /newbot ← اختر اسم البوت ويوزره ← انسخ التوكن والصقه هنا.", " → /newbot → pick the bot name and username → copy the token and paste it here.")}</p>
+                    <p className="bot-builder-free-line">{tr(language, "نماذج حرة بدون قيود على كتابة أي كود برمجي", "Free, unrestricted models for writing any programming code")}</p>
+                  </div>
+                  <div className="bot-builder-form">
+                    <input type="text" value={botForm.name} onChange={(e) => setBotForm(current => ({ ...current, name: e.target.value }))} placeholder={tr(language, "اسم البوت — مثال: بوت محل الحلواني", "Bot name — e.g. Sweet Shop Bot")} maxLength={60} />
+                    <textarea value={botForm.description} onChange={(e) => setBotForm(current => ({ ...current, description: e.target.value }))} placeholder={tr(language, "شرح البوت: بيعمل إيه ولمين؟ مثال: بوت بيستقبل طلبات العملاء (الاسم والتليفون وتفاصيل الطلب) ويبعتها ليا", "Describe the bot: what it does and who for? e.g. a bot that takes customer orders (name, phone, details) and forwards them to me")} maxLength={500} rows={3} />
+                    <div className="bot-token-card">
+                      <input type="password" value={botForm.token} onChange={(e) => setBotForm(current => ({ ...current, token: e.target.value }))} placeholder={tr(language, "الصق توكن البوت من BotFather", "Paste the bot token from BotFather")} autoComplete="off" />
+                      <small>{tr(language, "🔒 التوكن بيتبعت مشفر وميظهرش تاني أبدًا — لا هنا ولا في أي مكان.", "🔒 The token is sent encrypted and never shown again — not here, not anywhere.")}</small>
+                    </div>
+                    {botError && <div className="bot-builder-error">{botError}</div>}
+                    <div className="bot-builder-actions">
+                      <button type="button" className="bot-builder-submit" onClick={() => void submitBotForm()} disabled={botBusy}>
+                        {botBusy ? tr(language, "جاري النشر…", "Publishing…") : botEditId ? tr(language, "حفظ التعديلات — ١٠ رصيد", "Save changes — 10 balance") : tr(language, "حفظ ونشر — ٢٠ رصيد", "Save & Publish — 20 balance")}
+                      </button>
+                      {botEditId && (
+                        <button type="button" className="bot-builder-cancel" onClick={() => { setBotEditId(null); setBotForm({ name: "", description: "", token: "" }); setBotError(null); }}>
+                          {tr(language, "إلغاء التعديل", "Cancel edit")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {botSuccess && (
+                    <div className="bot-builder-success">
+                      <strong>{tr(language, "🎉 بوتك بقى شغال:", "🎉 Your bot is live:")}</strong>
+                      <a href={`https://t.me/${botSuccess.bot_username}`} target="_blank" rel="noreferrer">{`https://t.me/${botSuccess.bot_username}`}</a>
+                      <span>{tr(language, "نوع البوت اللي اتبنى من شرحك: ", "Bot type built from your description: ")}{botTemplateName(botSuccess.template)}</span>
+                      {botSuccess.claim_code && (
+                        <>
+                          <span>{tr(language, "كود الربط بتاعك: ", "Your claim code: ")}<b>{botSuccess.claim_code}</b></span>
+                          <span>{tr(language, "افتح بوتك وابعت الكود ده في المحادثة عشان البوت يتربط بيك ويبعتلك الطلبات والمواقع", "Open your bot and send this code in the chat so the bot binds to you and forwards orders and locations to you")}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {myBots.length > 0 && (
+                    <div className="bot-builder-mine">
+                      <strong>{tr(language, "بوتاتي", "My bots")}</strong>
+                      {myBots.map((bot) => (
+                        <div key={bot.engine_id} className="bot-builder-card">
+                          <div className="bot-builder-card-main">
+                            <a href={`https://t.me/${bot.bot_username}`} target="_blank" rel="noreferrer">@{bot.bot_username}</a>
+                            <span>{botTemplateName(bot.template)} · {bot.status === "active" ? tr(language, "نشط", "Active") : tr(language, "موقوف", "Stopped")}</span>
+                          </div>
+                          <div className="bot-builder-card-actions">
+                            <button type="button" onClick={() => botStartEdit(bot)}>{tr(language, "تعديل", "Edit")}</button>
+                            {bot.status === "active" && <button type="button" onClick={() => botStop(bot)}>{tr(language, "إيقاف", "Stop")}</button>}
+                            <button type="button" onClick={() => botDelete(bot)}>{tr(language, "حذف", "Delete")}</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {showScrollDown && (
                 <button type="button" className="scroll-to-bottom-btn" aria-label={tr(language, "انزل لآخر المحادثة", "Jump to latest")} title={tr(language, "انزل لآخر المحادثة", "Jump to latest")} onClick={() => { stickToBottomRef.current = true; setShowScrollDown(false); scrollMessagesToBottom(); }}>
                   <ChevronDown size={18} />

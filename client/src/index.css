@@ -1307,3 +1307,30 @@ html[data-theme="dark"] .composer-mode-row > .composer-mode.darkweb-mode.active 
 .composer-area{position:relative}
 .scroll-to-bottom-btn{position:absolute;bottom:calc(100% + 10px);inset-inline-end:2px;z-index:30;width:38px;height:38px;display:grid;place-items:center;border-radius:50%;color:#FBBF24;background:#2B0000;border:1px solid rgba(251,191,36,.55);box-shadow:0 10px 26px rgba(0,0,0,.5);cursor:pointer;transition:transform .15s ease,background .15s ease}
 .scroll-to-bottom-btn:hover{background:#400000;transform:translateY(2px)}
+
+/* Telegram bot builder panel (pilot, 2026-11-08) */
+.bot-builder-panel { background: rgba(20,16,8,.92); border: 1px solid rgba(251,191,36,.35); border-radius: 14px; padding: 14px; margin-bottom: 10px; max-height: 52vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.bot-builder-intro strong { color: #FBBF24; font-size: 15px; }
+.bot-builder-intro p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.7; color: #d6d3cd; }
+.bot-builder-intro a { color: #FBBF24; }
+.bot-builder-free-line { color: #FBBF24 !important; font-weight: 700; }
+.bot-builder-form { display: flex; flex-direction: column; gap: 8px; }
+.bot-builder-form input[type="text"], .bot-builder-form textarea, .bot-token-card input { width: 100%; background: #0b0b0b; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; color: #f5f5f5; padding: 10px 12px; font-size: 13.5px; font-family: inherit; }
+.bot-builder-form textarea { resize: vertical; }
+.bot-token-card { border: 1px dashed rgba(251,191,36,.5); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.bot-token-card small { color: #a8a29e; font-size: 11.5px; }
+.bot-builder-error { background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.45); color: #fca5a5; border-radius: 10px; padding: 9px 11px; font-size: 12.5px; line-height: 1.7; }
+.bot-builder-actions { display: flex; gap: 8px; }
+.bot-builder-submit { flex: 1; background: linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%); color: #231300; font-weight: 800; font-size: 14px; border: none; border-radius: 999px; padding: 11px 16px; cursor: pointer; }
+.bot-builder-submit:disabled { opacity: .6; cursor: wait; }
+.bot-builder-cancel { background: transparent; color: #d6d3cd; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 11px 14px; cursor: pointer; font-size: 13px; }
+.bot-builder-success { background: rgba(34,197,94,.10); border: 1px solid rgba(34,197,94,.4); border-radius: 10px; padding: 11px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: #e7e5e4; }
+.bot-builder-success a { color: #4ade80; font-weight: 700; }
+.bot-builder-success b { color: #FBBF24; font-size: 16px; letter-spacing: 2px; }
+.bot-builder-mine { display: flex; flex-direction: column; gap: 8px; }
+.bot-builder-mine > strong { color: #FBBF24; font-size: 13.5px; }
+.bot-builder-card { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.10); border-radius: 10px; padding: 9px 11px; }
+.bot-builder-card-main { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: #d6d3cd; }
+.bot-builder-card-main a { color: #FBBF24; font-weight: 700; font-size: 13.5px; }
+.bot-builder-card-actions { display: flex; gap: 6px; }
+.bot-builder-card-actions button { background: transparent; border: 1px solid rgba(251,191,36,.45); color: #FBBF24; border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; }

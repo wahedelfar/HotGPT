@@ -113,6 +113,15 @@ const MODELS: ModelCard[] = [
     price: ["بناء جديد بـ 20 من الرصيد · تعديل على موقع موجود بـ 10", "New build 20 from balance · edit an existing site 10 from balance"],
     kind: "free",
   },
+  {
+    title: ["صانع البوتات — بوت تليجرام شغال", "Bot Builder — a working Telegram bot"],
+    desc: [
+      "اكتب اسم البوت وشرحه والصق توكنه من BotFather، وهنبني لك بوت تليجرام شغال ومستضاف عندنا على مدار الساعة: بوت ترحيب وروابط، أو استقبال طلبات عملاء بتوصلك كاملة، أو طلب موقع العميل للتوصيل برضاه الصريح — ويرجع لك رابط البوت وكود ربطه بحسابك.",
+      "Write your bot's name and description, paste its BotFather token, and we build you a working Telegram bot hosted on our servers around the clock: a welcome & links bot, an orders-intake bot that forwards complete orders to you, or a customer-location bot for delivery with explicit consent — you get back the bot link and its claim code.",
+    ],
+    price: ["نشر بوت جديد بـ 20 من الرصيد · تعديل بـ 10", "Publish a new bot 20 from balance · edit 10 from balance"],
+    kind: "free",
+  },
 ];
 
 export default function ModelsPage() {

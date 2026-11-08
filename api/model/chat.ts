@@ -2064,10 +2064,294 @@ ${messagesHtml}
   res.status(200).send(sharePageShell(inner, String(doc.title || "محادثة HotGPT"), description, slug));
 }
 
+
+// ─── Telegram bot builder (pilot, 2026-11-08) ───────────────────────────
+// A member describes a bot (name + free-text description + a BotFather
+// token pasted into a secure card); the separate engine project
+// (hotgpt-bots) builds and hosts it. This file only: gates pilot access,
+// classifies the description onto one of the three engine templates,
+// calls the engine with the shared secret, debits ONLY on success, and
+// keeps the member-facing index as a JSON document in the same private
+// bucket as shares: bots/<userId>.json. Bot tokens are NEVER stored
+// here — they pass through to the engine in the create/edit call and
+// live encrypted inside the engine only. The engine's own registry
+// round-trips through the bot_registry get/put actions below
+// (engine-secret authed), so the engine keeps no local state in
+// production.
+const BOT_CREATE_COST = 20;
+const BOT_EDIT_COST = 10;
+
+function botEngineConfig(): { url: string; secret: string } | null {
+  const url = (process.env.BOT_ENGINE_URL || "").trim().replace(/\/+$/, "");
+  const secret = process.env.BOT_ENGINE_SECRET || "";
+  return url && secret ? { url, secret } : null;
+}
+
+async function botEngineCall(method: string, path: string, body?: any) {
+  const cfg = botEngineConfig();
+  if (!cfg) throw new Error("bot_not_configured");
+  const response = await fetch(`${cfg.url}${path}`, {
+    method,
+    headers: { "content-type": "application/json", "x-engine-secret": cfg.secret },
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  let json: any = null;
+  try { json = await response.json(); } catch { /* empty body (e.g. 204) */ }
+  return { status: response.status, json };
+}
+
+function botBuilderAllowed(user: any): boolean {
+  if ((process.env.BOT_BUILDER_ENABLED || "") === "1") return true;
+  const testers = (process.env.BOT_BUILDER_TESTERS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return Boolean(user?.email) && testers.includes(String(user.email).toLowerCase());
+}
+
+async function readMemberBots(userId: string): Promise<any[]> {
+  const doc = await readShareJson(`bots/${userId}.json`);
+  return Array.isArray(doc?.bots) ? doc.bots : [];
+}
+
+async function writeMemberBots(userId: string, bots: any[]): Promise<boolean> {
+  const up = await shareStorage("POST", `bots/${userId}.json`, JSON.stringify({ bots, updatedAt: new Date().toISOString() }));
+  return up.ok;
+}
+
+// Deterministic first pass: Arabic + English keyword scoring across the
+// three templates. A unique non-zero winner decides; anything else goes
+// to one strict-JSON model call, and if that also fails the description
+// is out of pilot scope (no bot built, no debit).
+function classifyBotDescription(description: string): string | null {
+  const t = String(description || "").toLowerCase();
+  const score = (patterns: RegExp[]) => patterns.reduce((n, p) => n + (p.test(t) ? 1 : 0), 0);
+  const scores: Record<string, number> = {
+    location_request: score([/موقع|لوكيشن|عنوان|توصيل|ديليفري|خرائط|location|deliver|address|maps|gps/]),
+    orders_intake: score([/طلبات|طلب\b|أوردر|بيع|يشتري|متجر|حجز|order|sell|shop|book/]),
+    welcome_links: score([/ترحيب|روابط|قنات|صفحت|تعريف|أزرار|ازرار|welcome|links|channel/]),
+  };
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+  if (ranked[0][1] > 0 && ranked[0][1] > ranked[1][1]) return ranked[0][0];
+  return null;
+}
+
+async function classifyBotWithModel(description: string): Promise<string | null> {
+  const key = (process.env.OPENROUTER_API_KEY || "").trim();
+  if (!key) return null;
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${key}`, "HTTP-Referer": "https://hotgpt.pro", "X-Title": "HotGPT" },
+      body: JSON.stringify({
+        model: (process.env.BOT_CLASSIFY_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
+        messages: [
+          { role: "system", content: "You classify a requested Telegram bot into exactly one template. Reply with ONLY a JSON object {\"template\":\"...\"}. Templates: welcome_links = welcome message + link buttons / info bot. orders_intake = takes customer orders or bookings in steps and forwards them to the owner. location_request = sends the customer a link so they share their location for delivery. If the request matches none of these, reply {\"template\":\"none\"}." },
+          { role: "user", content: String(description || "").slice(0, 500) },
+        ],
+        max_tokens: 60,
+        temperature: 0,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) return null;
+    const data: any = await response.json();
+    const text = String(data?.choices?.[0]?.message?.content || "");
+    const match = text.match(/"(welcome_links|orders_intake|location_request)"/);
+    return match ? match[1] : null;
+  } catch { return null; }
+}
+
+function buildBotConfig(template: string, name: string, description: string) {
+  if (template === "orders_intake" || template === "location_request") return { business_name: name };
+  const urls = Array.from(new Set((String(description || "").match(/https?:\/\/[^\s<>"')]+/g) || []).map((u) => u.replace(/[.,;]+$/, "")))).slice(0, 5);
+  const links = urls.map((url) => {
+    let title = url;
+    try { title = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep raw */ }
+    return { title, url };
+  });
+  return { welcome_text: `👋 أهلًا بيك في ${name}`, links };
+}
+
+function botEngineError(error: unknown, res: any) {
+  if (error instanceof Error && error.message === "bot_not_configured") return res.status(503).json({ error: "bot_not_configured" });
+  return res.status(502).json({ error: "bot_publish_failed" });
+}
+
+async function handleBotList(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const bots = await readMemberBots(user.id);
+  const wallet = await getWallet(user.id).catch(() => null);
+  return res.status(200).json({ bots, tokenBalance: wallet?.tokenBalance });
+}
+
+async function handleBotCreate(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!botEngineConfig()) return res.status(503).json({ error: "bot_not_configured" });
+  if (!botBuilderAllowed(user)) return res.status(403).json({ error: "bot_closed" });
+  const name = String(body?.name || "").trim().slice(0, 60);
+  const description = String(body?.description || "").trim().slice(0, 500);
+  const token = String(body?.token || "").trim();
+  if (!name || !description) return res.status(400).json({ error: "bot_input_missing" });
+  if (!/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(token)) return res.status(400).json({ error: "invalid_token" });
+  const bots = await readMemberBots(user.id);
+  if (bots.some((b) => b && b.status === "active")) return res.status(409).json({ error: "bot_limit" });
+  const wallet = await getWallet(user.id).catch(() => null);
+  if (!wallet || wallet.tokenBalance < BOT_CREATE_COST) return res.status(402).json({ error: "insufficient_credits" });
+  const template = classifyBotDescription(description) || (await classifyBotWithModel(description));
+  if (!template) return res.status(422).json({ error: "bot_desc_no_match" });
+  let created: any;
+  try {
+    const r = await botEngineCall("POST", "/api/bots", { member_id: user.id, token, template, config: buildBotConfig(template, name, description) });
+    if (r.status === 422) return res.status(400).json({ error: "invalid_token" });
+    if (r.status === 409) return res.status(409).json({ error: "bot_exists" });
+    if (r.status !== 201 || !r.json?.id) return res.status(502).json({ error: "bot_publish_failed" });
+    created = r.json;
+  } catch (error) { return botEngineError(error, res); }
+  const debited = await debitWalletTokens(user.id, BOT_CREATE_COST);
+  if (!debited) {
+    await botEngineCall("DELETE", `/api/bots/${created.id}`).catch(() => null);
+    return res.status(402).json({ error: "insufficient_credits" });
+  }
+  const record = {
+    engine_id: created.id,
+    bot_username: created.bot_username || null,
+    template,
+    name,
+    description,
+    status: "active",
+    claim_code: created.claim_code || null,
+    created_at: new Date().toISOString(),
+  };
+  bots.push(record);
+  await writeMemberBots(user.id, bots);
+  const after = await getWallet(user.id).catch(() => null);
+  return res.status(200).json({ ok: true, bot: record, bots, tokenBalance: after?.tokenBalance });
+}
+
+async function findMemberBot(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return null;
+  const engineId = String(body?.engine_id || "");
+  const bots = await readMemberBots(user.id);
+  const idx = bots.findIndex((b) => b && b.engine_id === engineId);
+  if (idx < 0) { res.status(404).json({ error: "bot_not_found" }); return null; }
+  return { user, bots, idx };
+}
+
+async function handleBotStop(req: any, res: any, body: any) {
+  const found = await findMemberBot(req, res, body);
+  if (!found) return;
+  try {
+    const r = await botEngineCall("POST", `/api/bots/${found.bots[found.idx].engine_id}/stop`);
+    if (r.status !== 200 && r.status !== 404) return res.status(502).json({ error: "bot_publish_failed" });
+  } catch (error) { return botEngineError(error, res); }
+  found.bots[found.idx].status = "stopped";
+  await writeMemberBots(found.user.id, found.bots);
+  return res.status(200).json({ ok: true, bots: found.bots });
+}
+
+async function handleBotDelete(req: any, res: any, body: any) {
+  const found = await findMemberBot(req, res, body);
+  if (!found) return;
+  try {
+    await botEngineCall("DELETE", `/api/bots/${found.bots[found.idx].engine_id}`);
+  } catch (error) { return botEngineError(error, res); }
+  found.bots.splice(found.idx, 1);
+  await writeMemberBots(found.user.id, found.bots);
+  return res.status(200).json({ ok: true, bots: found.bots });
+}
+
+async function handleBotEdit(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!botEngineConfig()) return res.status(503).json({ error: "bot_not_configured" });
+  if (!botBuilderAllowed(user)) return res.status(403).json({ error: "bot_closed" });
+  const engineId = String(body?.engine_id || "");
+  const bots = await readMemberBots(user.id);
+  const idx = bots.findIndex((b) => b && b.engine_id === engineId);
+  if (idx < 0) return res.status(404).json({ error: "bot_not_found" });
+  const name = String(body?.name || "").trim().slice(0, 60);
+  const description = String(body?.description || "").trim().slice(0, 500);
+  const token = String(body?.token || "").trim();
+  if (!name || !description) return res.status(400).json({ error: "bot_input_missing" });
+  if (!/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(token)) return res.status(400).json({ error: "invalid_token" });
+  const wallet = await getWallet(user.id).catch(() => null);
+  if (!wallet || wallet.tokenBalance < BOT_EDIT_COST) return res.status(402).json({ error: "insufficient_credits" });
+  const template = classifyBotDescription(description) || (await classifyBotWithModel(description));
+  if (!template) return res.status(422).json({ error: "bot_desc_no_match" });
+  // Rebuild = delete the old engine record, then create the new one. The
+  // old record is only deleted after every pre-check above has passed.
+  try {
+    await botEngineCall("DELETE", `/api/bots/${engineId}`);
+  } catch (error) { return botEngineError(error, res); }
+  let created: any;
+  try {
+    const r = await botEngineCall("POST", "/api/bots", { member_id: user.id, token, template, config: buildBotConfig(template, name, description) });
+    if (r.status === 422) {
+      bots[idx].status = "stopped";
+      await writeMemberBots(user.id, bots);
+      return res.status(400).json({ error: "invalid_token" });
+    }
+    if (r.status === 409) return res.status(409).json({ error: "bot_exists" });
+    if (r.status !== 201 || !r.json?.id) {
+      bots[idx].status = "stopped";
+      await writeMemberBots(user.id, bots);
+      return res.status(502).json({ error: "bot_publish_failed" });
+    }
+    created = r.json;
+  } catch (error) {
+    bots[idx].status = "stopped";
+    await writeMemberBots(user.id, bots);
+    return botEngineError(error, res);
+  }
+  const debited = await debitWalletTokens(user.id, BOT_EDIT_COST);
+  if (!debited) {
+    await botEngineCall("DELETE", `/api/bots/${created.id}`).catch(() => null);
+    bots[idx].status = "stopped";
+    await writeMemberBots(user.id, bots);
+    return res.status(402).json({ error: "insufficient_credits" });
+  }
+  bots[idx] = {
+    engine_id: created.id,
+    bot_username: created.bot_username || null,
+    template,
+    name,
+    description,
+    status: "active",
+    claim_code: created.claim_code || null,
+    created_at: new Date().toISOString(),
+  };
+  await writeMemberBots(user.id, bots);
+  const after = await getWallet(user.id).catch(() => null);
+  return res.status(200).json({ ok: true, bot: bots[idx], bots, tokenBalance: after?.tokenBalance });
+}
+
+// Engine registry round-trip (engine-secret authed, NOT member authed):
+// the production engine stores its whole registry — encrypted tokens
+// included — as one JSON document through these two actions.
+async function handleBotRegistryGet(req: any, res: any) {
+  const cfg = botEngineConfig();
+  if (!cfg || String(req.headers?.["x-engine-secret"] || "") !== cfg.secret) return res.status(403).json({ error: "forbidden" });
+  const doc = await readShareJson("bots/_registry.json");
+  return res.status(200).json(doc && Array.isArray(doc.bots) ? doc : { bots: [] });
+}
+
+async function handleBotRegistryPut(req: any, res: any, body: any) {
+  const cfg = botEngineConfig();
+  if (!cfg || String(req.headers?.["x-engine-secret"] || "") !== cfg.secret) return res.status(403).json({ error: "forbidden" });
+  const bots = Array.isArray(body?.registry?.bots) ? body.registry.bots : (Array.isArray(body?.bots) ? body.bots : null);
+  if (!bots) return res.status(400).json({ error: "invalid_registry" });
+  const up = await shareStorage("POST", "bots/_registry.json", JSON.stringify({ bots, updatedAt: new Date().toISOString() }));
+  if (!up.ok) return res.status(502).json({ error: "registry_store_failed" });
+  return res.status(200).json({ ok: true, count: bots.length });
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
 
   if (req.method === "GET" && String(req.query?.action || "") === "share_page") return await handleSharePage(req, res);
+  if (req.method === "GET" && String(req.query?.action || "") === "bot_registry") return await handleBotRegistryGet(req, res);
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -2093,6 +2377,12 @@ export default async function handler(req: any, res: any) {
   if (body?.shareMode === "create") return await handleShareCreate(req, res, body);
   if (body?.shareMode === "revoke") return await handleShareRevoke(req, res, body);
   if (body?.shareMode === "status") return await handleShareStatus(req, res, body);
+  if (body?.botMode === "registry_put") return await handleBotRegistryPut(req, res, body);
+  if (body?.botMode === "create") return await handleBotCreate(req, res, body);
+  if (body?.botMode === "list") return await handleBotList(req, res, body);
+  if (body?.botMode === "stop") return await handleBotStop(req, res, body);
+  if (body?.botMode === "delete") return await handleBotDelete(req, res, body);
+  if (body?.botMode === "edit") return await handleBotEdit(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
   // to OpenRouter when OPENROUTER_API_KEY is configured (see engine routing below).
   if (!hasPrimaryProvider) {
