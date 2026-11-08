@@ -1334,3 +1334,13 @@ html[data-theme="dark"] .composer-mode-row > .composer-mode.darkweb-mode.active 
 .bot-builder-card-main a { color: #FBBF24; font-weight: 700; font-size: 13.5px; }
 .bot-builder-card-actions { display: flex; gap: 6px; }
 .bot-builder-card-actions button { background: transparent; border: 1px solid rgba(251,191,36,.45); color: #FBBF24; border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; }
+.bot-builder-feed { margin-top: 10px; border-top: 1px dashed rgba(251,191,36,.35); padding-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+.bot-builder-feed-label { color: #FBBF24; font-size: 12.5px; font-weight: 700; margin-top: 4px; }
+.bot-builder-feed-row { display: flex; gap: 6px; align-items: center; }
+.bot-builder-feed-row input { flex: 1; min-width: 0; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; color: #f5f5f5; padding: 8px 10px; font-size: 13px; }
+.bot-builder-feed-row input.bot-builder-feed-price { flex: 0 0 34%; }
+.bot-builder-feed-row button { background: transparent; border: 1px solid rgba(255,255,255,.2); color: #f5f5f5; border-radius: 8px; padding: 6px 9px; cursor: pointer; }
+.bot-builder-feed-add { align-self: flex-start; background: transparent; border: 1px dashed rgba(251,191,36,.55); color: #FBBF24; border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+.bot-builder-feed-msg { color: #f5f5f5; font-size: 12.5px; }
+.bot-builder-feed-actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.bot-builder-feed-actions > button:not(.bot-builder-submit) { background: transparent; border: 1px solid rgba(255,255,255,.2); color: #f5f5f5; border-radius: 999px; padding: 6px 13px; font-size: 12.5px; cursor: pointer; }

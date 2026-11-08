@@ -1467,6 +1467,7 @@ export default function Home() {
       bot_not_configured: tr(language, "النشر فشل من ناحيتنا وماتخصمش حاجة — جرب تاني بعد دقائق", "Publishing failed on our side and nothing was charged — try again in a few minutes"),
       bot_closed: tr(language, "صانع البوتات في تجربة مغلقة حاليًا — هيتفتح قريب لكل الأعضاء", "The bot builder is in a closed pilot right now — it opens to all members soon"),
       bot_input_missing: tr(language, "اكتب اسم البوت وشرحه الأول", "Write the bot name and description first"),
+      bot_not_found: tr(language, "البوت مش موجود — حدّث الصفحة وجرب تاني", "Bot not found — refresh the page and try again"),
       insufficient_credits: tr(language, "رصيدك غير كافٍ: نشر البوت يحتاج رصيد 20. اشحن من صفحة الاشتراك أو خد باقة HotLucky.", "Your balance is not enough: publishing a bot needs a balance of 20. Top up or grab the HotLucky pack."),
       bot_desc_no_match: tr(language, "الشرح ده بره أنواع التجربة الحالية. التجربة بتبني ٣ أنواع: بوت ترحيب وروابط — بوت استقبال طلبات (اسم وتليفون وتفاصيل بتوصلك) — بوت طلب موقع العميل للتوصيل. عدّل شرحك لواحد منهم وجرب تاني — مفيش حاجة اتخصمش.", "This description is outside the pilot's three bot types: a welcome & links bot — an orders-intake bot (name, phone, details forwarded to you) — a customer-location bot for delivery. Adjust your description to one of them and try again — nothing was charged."),
       login_required: tr(language, "انتهت جلسة الدخول. سجّل الدخول مرة أخرى.", "Your session expired. Please sign in again."),
@@ -1538,6 +1539,40 @@ export default function Home() {
     setBotForm({ name: bot.name || "", description: bot.description || "", token: "" });
     setBotSuccess(null);
     setBotError(null);
+  };
+  // Bot feeding panel: member-fed menu items + canned replies. Saving is
+  // free (no token debit) and the engine applies it to the live bot.
+  const [botFeedId, setBotFeedId] = useState<string | null>(null);
+  const [botMenuRows, setBotMenuRows] = useState<{ name: string; price: string }[]>([]);
+  const [botReplyRows, setBotReplyRows] = useState<{ q: string; a: string }[]>([]);
+  const [botFeedBusy, setBotFeedBusy] = useState(false);
+  const [botFeedMsg, setBotFeedMsg] = useState<string | null>(null);
+  const botStartFeed = (bot: any) => {
+    const cfg = bot.config || {};
+    setBotFeedId(bot.engine_id);
+    setBotMenuRows(Array.isArray(cfg.menu) && cfg.menu.length ? cfg.menu.map((i: any) => ({ name: String(i.name || ""), price: String(i.price || "") })) : [{ name: "", price: "" }]);
+    setBotReplyRows(Array.isArray(cfg.replies) && cfg.replies.length ? cfg.replies.map((r: any) => ({ q: String(r.q || ""), a: String(r.a || "") })) : [{ q: "", a: "" }]);
+    setBotFeedMsg(null);
+    setBotError(null);
+    setBotSuccess(null);
+  };
+  const botSaveFeed = () => {
+    if (botFeedBusy || !botFeedId) return;
+    setBotFeedBusy(true);
+    setBotFeedMsg(null);
+    void (async () => {
+      try {
+        const menu = botMenuRows.map(r => ({ name: r.name.trim(), price: r.price.trim() })).filter(r => r.name);
+        const replies = botReplyRows.map(r => ({ q: r.q.trim(), a: r.a.trim() })).filter(r => r.q && r.a);
+        const response = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ botMode: "feed", engine_id: botFeedId, menu, replies }) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(botErrorText(String(payload.error || "")));
+        setBotFeedMsg(tr(language, "✅ اتحفظت التغذية — البوت بيستخدمها من دلوقتي", "✅ Feeding saved — your bot uses it right away"));
+        loadMyBots();
+      } catch (e) {
+        setBotFeedMsg(e instanceof Error ? e.message : botErrorText(""));
+      } finally { setBotFeedBusy(false); }
+    })();
   };
 
   const promptedPrizeCode = useRef<string | null>(null);
@@ -3104,12 +3139,42 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                             <span>{botTemplateName(bot.template)} · {bot.status === "active" ? tr(language, "نشط", "Active") : tr(language, "موقوف", "Stopped")}</span>
                           </div>
                           <div className="bot-builder-card-actions">
+                            <button type="button" onClick={() => botStartFeed(bot)}>{tr(language, "🍽️ التغذية", "🍽️ Feeding")}</button>
                             <button type="button" onClick={() => botStartEdit(bot)}>{tr(language, "تعديل", "Edit")}</button>
                             {bot.status === "active" && <button type="button" onClick={() => botStop(bot)}>{tr(language, "إيقاف", "Stop")}</button>}
                             <button type="button" onClick={() => botDelete(bot)}>{tr(language, "حذف", "Delete")}</button>
                           </div>
                         </div>
                       ))}
+                      {botFeedId && myBots.some((b) => b.engine_id === botFeedId) && (
+                        <div className="bot-builder-feed">
+                          <strong>{tr(language, "🍽️ تغذية البوت — أصناف وردود جاهزة", "🍽️ Bot feeding — items & canned replies")}</strong>
+                          <p className="bot-builder-free-line">{tr(language, "التغذية مجانية وبتتحدث في البوت فورًا. الأصناف بتظهر للعميل أزرار يختار منها في بوت الطلبات، والردود الجاهزة بيجاوب بيها البوت لما العميل يدوس سؤالها.", "Feeding is free and updates your bot instantly. Items appear as pick buttons in orders bots, and canned replies answer when a customer taps their question.")}</p>
+                          <span className="bot-builder-feed-label">{tr(language, "الأصناف (لحد ٢٠)", "Items (up to 20)")}</span>
+                          {botMenuRows.map((row, i) => (
+                            <div key={"m" + i} className="bot-builder-feed-row">
+                              <input value={row.name} onChange={(e) => setBotMenuRows(rows => rows.map((r, j) => j === i ? { ...r, name: e.target.value } : r))} placeholder={tr(language, "اسم الصنف — مثال: شقة ٣ أوض في رأس البر", "Item name — e.g. 3-room flat in Ras Elbar")} maxLength={60} />
+                              <input value={row.price} onChange={(e) => setBotMenuRows(rows => rows.map((r, j) => j === i ? { ...r, price: e.target.value } : r))} placeholder={tr(language, "السعر (اختياري)", "Price (optional)")} maxLength={30} className="bot-builder-feed-price" />
+                              <button type="button" onClick={() => setBotMenuRows(rows => rows.filter((_, j) => j !== i))} aria-label="remove">✕</button>
+                            </div>
+                          ))}
+                          {botMenuRows.length < 20 && <button type="button" className="bot-builder-feed-add" onClick={() => setBotMenuRows(rows => [...rows, { name: "", price: "" }])}>{tr(language, "+ إضافة صنف", "+ Add item")}</button>}
+                          <span className="bot-builder-feed-label">{tr(language, "الردود الجاهزة (لحد ١٠)", "Canned replies (up to 10)")}</span>
+                          {botReplyRows.map((row, i) => (
+                            <div key={"r" + i} className="bot-builder-feed-row bot-builder-feed-row-reply">
+                              <input value={row.q} onChange={(e) => setBotReplyRows(rows => rows.map((r, j) => j === i ? { ...r, q: e.target.value } : r))} placeholder={tr(language, "السؤال — مثال: العنوان فين؟", "Question — e.g. Where is the address?")} maxLength={60} />
+                              <input value={row.a} onChange={(e) => setBotReplyRows(rows => rows.map((r, j) => j === i ? { ...r, a: e.target.value } : r))} placeholder={tr(language, "الرد اللي البوت هيقوله", "The reply the bot sends")} maxLength={500} />
+                              <button type="button" onClick={() => setBotReplyRows(rows => rows.filter((_, j) => j !== i))} aria-label="remove">✕</button>
+                            </div>
+                          ))}
+                          {botReplyRows.length < 10 && <button type="button" className="bot-builder-feed-add" onClick={() => setBotReplyRows(rows => [...rows, { q: "", a: "" }])}>{tr(language, "+ إضافة رد جاهز", "+ Add canned reply")}</button>}
+                          {botFeedMsg && <div className="bot-builder-feed-msg">{botFeedMsg}</div>}
+                          <div className="bot-builder-feed-actions">
+                            <button type="button" className="bot-builder-submit" onClick={botSaveFeed} disabled={botFeedBusy}>{botFeedBusy ? tr(language, "بيحفظ…", "Saving…") : tr(language, "حفظ التغذية", "Save feeding")}</button>
+                            <button type="button" onClick={() => setBotFeedId(null)}>{tr(language, "إغلاق", "Close")}</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

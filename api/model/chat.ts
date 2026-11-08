@@ -2185,6 +2185,54 @@ function botEngineError(error: unknown, res: any) {
   return res.status(502).json({ error: "bot_publish_failed" });
 }
 
+function sanitizeBotFeed(value: any, kind: "menu" | "replies") {
+  const out: any[] = [];
+  if (!Array.isArray(value)) return out;
+  const cap = kind === "menu" ? 20 : 10;
+  for (const raw of value.slice(0, cap)) {
+    if (!raw || typeof raw !== "object") continue;
+    if (kind === "menu") {
+      const name = String(raw.name || "").trim().slice(0, 60);
+      if (!name) continue;
+      out.push({ name, price: String(raw.price || "").trim().slice(0, 30) });
+    } else {
+      const q = String(raw.q || "").trim().slice(0, 60);
+      const a = String(raw.a || "").trim().slice(0, 500);
+      if (!q || !a) continue;
+      out.push({ q, a });
+    }
+  }
+  return out;
+}
+
+async function handleBotFeed(req: any, res: any, body: any) {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  if (!botEngineConfig()) return res.status(503).json({ error: "bot_not_configured" });
+  if (!botBuilderAllowed(user)) return res.status(403).json({ error: "bot_closed" });
+  // Feeding updates the member's own bot content (menu items + canned
+  // replies). It is free on purpose: members tweak prices and answers
+  // often, and charging per tweak would kill real usage.
+  const menu = sanitizeBotFeed(body?.menu, "menu");
+  const replies = sanitizeBotFeed(body?.replies, "replies");
+  const bots = await readMemberBots(user.id);
+  const rec = bots.find((b) => b && b.engine_id === String(body?.engine_id || ""));
+  if (!rec) return res.status(404).json({ error: "bot_not_found" });
+  try {
+    const r = await botEngineCall("POST", `/api/bots/${rec.engine_id}/config`, { config: { menu, replies } });
+    if (!r.ok) {
+      const data: any = await r.json().catch(() => ({}));
+      if (r.status === 404) return res.status(404).json({ error: "bot_not_found" });
+      return res.status(502).json({ error: data?.error || "bot_publish_failed" });
+    }
+  } catch (error) {
+    return botEngineError(error, res);
+  }
+  rec.config = { ...(rec.config || {}), menu, replies };
+  await writeMemberBots(user.id, bots);
+  return res.status(200).json({ ok: true });
+}
+
 async function handleBotList(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -2396,6 +2444,7 @@ export default async function handler(req: any, res: any) {
   if (body?.botMode === "stop") return await handleBotStop(req, res, body);
   if (body?.botMode === "delete") return await handleBotDelete(req, res, body);
   if (body?.botMode === "edit") return await handleBotEdit(req, res, body);
+  if (body?.botMode === "feed") return await handleBotFeed(req, res, body);
   // DadGPT is the default generation provider. Pure Beast PRO requests may route
   // to OpenRouter when OPENROUTER_API_KEY is configured (see engine routing below).
   if (!hasPrimaryProvider) {
