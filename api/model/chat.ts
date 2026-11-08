@@ -2343,7 +2343,11 @@ async function handleBotRegistryPut(req: any, res: any, body: any) {
   const bots = Array.isArray(body?.registry?.bots) ? body.registry.bots : (Array.isArray(body?.bots) ? body.bots : null);
   if (!bots) return res.status(400).json({ error: "invalid_registry" });
   const up = await shareStorage("POST", "bots/_registry.json", JSON.stringify({ bots, updatedAt: new Date().toISOString() }));
-  if (!up.ok) return res.status(502).json({ error: "registry_store_failed" });
+  if (!up.ok) {
+    const detail = await up.text().catch(() => "");
+    console.error("[Bots] registry store failed", up.status, detail.slice(0, 300));
+    return res.status(502).json({ error: "registry_store_failed" });
+  }
   return res.status(200).json({ ok: true, count: bots.length });
 }
 
