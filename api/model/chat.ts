@@ -1883,11 +1883,20 @@ const SHARE_BUCKET = "hotgpt-payment-proofs";
 const SHARE_URL_BASE = "https://hotgpt.pro/s/";
 const SHARE_DAILY_LIMIT = 20;
 
+// The hotgpt-payment-proofs bucket is restricted to image MIME types
+// (it was configured for payment-proof photos), so JSON documents are
+// rejected there with 415 invalid_mime_type — found live 2026-11-08 via
+// the bot registry write. JSON docs (shares + bots) therefore live in
+// hotgpt-uploads, which accepts arbitrary file types.
+function docsBucketFor(path: string): string {
+  return path.startsWith("bots/") || path.startsWith("shares/") ? "hotgpt-uploads" : SHARE_BUCKET;
+}
+
 async function shareStorage(method: string, path: string, body?: string) {
   const url = supabaseUrl();
   const key = serviceKey();
   if (!url || !key) throw new Error("supabase_server_not_configured");
-  return await fetch(`${url}/storage/v1/object/${SHARE_BUCKET}/${path}`, {
+  return await fetch(`${url}/storage/v1/object/${docsBucketFor(path)}/${path}`, {
     method,
     headers: {
       apikey: key,
