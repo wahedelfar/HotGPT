@@ -6,13 +6,14 @@ import { useAppLanguage } from "@/contexts/LanguageContext";
 const pillBase = {
   display: "inline-flex",
   alignItems: "center",
-  gap: 5,
+  gap: 4,
   fontWeight: 800,
-  fontSize: 12,
-  padding: "6px 10px",
+  fontSize: 11,
+  padding: "5px 11px",
   borderRadius: 999,
   textDecoration: "none",
   lineHeight: 1.4,
+  whiteSpace: "nowrap",
 } as const;
 
 // Reddit glyph (lucide has no Reddit icon) — simple-icons path, currentColor.
@@ -39,8 +40,8 @@ export default function FbFollow() {
         color: "#fff",
       }}
     >
-      <Facebook size={13} />
-      {ar ? "تابعنا على فيسبوك" : "Follow us on Facebook"}
+      <Facebook size={12} />
+      {ar ? "فيسبوك" : "Facebook"}
     </a>
   );
 }
@@ -61,8 +62,8 @@ export function BlogFollow() {
         color: "#231600",
       }}
     >
-      <Newspaper size={13} />
-      {ar ? "مدونة HotGPT" : "HotGPT Blog"}
+      <Newspaper size={12} />
+      {ar ? "بلوجر" : "Blogger"}
     </a>
   );
 }
@@ -82,8 +83,8 @@ export function RedditFollow() {
         color: "#fff",
       }}
     >
-      <RedditIcon size={13} />
-      {ar ? "مجتمع ريديت" : "Reddit community"}
+      <RedditIcon size={12} />
+      {ar ? "ريديت" : "Reddit"}
     </a>
   );
 }
@@ -103,8 +104,8 @@ export function YoutubeFollow() {
         color: "#fff",
       }}
     >
-      <Youtube size={13} />
-      {ar ? "قناة يوتيوب" : "YouTube channel"}
+      <Youtube size={12} />
+      {ar ? "يوتيوب" : "YouTube"}
     </a>
   );
 }
