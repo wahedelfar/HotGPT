@@ -2252,7 +2252,9 @@ async function handleBotCreate(req: any, res: any, body: any) {
   if (!name || !description) return res.status(400).json({ error: "bot_input_missing" });
   if (!/^\d{5,}:[A-Za-z0-9_-]{20,}$/.test(token)) return res.status(400).json({ error: "invalid_token" });
   const bots = await readMemberBots(user.id);
-  if (bots.some((b) => b && b.status === "active")) return res.status(409).json({ error: "bot_limit" });
+  // No per-member bot cap (Wahid's ruling 2026-11-09: «ليه بوت واحد طالما
+  // بيدفع»): every creation is paid (20 tokens debited only on success),
+  // so a member may run as many bots as they choose to pay for.
   const wallet = await getWallet(user.id).catch(() => null);
   if (!wallet || wallet.tokenBalance < BOT_CREATE_COST) return res.status(402).json({ error: "insufficient_credits" });
   const template = classifyBotDescription(description) || (await classifyBotWithModel(description));
