@@ -2282,8 +2282,46 @@ async function handleBotCreate(req: any, res: any, body: any) {
   };
   bots.push(record);
   await writeMemberBots(user.id, bots);
+  // Wahid's ruling (2026-11-09): every successful bot creation is also
+  // recorded as a topic in the member's «الأخيرة» (recent conversations),
+  // so the creation has a durable, findable record. Fully failure-isolated:
+  // a seeding failure must never affect the (already published) creation.
+  await seedBotCreationConversation(user.id, record).catch(() => {});
   const after = await getWallet(user.id).catch(() => null);
   return res.status(200).json({ ok: true, bot: record, bots, tokenBalance: after?.tokenBalance });
+}
+
+async function seedBotCreationConversation(userId: string, record: any) {
+  const username = record?.bot_username ? `@${record.bot_username}` : "";
+  const title = (`🤖 بوت ${username || "تليجرام"}`).slice(0, 80);
+  const convRows = await supabaseRest("conversations?select=id", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ user_id: userId, title }),
+  });
+  const conversationId = convRows?.[0]?.id;
+  if (typeof conversationId !== "string") return;
+  const typeAr = record?.template === "orders_intake" ? "استقبال طلبات" : record?.template === "location_request" ? "طلب موقع العميل" : "ترحيب وروابط";
+  const lines = [
+    "✅ تم إنشاء بوتك ونشره بنجاح!",
+    "",
+    `🤖 البوت: ${username} — https://t.me/${record?.bot_username || ""}`,
+    `الاسم: ${record?.name || ""}`,
+    `النوع اللي النظام اختاره من شرحك: ${typeAr}`,
+  ];
+  if (record?.claim_code) lines.push(`كود الربط: ${record.claim_code} — ابعته جوه البوت من حسابك عشان يتربط بيك (بيتستخدم مرة واحدة بس).`);
+  lines.push(
+    `اتخصم ${BOT_CREATE_COST} توكنز من رصيدك مقابل النشر.`,
+    "",
+    "لإدارة البوت — التغذية بالأصناف والردود الجاهزة، التعديل، الإيقاف — افتح وضع «صانع بوتات تليجرام» من الشاشة الرئيسية وهتلاقيه في قسم «بوتاتي».",
+  );
+  const messages = [
+    { conversation_id: conversationId, user_id: userId, role: "user", content: String(record?.description || record?.name || "إنشاء بوت تليجرام").slice(0, 500) },
+    { conversation_id: conversationId, user_id: userId, role: "assistant", content: lines.join("\n") },
+  ];
+  for (const message of messages) {
+    await supabaseRest("messages?select=id", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(message) });
+  }
 }
 
 async function findMemberBot(req: any, res: any, body: any) {
