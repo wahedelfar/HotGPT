@@ -791,7 +791,7 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage, onBot }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
@@ -802,6 +802,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
   onReverse: () => void;
   onLeads: () => void;
   onImage: () => void;
+  onBot: () => void;
 }) {
   const { language } = useLanguage();
   // Unified welcome grid (Wahid, 2026-10-27): slightly smaller cards,
@@ -870,8 +871,9 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
         <button type="button" onClick={onSite} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "بناء موقع إحترافي", "Build a professional website")}</button>
         <button type="button" onClick={onReverse} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "هندسة عكسية", "Reverse Engineering")}</button>
       </div>
-      <div style={{ textAlign: "center", marginTop: 10 }}>
-        <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "11px 28px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "اشتراك شهري 100 جنيه", "Monthly subscription — $2")}</a>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center", marginTop: 10, maxWidth: 430, marginInline: "auto" }}>
+        <button type="button" onClick={onBot} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "صانع بوتات تليجرام", "Telegram Bot Builder")}</button>
+        <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "8px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "اشتراك شهري 100 جنيه", "Monthly subscription — $2")}</a>
       </div>
       <p style={{ textAlign: "center", fontSize: 12.5, margin: "10px 0 18px", opacity: 0.9 }}>{language === "ar" ? <>اشتراك الـ<span style={{ color: "#F6C453", fontWeight: 800 }}>100 جنيه</span> = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> محادثة - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> صورة - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> مواقع - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> استخراج عملاء</> : <>The <span style={{ color: "#F6C453", fontWeight: 800 }}>$2</span> monthly plan = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> chats - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> images - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> websites - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> lead extractions</>}<br />{language === "ar" ? <>الدفع <span style={{ color: "#FF1E2E", fontWeight: 800 }}>فودافون كاش</span> - <span style={{ color: "#38BDF8", fontWeight: 800 }}>إنستاباي</span> بصورة التحويل فقط.</> : <>Pay by <span style={{ color: "#FF1E2E", fontWeight: 800 }}>Vodafone Cash</span> or <span style={{ color: "#38BDF8", fontWeight: 800 }}>InstaPay</span> with just a transfer screenshot.</>}</p>
       <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
@@ -1283,6 +1285,7 @@ export default function Home() {
   const [siteMode, setSiteMode] = useState(false);
   const [darkLiveMode, setDarkLiveMode] = useState(false);
   const [leadsMode, setLeadsMode] = useState(false);
+  const [botMode, setBotMode] = useState(false);
   // One image icon, two kinds (owner decision, 2026-10-29): the icon
   // opens a small menu — normal image or CGI image. The menu carries
   // names only; image prices live on the /models page.
@@ -2847,6 +2850,27 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setDraft("");
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
+                  onBot={() => {
+                    if (walletBalance < 20) {
+                      setRequestError(tr(language, "صانع البوتات خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "The bot builder is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
+                      return;
+                    }
+                    setRequestError(null);
+                    setBotMode(true);
+                    setReverseMode(false);
+                    setReverseFile(null);
+                    setScanMode(false);
+                    setSeoMode(false);
+                    setLeakMode(false);
+                    setImageMode(false);
+                    setLeadsMode(false);
+                    setSiteMode(false);
+                    setDarkWebEnabled(false);
+                    setDarkLiveMode(false);
+                    setAttachment(null);
+                    setDraft("");
+                    setTimeout(() => textareaRef.current?.focus(), 0);
+                  }}
                   onLeads={() => {
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
@@ -2977,7 +3001,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : reverseMode ? tr(language, "من أيقونة المشبك 📎 اختر ملف البرنامج أو التطبيق ثم اضغط إرسال…", "Use the paperclip 📎 to choose the program or app file, then press send…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
+                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : reverseMode ? tr(language, "من أيقونة المشبك 📎 اختر ملف البرنامج أو التطبيق ثم اضغط إرسال…", "Use the paperclip 📎 to choose the program or app file, then press send…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : botMode ? tr(language, "اكتب وصف البوت اللي عايزه: هيعمل إيه ولمين…", "Describe the bot you want: what it does and who it is for…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
                   rows={1}
                 />
                 <button
@@ -3042,11 +3066,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   <button type="button" className={leakMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode} title={tr(language, "كشف التسريب — هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 رصيد", "Leak check — did your email or domain appear in data breaches? · 20 balance")} style={{ color: "#F87171", ...(leakMode ? { borderColor: "#F87171", background: "rgba(248,113,113,.12)", boxShadow: "0 0 10px rgba(248,113,113,.28)" } : {}) }}>
                     <ShieldAlert size={16} /><span style={{ fontSize: 11 }}>{tr(language, "التسريبات", "Leaks")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
-                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "استخراج العملاء — بيانات شركات من خرائط جوجل · 20 رصيد", "Lead extraction — business data from Google Maps · 20 balance")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
-                    <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "استخراج العملاء", "Extract leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
+                  <button type="button" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "العملاء — بيانات شركات من خرائط جوجل · 20 رصيد", "Leads — business data from Google Maps · 20 balance")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
+                    <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "العملاء", "Leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                   <button type="button" className={reverseMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setReverseMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={reverseMode} title={tr(language, "هندسة عكسية — ارفع برنامجك أو تطبيقك والمنصة تفكّه وتحلّله · 20 رصيد", "Reverse engineering — upload your program or app and the platform takes it apart · 20 balance")} style={{ color: "#A78BFA", ...(reverseMode ? { borderColor: "#A78BFA", background: "rgba(167,139,250,.12)", boxShadow: "0 0 10px rgba(167,139,250,.28)" } : {}) }}>
-                    <Cpu size={16} /><span style={{ fontSize: 11 }}>{tr(language, "العكسية", "Reverse")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
+                    <span style={{ fontSize: 11 }}>{tr(language, "العكسية", "Reverse")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
                   </button>
                 </div>
               </div>
@@ -3056,6 +3080,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               {leakMode && <div className="attachment-cost-note">{tr(language, "🔐 فحص إيميلك أو دومينك في فهارس التسريبات العالمية + تقرير بالخطوات — 20 رصيد، واسترداد كامل لو تعذّر الفحص. افحص بياناتك فقط.", "🔐 We check your email or domain across global breach indexes and report the findings and next steps — 20 balance, fully refunded if the check cannot run. Only check your own data.")}</div>}
               {leadsMode && <div className="attachment-cost-note">{tr(language, "📇 بيانات لحد 30 شركة من خرائط جوجل (اسم وتليفون وعنوان وتقييم) — 20 رصيد، واسترداد كامل لو تعذّر الاستخراج.", "📇 Data for up to 30 businesses from Google Maps (name, phone, address, rating) — 20 balance, fully refunded if the extraction cannot run.")}</div>}
               {reverseMode && <div className="attachment-cost-note">{tr(language, "🧩 فكّ وتحليل ملفك (حتى 50 ميجا): بنية وقدرات وحماية وخارطة عمل — 20 رصيد واسترداد كامل عند الفشل. الملف يُحذف بعد 3 أيام ويبقى التقرير.", "🧩 We take your file apart (up to 50 MB): structure, capabilities, protections and a work plan — 20 balance, fully refunded on failure. The file is deleted after 3 days; the report stays.")}</div>}
+              {botMode && !scanMode && !seoMode && !leakMode && !leadsMode && !reverseMode && !siteMode && !imageMode && <div className="attachment-cost-note">{tr(language, "🤖 صانع البوتات: اكتب وصف البوت وهيجهز لك بوت تليجرام شغال على سيرفراتنا — النشر بـ20 رصيد واسترداد كامل لو تعذّر. جهّز توكن البوت من @BotFather.", "🤖 Bot builder: describe your bot and get a working Telegram bot hosted on our servers — publishing costs 20 balance, fully refunded if it cannot run. Have your bot token from @BotFather ready.")}</div>}
               {darkWebEnabled && !scanMode && !seoMode && !leadsMode && <div className="attachment-cost-note">{tr(language, "للحصول على أفضل نتيجة يرجى كتابة طلبك باللغه الانجليزية", "For the best result, please write your request in English")}</div>}
               {attachment && <div className="attachment-cost-note">{tr(language, "تحليل الملف يخصم 3 من رصيدك.", "File analysis costs 3 balance.")}</div>}
               <div className="composer-footer">
