@@ -2220,10 +2220,14 @@ async function handleBotFeed(req: any, res: any, body: any) {
   if (!rec) return res.status(404).json({ error: "bot_not_found" });
   try {
     const r = await botEngineCall("POST", `/api/bots/${rec.engine_id}/config`, { config: { menu, replies } });
-    if (!r.ok) {
-      const data: any = await r.json().catch(() => ({}));
+    // botEngineCall returns { status, json } — NOT a fetch Response. The
+    // first version of this handler checked r.ok / r.json() (fetch idiom),
+    // which made EVERY successful save report bot_publish_failed while the
+    // engine had already saved (field report 2026-11-09, twice). Check the
+    // status number, like every other bot handler.
+    if (r.status !== 200) {
       if (r.status === 404) return res.status(404).json({ error: "bot_not_found" });
-      return res.status(502).json({ error: data?.error || "bot_publish_failed" });
+      return res.status(502).json({ error: (r.json as any)?.error || "bot_publish_failed" });
     }
   } catch (error) {
     return botEngineError(error, res);
