@@ -2386,6 +2386,21 @@ async function handleBotEdit(req: any, res: any, body: any) {
   try {
     await botEngineCall("DELETE", `/api/bots/${engineId}`);
   } catch (error) { return botEngineError(error, res); }
+  // Verify the old record is actually gone before creating: a registry
+  // write that lands late (or is lost) otherwise makes the create read
+  // the pre-delete registry and answer a phantom bot_exists while the
+  // member's bot is already dead (field report 2026-11-09). If it never
+  // disappears, fail WITHOUT touching the member record — their bot is
+  // still alive on the engine and nothing was debited.
+  let gone = false;
+  for (let attempt = 0; attempt < 4 && !gone; attempt++) {
+    try {
+      const check = await botEngineCall("GET", `/api/bots/${engineId}`);
+      gone = check.status === 404;
+    } catch { /* transient — keep polling */ }
+    if (!gone) await new Promise((resolve) => setTimeout(resolve, 800));
+  }
+  if (!gone) return res.status(502).json({ error: "bot_publish_failed" });
   let created: any;
   try {
     const r = await botEngineCall("POST", "/api/bots", { member_id: user.id, token, template, config: buildBotConfig(template, name, description) });
@@ -2394,7 +2409,11 @@ async function handleBotEdit(req: any, res: any, body: any) {
       await writeMemberBots(user.id, bots);
       return res.status(400).json({ error: "invalid_token" });
     }
-    if (r.status === 409) return res.status(409).json({ error: "bot_exists" });
+    if (r.status === 409) {
+      bots[idx].status = "stopped";
+      await writeMemberBots(user.id, bots);
+      return res.status(409).json({ error: "bot_exists" });
+    }
     if (r.status !== 201 || !r.json?.id) {
       bots[idx].status = "stopped";
       await writeMemberBots(user.id, bots);
