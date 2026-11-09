@@ -68,13 +68,13 @@ export function BlogFollow() {
   );
 }
 
-// Reddit community pill (added 2026-11-07, Wahid's order): r/hotgpt.
+// Reddit pill (added 2026-11-07 as r/hotgpt; retargeted 2026-11-09, Wahid's order): HOT-Dev profile.
 export function RedditFollow() {
   const { language } = useAppLanguage();
   const ar = language === "ar";
   return (
     <a
-      href="https://www.reddit.com/r/hotgpt/"
+      href="https://www.reddit.com/user/HOT-Dev/"
       target="_blank"
       rel="noopener noreferrer"
       style={{
