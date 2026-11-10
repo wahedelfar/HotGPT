@@ -296,19 +296,11 @@ export default function BillingPage() {
         <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT SUBSCRIPTION</p><h1 className="mt-2 text-3xl font-bold">{t("اشتراكك الشهري", "Your monthly subscription")}</h1></div>
         {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{t("رصيد اشتراكك", "Subscription balance")}: {account.tokenBalance}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{language === "en" ? "🎁 The welcome gift was added to your subscription balance" : egEgp ? "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك" : "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك"}</div>}</div>}
       </div>
-      <div className="mt-6 rounded-2xl border border-amber-400/30 bg-black/30 px-5 py-4 text-center">
-        <div className="text-xl font-black text-amber-300">{t("نماذج حرة بدون قيود", "Free, unrestricted models")}</div>
-        <div className="mt-1 text-xs text-slate-400">{t("لكتابة أي كود برمجي", "For writing any programming code")}</div>
-      </div>
       <div className="mt-8 flex flex-wrap gap-3">
         <a href="/models" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("اعرف نماذجنا", "Meet our models")}</a>
         <a href="/payment-guide" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("وسائل الدفع وطريقة الاشتراك", "Payment methods & how to subscribe")}</a>
       </div>
       <p className="mt-8 text-sm font-bold text-amber-300">{t("اضغط على كارت الاشتراك المناسب لك", "Tap the subscription card that suits you")}</p>
-      <a href="/hotlucky" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/60 bg-amber-400/[.07] p-5 transition hover:border-amber-300">
-        <span><strong className="block text-lg">{t("باقة HotLucky", "HotLucky pack")}</strong><span className="mt-1 block text-sm text-slate-300">{t("بـ 50 جنيه خد من 25 لـ 100 رسالة", "For $1, get 25 to 100 messages")}</span></span>
-        <span className="rounded-lg bg-[#FBBF24] px-4 py-2 text-sm font-black text-[#1A0505]">{t("ادخل لصفحة الجوائز", "Go to the prizes page")}</span>
-      </a>
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {packages.map(item => {
           const isLit = introStep >= 0 ? packages[introStep]?.tokens === item.tokens : packageTokens === item.tokens;
