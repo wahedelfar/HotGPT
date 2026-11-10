@@ -89,6 +89,15 @@ const SCAN_REPORT_PROMPT = "SCAN REPORT MODE — a paid professional deliverable
 // the full price, the 20 are consumed by ONE report, and a failed scan
 // or a failed report generation refunds in full — the report must be
 // worth its price (real evidence, server-computed score, exact fixes).
+// English language overrides for the scan/SEO report writers (added
+// 2026-11-10, same fix as the Reverse Lab): the base prompts are English
+// instructions with Arabic output headings and an Arabic-by-default line,
+// and the client never sent its UI language — so English-mode members
+// always got Arabic reports. Appended LAST to the system prompt when the
+// request carries language:"en"; they supersede only language points.
+const SCAN_REPORT_LANG_EN = "FINAL LANGUAGE OVERRIDE — this instruction supersedes the Arabic-by-default line and every Arabic heading above wherever they conflict: the member's interface language is ENGLISH. Write the ENTIRE report in English, including every heading and label, even though the evidence text may be labeled in Arabic. Use exactly these English headings and labels: a title line naming the target and the scan date; then \"Executive Summary\"; then \"Security Score\"; findings blocks labeled \"Evidence\", \"Impact\", \"Fix\"; then \"Passed Checks\" (a compact table is acceptable for this section only); then \"What Was Not Tested\"; and the report must END with the \"Next Steps\" priority checklist. All other rules above remain fully in force: evidence discipline, the exact server-computed score and grade, no invented values, code and commands only in fenced blocks, and the length discipline.";
+const SEO_REPORT_LANG_EN = "FINAL LANGUAGE OVERRIDE — this block supersedes every instruction above (the base SEO prompt and the Arabic add-on) wherever they conflict on language, section headings, literal sentences, or the closing marker. The member's interface language is ENGLISH: write the ENTIRE report in English, including every heading and label, even though the evidence may be labeled in Arabic. Use exactly these English headings: \"Executive Summary\"; \"SEO Score\"; \"Issues & Fixes\" (per-issue labels: \"Evidence\", \"Impact\", \"Fix\"); \"Strengths\" (its compact table's columns are \"Item\" / \"Evidence\"); \"Indexing & Google Visibility\"; \"Keywords & Competitors\"; \"90-Day Growth Plan\" (the single merged growth plan, three horizons: \"Days 0-14\", \"Days 15-45\", \"Days 46-90\", at most 3 one-line items each); \"What Was Not Checked\"; and finally \"Priority Action Checklist\" (at most 5 items). Replace the add-on's literal Arabic sentences with these exact English equivalents: when the site is not indexed write verbatim: \"Warning: a technical score does not mean visibility on Google. Your site is not currently indexed.\"; when it is indexed, the status line is only: \"Indexed on Google\"; and in \"What Was Not Checked\" include verbatim: \"Exact traffic and backlink figures require Google Search Console.\" End the report with a complete sentence, then a line containing exactly: --- End of report --- . Never write the Arabic closing marker, any Arabic heading, or an Arabic continuation note. Every non-language rule above stays fully in force: the ~4,600-character cap, section counts, evidence discipline, no invented figures, no raw JSON field names in the report body, code only in fenced blocks.";
+
 const SEO_REPORT_PROMPT = "SEO AUDIT MODE — a paid professional deliverable. The user paid for a real SEO audit report of one website, and the server attached REAL collected evidence (page title and meta description with lengths, canonical, robots meta, viewport, language, Open Graph and Twitter tags, favicon, H1/H2/H3 structure, image alt coverage, internal/external link counts, structured-data types, visible word count, robots.txt, sitemap presence and URL count, server response time, HTML size, compression) plus an SEO score and grade computed by the server. Write the complete report in the user's language (Arabic by default), based ONLY on that evidence. Rules: never invent keyword search volumes, backlink counts, domain authority, rankings, traffic numbers, competitor data or values that are not in the evidence; state the server-computed score and grade EXACTLY as given and never recompute or soften them; every finding must quote its evidence value. The evidence begins with the exact audit date and time (Africa/Cairo) — use it as the report's date. Structure, in this order: (1) a title line naming the target and the audit date from the evidence; (2) «الخلاصة التنفيذية» — 3 to 4 lines a non-technical site owner understands: where the site stands and the single biggest opportunity; (3) «درجة SEO» — the exact score/grade plus one line on what the grade means; (4) «المشاكل والإصلاحات» — one block per finding, ordered critical first, formatted as: severity + title, then «الدليل» (the evidence), then «الأثر» (what it costs the site in search visibility, in plain terms), then «الإصلاح» (exact, concrete fix steps a developer or site owner can apply — include example values derived from the site's OWN evidence, such as a rewritten title or description built from its real H1/title, never generic filler); (5) «نقاط قوة» — the passed checks from the evidence; (6) «خطة نمو عملية» — a respectable, white-hat action plan in three horizons: «مكاسب سريعة (أسبوع)» quick wins from the findings, «تحسينات متوسطة (شهر)» content and internal-linking work grounded in the audited page's real topic and structure, and «نمو طويل الأجل (3 شهور)» content strategy, structured data expansion and authority building through genuinely useful content and legitimate outreach. Advice must be respectable and sustainable ONLY: never recommend buying links, keyword stuffing, cloaking, doorway pages, fake reviews, PBNs or any black-hat tactic; (7) «ما لم يتم فحصه» — state plainly and without apology: keyword search volumes and difficulty, backlink profile, actual Google rankings and traffic, competitor sites, Core Web Vitals field data, and every page beyond the homepage were NOT measured in this audit (they need paid data sources and deeper crawling) — never present guesses about them as findings; (8) «قائمة التنفيذ بالأولوية» — a final prioritized checklist, most impactful first. In Arabic use per-finding blocks and labeled lists; a compact two-column table (العنصر/الدليل) is welcome for «نقاط قوة» only. Formatting rules: any code, HTML tags or example values longer than a few words go ONLY inside fenced code blocks (```), never inlined inside an Arabic sentence; never state a number, duration, percentage or measurement that does not appear in the evidence — inventing a figure (for example a millisecond value) is a serious report defect. No marketing lines and no offer to continue; end with the checklist. Length discipline: keep the executive summary to at most 4 short lines, every growth-plan item to a single line, «نقاط قوة» as the compact table only with no prose around its rows, and the whole report within about 750 words (at most roughly 4,600 characters) — a complete report that ends with «قائمة التنفيذ بالأولوية» is worth more than a longer one that stops mid-section. CRITICAL COMPLETION RULE: يجب أن تنهي التقرير بجملة كاملة ومكتملة، ثم بسطر: \"--- نهاية التقرير ---\". ممنوع قطع الجملة في المنتصف. إذا شعرت أن المساحة ستنتهي، اختصر قسم \"خطة النمو 90 يوم\" إلى 3 نقاط فقط، ولا تقطع الجملة الأخيرة. إذا كان التقرير سيتجاوز الحد، توقف عند نهاية قسم كامل (مثلاً بعد \"ما لم يتم فحصه\") واكتب: \"[التقرير مستمر - اضغط أكمل الشرح]\". نهاية التقرير الصحيحة هي السطر الحرفي \"--- نهاية التقرير ---\".";
 
 const SCAN_COST = 20;
@@ -518,6 +527,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
   const rs = beginReportStream(res, body);
   const rawUrl = String(body?.url || "").trim().slice(0, 500);
   const conversationId = String(body?.conversationId || "");
+  const lang = body?.language === "en" ? "en" : "ar";
   if (!rawUrl || !/^[0-9a-f-]{36}$/i.test(conversationId)) { res.status(400).json({ error: "invalid_scan_request" }); return; }
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
   if (!orKey) { res.status(503).json({ error: "scan_not_configured" }); return; }
@@ -536,8 +546,8 @@ async function handleUrlScan(req: any, res: any, body: any) {
       res.status(422).json({ error: unreachable });
       return;
     }
-    const system = [BASE_PROMPT, MODE_PROMPTS["Beast pro"], SCAN_REPORT_PROMPT].filter(Boolean).join("\n\n");
-    const userContent = `افحص هذا الرابط أمنيًا واكتب التقرير الكامل الآن:\n\n${scanFindingsText(scan)}`;
+    const system = [BASE_PROMPT, MODE_PROMPTS["Beast pro"], SCAN_REPORT_PROMPT, ...(lang === "en" ? [SCAN_REPORT_LANG_EN] : [])].filter(Boolean).join("\n\n");
+    const userContent = lang === "en" ? `Security-scan this URL and write the full report now:\n\n${scanFindingsText(scan)}` : `افحص هذا الرابط أمنيًا واكتب التقرير الكامل الآن:\n\n${scanFindingsText(scan)}`;
     // Dedicated report writer (user decision, 2026-10-27): the scan
     // report is written by a stronger model reserved for this service
     // — Kimi K2 by default (~0.8 EGP of production cost against the
@@ -562,8 +572,8 @@ async function handleUrlScan(req: any, res: any, body: any) {
     // growth plan and was saved and charged as a success, because the
     // old accumulation never checked completeness and accepted any
     // 300+ characters the stream produced.)
-    const REPORT_CLOSING = "الخطوات التالية";
-    const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
+    const REPORT_CLOSING = lang === "en" ? "Next Steps" : "الخطوات التالية";
+    const REPORT_CONTINUE = lang === "en" ? "Continue the report from the exact point where you stopped, without repeating any text you already wrote and without a new introduction, and complete the remaining sections through \"Next Steps\" and close with it." : "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة، وأكمل الأقسام المتبقية حتى «الخطوات التالية» واختتم به.";
     let report = "";
     let bestScanReport = "";
     let scanStreamed = false;
@@ -640,7 +650,7 @@ async function handleUrlScan(req: any, res: any, body: any) {
       console.warn("[Scan] Salvaged longest partial report (v2 floor)", JSON.stringify({ chars: bestScanReport.length }));
     }
     if (!report) throw new Error("scan_report_failed");
-    await saveMessage(user.id, conversationId, "user", `🔍 فحص أمني للرابط: ${scan.target}`);
+    await saveMessage(user.id, conversationId, "user", lang === "en" ? `🔍 Security scan for URL: ${scan.target}` : `🔍 فحص أمني للرابط: ${scan.target}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
     const scanPayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SCAN_COST, score: scan.score, grade: scan.grade };
@@ -663,9 +673,10 @@ async function handleSeoAudit(req: any, res: any, body: any) {
   if (!user) return;
   const rs = beginReportStream(res, body);
   const conversationId = String(body?.conversationId || "");
+  const lang = body?.language === "en" ? "en" : "ar";
   if (!rawUrl || !/^[0-9a-f-]{36}$/i.test(conversationId)) {
     console.warn("[SEO] Request validation failed", JSON.stringify({ hasUrl: Boolean(rawUrl), conversationIdValid: /^[0-9a-f-]{36}$/i.test(conversationId) }));
-    res.status(400).json({ error: "invalid_seo_request", message: "أدخل رابط موقع صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة." });
+    res.status(400).json({ error: "invalid_seo_request", message: lang === "en" ? "Enter a valid website URL and make sure the conversation is valid, then try again." : "أدخل رابط موقع صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة." });
     return;
   }
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
@@ -691,8 +702,8 @@ async function handleSeoAudit(req: any, res: any, body: any) {
       res.status(422).json({ error: unreachable });
       return;
     }
-    const system = [BASE_PROMPT, MODE_PROMPTS["Beast pro"], SEO_REPORT_PROMPT, SEO_REPORT_PROMPT_ADDON].filter(Boolean).join("\n\n");
-    const userContent = `افحص هذا الموقع من ناحية SEO واكتب التقرير الكامل الآن:\n\n${seoFindingsText(audit)}`;
+    const system = [BASE_PROMPT, MODE_PROMPTS["Beast pro"], SEO_REPORT_PROMPT, SEO_REPORT_PROMPT_ADDON, ...(lang === "en" ? [SEO_REPORT_LANG_EN] : [])].filter(Boolean).join("\n\n");
+    const userContent = lang === "en" ? `SEO-audit this website and write the full report now:\n\n${seoFindingsText(audit)}` : `افحص هذا الموقع من ناحية SEO واكتب التقرير الكامل الآن:\n\n${seoFindingsText(audit)}`;
     // Dedicated report writer for this service (same decision pattern
     // as the scan writer): Kimi K2 by default, overridable via
     // OPENROUTER_SEO_MODEL without touching the chat or scan models.
@@ -727,8 +738,8 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     // growth plan and was saved and charged as a success, because the
     // old accumulation never checked completeness and accepted any
     // 300+ characters the stream produced.)
-    const REPORT_CLOSING = "--- نهاية التقرير ---";
-    const REPORT_CONTINUE = "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة. اختصر خطة النمو إلى 3 نقاط عند الحاجة، وأنهِ بجملة مكتملة ثم سطر مستقل حرفيًا: --- نهاية التقرير --- . لا تتوقف قبل علامة النهاية." ;
+    const REPORT_CLOSING = lang === "en" ? "--- End of report ---" : "--- نهاية التقرير ---";
+    const REPORT_CONTINUE = lang === "en" ? "Continue the report from the exact point where you stopped, without repeating any text you already wrote and without a new introduction. Shorten the growth plan to 3 points if needed, and end with a complete sentence followed by a standalone line containing exactly: --- End of report --- . Do not stop before the end marker." : "أكمل التقرير من النقطة التي توقفت عندها بالضبط، من دون إعادة أي نص كتبته ومن دون أي مقدمة جديدة. اختصر خطة النمو إلى 3 نقاط عند الحاجة، وأنهِ بجملة مكتملة ثم سطر مستقل حرفيًا: --- نهاية التقرير --- . لا تتوقف قبل علامة النهاية." ;
     let report = "";
     let seoStreamed = false;
     let lastCollectedChars = 0;
@@ -830,7 +841,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     }
     // Some OpenRouter-compatible models finish a complete checklist but omit the literal closing marker.
     // Preserve a substantial report instead of returning an immediate generic failure and refunding it.
-    if (!report && bestCollectedReport.length >= 1800 && /قائمة التنفيذ بالأولوية/.test(bestCollectedReport)) {
+    if (!report && bestCollectedReport.length >= 1800 && (lang === "en" ? /Priority Action Checklist/ : /قائمة التنفيذ بالأولوية/).test(bestCollectedReport)) {
       report = `${bestCollectedReport.trim()}\n\n${REPORT_CLOSING}`;
       console.warn("[SEO] Accepted complete checklist without provider closing marker", JSON.stringify({ chars: bestCollectedReport.length, elapsedMs: Date.now() - seoRequestStartedAt }));
     }
@@ -847,7 +858,7 @@ async function handleSeoAudit(req: any, res: any, body: any) {
       }));
       throw new Error("seo_report_failed");
     }
-    await saveMessage(user.id, conversationId, "user", `📈 فحص SEO للرابط: ${audit.target}`);
+    await saveMessage(user.id, conversationId, "user", lang === "en" ? `📈 SEO audit for URL: ${audit.target}` : `📈 فحص SEO للرابط: ${audit.target}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
     const seoPayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SEO_COST, score: audit.score, grade: audit.grade };
@@ -863,10 +874,10 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     }
     const reason = error instanceof Error ? error.message : "unknown";
     console.error("[SEO] SEO audit failed", reason);
-    if (!rs.error({ error: "seo_failed", message: "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك." }) && !res.headersSent) {
+    if (!rs.error({ error: "seo_failed", message: lang === "en" ? "The report was too long to complete. Please retry; your balance will not be charged." : "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك." }) && !res.headersSent) {
       res.status(502).json({
         error: "seo_failed",
-        message: "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.",
+        message: lang === "en" ? "The report was too long to complete. Please retry; your balance will not be charged." : "فشل جلب البيانات لطول التقرير، أعد طلبك مرة أخرى ولن يخصم من رصيدك.",
       });
     }
   }
@@ -969,6 +980,20 @@ async function collectSitePass(key: string, model: string, messages: any[], maxT
 }
 
 
+// English mirror of the Leak Check writer prompt (added 2026-11-10, same
+// language fix as the Reverse Lab): used when the request carries
+// language:"en"; the evidence text stays Arabic-labeled, the report must
+// come out fully in English.
+const LEAK_REPORT_PROMPT_EN = `You are the Leak Check report writer on the HotGPT platform. Your job is to turn real check data from global breach indexes into a clear, practical report for the owner of the email or domain.
+The attached check data may be labeled in Arabic — write your report fully in English regardless. Strict rules:
+- The report is based ONLY on the attached check data. Never invent a breach, date, number, or data type that is not in it, and never attribute to the target any breach that is not listed.
+- Start with the verdict directly in the first two lines: whether the target appeared in breaches or not, and at what scale.
+- For an email found in breaches: name every breach and what its appearance means, the exposed data types if present, and the risk level if present.
+- For a domain: explain in simple terms the difference between "addresses exposed on the domain" and "breaches that hit the domain's own service", and cover only what exists in the data.
+- For a clean result: state clearly that it did not appear in the known indexes, with one honest caveat: the indexes only know breaches that became public, so a clean result is not an absolute guarantee.
+- Always close with a section titled "Next Steps" containing actions ordered by priority according to the exposed data types (passwords: change them immediately, enable two-factor authentication, and never reuse them on any other site; phone numbers: beware phishing and scam messages; nothing exposed: 3 quick protection habits).
+- Direct, professional style without exaggerated fear and without tables; short paragraphs and lists when needed.`;
+
 // Leak check handler («كشف التسريب», owner proposal 2026-11-03): the
 // scan/SEO family's third twin — auth → validate an EMAIL or a DOMAIN
 // → charge 20 → collect real breach-index evidence (server/leakCheck.ts,
@@ -1028,10 +1053,11 @@ async function handleLeakCheck(req: any, res: any, body: any) {
   if (!user) return;
   const rs = beginReportStream(res, body);
   const conversationId = String(body?.conversationId || "");
+  const lang = body?.language === "en" ? "en" : "ar";
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(rawTarget);
   const isDomain = !isEmail && /^(?=.{4,253}$)([a-z0-9](?:-?[a-z0-9])*\.)+[a-z]{2,}$/.test(rawTarget);
   if ((!isEmail && !isDomain) || !/^[0-9a-f-]{36}$/i.test(conversationId)) {
-    res.status(400).json({ error: "invalid_leak_request", message: "اكتب إيميلًا صحيحًا أو دومينًا صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة." });
+    res.status(400).json({ error: "invalid_leak_request", message: lang === "en" ? "Enter a valid email or domain and make sure the conversation is valid, then try again." : "اكتب إيميلًا صحيحًا أو دومينًا صحيحًا وتأكد من وجود محادثة صالحة، ثم أعد المحاولة." });
     return;
   }
   const kind: "email" | "domain" = isEmail ? "email" : "domain";
@@ -1049,7 +1075,7 @@ async function handleLeakCheck(req: any, res: any, body: any) {
     if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
     const evidence = await fetchLeakEvidence(kind, rawTarget);
     if (!evidence) throw new Error("leak_source_unavailable");
-    const system = `أنت كاتب تقارير «كشف التسريب» في منصة HotGPT. مهمتك تحويل بيانات فحص حقيقية من فهارس التسريبات العالمية إلى تقرير عربي واضح وعملي لصاحب الإيميل أو الدومين.
+    const system = lang === "en" ? LEAK_REPORT_PROMPT_EN : `أنت كاتب تقارير «كشف التسريب» في منصة HotGPT. مهمتك تحويل بيانات فحص حقيقية من فهارس التسريبات العالمية إلى تقرير عربي واضح وعملي لصاحب الإيميل أو الدومين.
 قواعد صارمة:
 - التقرير مبني فقط على «بيانات الفحص» المرفقة. ممنوع تخترع تسريبًا أو تاريخًا أو رقمًا أو نوع بيانات غير موجود فيها، وممنوع أن تنسب للهدف أي تسريب غير مذكور.
 - ابدأ بالحكم مباشرة في أول سطرين: هل ظهر الهدف في تسريبات أم لم يظهر، وبأي حجم.
@@ -1058,7 +1084,7 @@ async function handleLeakCheck(req: any, res: any, body: any) {
 - للنتيجة النظيفة: قل بوضوح إنه لم يظهر في الفهارس المعروفة، مع تنبيه صادق واحد: الفهارس لا تعرف إلا التسريبات التي ظهرت للعلن، فالنتيجة النظيفة ليست ضمانًا مطلقًا.
 - اختم دائمًا بقسم عنوانه «الخطوات التالية» وفيه أفعال مرتبة بالأولوية حسب نوع البيانات المكشوفة (كلمات مرور: تغيير فوري وتفعيل التحقق بخطوتين وعدم إعادة الاستخدام في أي موقع آخر؛ أرقام هواتف: حذر من التصيد ورسائل الاحتيال؛ لا شيء مكشوف: 3 عادات حماية سريعة).
 - أسلوب مباشر ومهني من غير تخويف مبالغ فيه ومن غير جداول؛ فقرات قصيرة وقوائم عند الحاجة.`;
-    const userContent = `بيانات الفحص:\n${leakEvidenceText(evidence)}`;
+    const userContent = lang === "en" ? `Check data:\n${leakEvidenceText(evidence)}` : `بيانات الفحص:\n${leakEvidenceText(evidence)}`;
     const models = [
       (process.env.OPENROUTER_LEAK_MODEL || process.env.OPENROUTER_SCAN_MODEL || "moonshotai/kimi-k2-0905").trim(),
       (process.env.OPENROUTER_SCAN_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
@@ -1121,7 +1147,7 @@ async function handleLeakCheck(req: any, res: any, body: any) {
     }
     if (!report && bestReport.length >= 200) report = bestReport;
     if (!report) throw new Error("leak_report_failed");
-    await saveMessage(user.id, conversationId, "user", `🔐 كشف تسريب: ${rawTarget}`);
+    await saveMessage(user.id, conversationId, "user", lang === "en" ? `🔐 Leak check: ${rawTarget}` : `🔐 كشف تسريب: ${rawTarget}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
     const foundCount = evidence.kind === "email" ? (evidence.breachNames?.length ?? 0) : (evidence.domainSummary?.breachCount ?? evidence.serviceBreaches?.length ?? 0);

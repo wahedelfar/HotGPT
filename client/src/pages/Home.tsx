@@ -2054,7 +2054,7 @@ export default function Home() {
         // and returns the finished report; failures refund in full.
         setReportWait("scan");
         try {
-          const scanResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanMode: true, url: trimmed, conversationId, stream: true }) });
+          const scanResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanMode: true, url: trimmed, language: language === "en" ? "en" : "ar", conversationId, stream: true }) });
           const scanPayload = await consumeReportResponse(scanResponse);
           if (!scanResponse.ok || !scanPayload.content) {
             const scanErrors: Record<string, string> = {
@@ -2142,7 +2142,7 @@ export default function Home() {
         // and the actions to take; failures refund in full.
         setReportWait("leak");
         try {
-          const leakResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leakMode: true, target: trimmed, conversationId, stream: true }) });
+          const leakResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leakMode: true, target: trimmed, language: language === "en" ? "en" : "ar", conversationId, stream: true }) });
           const leakPayload = await consumeReportResponse(leakResponse);
           if (!leakResponse.ok || !leakPayload.content) {
             const leakErrors: Record<string, string> = {
@@ -2175,7 +2175,7 @@ export default function Home() {
         // finished report with a growth plan; failures refund in full.
         setReportWait("seo");
         try {
-          const seoResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seoMode: true, url: trimmed, conversationId, stream: true }) });
+          const seoResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seoMode: true, url: trimmed, language: language === "en" ? "en" : "ar", conversationId, stream: true }) });
           const seoPayload = await consumeReportResponse(seoResponse);
           if (!seoResponse.ok || !seoPayload.content) {
             const seoErrors: Record<string, string> = {
