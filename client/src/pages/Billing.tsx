@@ -289,9 +289,6 @@ export default function BillingPage() {
         <p className="mt-2 text-sm font-bold text-amber-200">{t("منصة عربية بدون قيود على البحث والبرمجة", "No limits on research & programming")}</p>
       </div>
       <div className="mb-6 flex justify-end gap-2"><FbFollow /><BlogFollow /><RedditFollow /><YoutubeFollow /><SmolBadge /></div>
-      <div className="mt-2 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-center text-base font-bold leading-7 text-amber-200">
-        {t("لأي مشكلة أو صعوبة في الدفع: الدعم الفني معاك ٢٤ ساعة — تواصل معاه ", "For any problem or difficulty while paying: technical support is with you 24/7 — contact it ")}<a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="text-amber-300 underline decoration-2 underline-offset-4 hover:text-amber-200">{t("من هنا", "here")}</a>{t(" وسيتم حلها فورًا.", " and it will be resolved immediately.")}
-      </div>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT SUBSCRIPTION</p><h1 className="mt-2 text-3xl font-bold">{t("اشتراكك الشهري", "Your monthly subscription")}</h1></div>
         {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{t("رصيد اشتراكك", "Subscription balance")}: {account.tokenBalance}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{language === "en" ? "🎁 The welcome gift was added to your subscription balance" : egEgp ? "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك" : "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك"}</div>}</div>}
