@@ -902,9 +902,9 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
   const { language, toggleLanguage } = useLanguage();
   const auth = useAuth();
   const [theme, setTheme] = useState<"dark" | "blood">(() => {
-    if (typeof window === "undefined") return "blood";
+    if (typeof window === "undefined") return "dark";
     const saved = localStorage.getItem("hotgpt-theme") || localStorage.getItem("theme");
-    return saved === "dark" ? "dark" : "blood";
+    return "dark";
   });
   const [style, setStyle] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("hotgpt-response-style") || "professional" : "professional"
@@ -933,7 +933,7 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
         if (!response.ok) throw new Error(payload.error || "preferences_unavailable");
         const preferences = payload.preferences;
         if (!preferences || cancelled) return;
-        const nextTheme = (localStorage.getItem("hotgpt-theme") === "dark" || localStorage.getItem("hotgpt-theme") === "blood") ? localStorage.getItem("hotgpt-theme")! : "blood";
+        const nextTheme: "dark" = "dark";
         const nextStyle = ["professional", "concise", "friendly", "detailed"].includes(preferences.style) ? preferences.style : "professional";
         const nextInstructions = typeof preferences.instructions === "string" ? preferences.instructions.slice(0, 2000) : "";
         localStorage.setItem("hotgpt-theme", nextTheme);
@@ -996,12 +996,9 @@ function SettingsPanel({ onBack }: { onBack: () => void }) {
           <div className="settings-card-icon purple"><Moon size={18} /></div>
           <div className="appearance-settings-copy">
             <h3>{tr(language, "المظهر", "Appearance")}</h3>
-            <p>{tr(language, "اختر أحد الوضعين الداكنين.", "Choose one of the two dark themes.")}</p>
+            <p>{tr(language, "المظهر ثابت على الأسود.", "The appearance is set to black.")}</p>
             <div className="appearance-theme-options" role="group" aria-label={tr(language, "اختيار المظهر", "Choose appearance")}>
-              <button type="button" className={theme === "blood" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "blood"} onClick={() => { localStorage.setItem("hotgpt-theme", "blood"); localStorage.setItem("theme", "blood"); document.documentElement.dataset.theme = "blood"; setTheme("blood"); }} title="Blood Mode">
-                <strong>Blood Mode</strong><span>{tr(language, "أحمر داكن", "Deep red")}</span>
-              </button>
-              <button type="button" className={theme === "dark" ? "appearance-theme-option selected" : "appearance-theme-option"} aria-pressed={theme === "dark"} onClick={() => { localStorage.setItem("hotgpt-theme", "dark"); localStorage.setItem("theme", "dark"); document.documentElement.dataset.theme = "dark"; setTheme("dark"); }} title="Dark">
+              <button type="button" className="appearance-theme-option selected" aria-pressed={true} title="Dark">
                 <strong>Dark</strong><span>{tr(language, "أسود", "Black")}</span>
               </button>
             </div>
@@ -1144,7 +1141,7 @@ export default function Home() {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme") || localStorage.getItem("hotgpt-theme");
-    const savedTheme = storedTheme === "dark" ? "dark" : "blood";
+    const savedTheme = "dark";
     document.documentElement.dataset.theme = savedTheme;
     document.documentElement.style.colorScheme = "dark";
     localStorage.setItem("theme", savedTheme);
