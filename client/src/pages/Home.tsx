@@ -56,6 +56,9 @@ type Language = "ar" | "en";
 const LanguageContext = createContext<{ language: Language; toggleLanguage: () => void; egEgp: boolean }>({ language: "ar", toggleLanguage: () => {}, egEgp: true });
 function useLanguage() { return useContext(LanguageContext); }
 function tr(language: Language, ar: string, en: string) { return language === "ar" ? ar : en; }
+function isPaywallError(message: string): boolean {
+  return ["نفد رصيدك", "رصيدك غير كافٍ", "الرصيد غير كافٍ", "رصيدًا إضافيًا", "اشترِ اشتراكًا مناسبًا", "balance is not enough", "Not enough credits", "Insufficient balance"].some(marker => message.includes(marker));
+}
 
 type LeadBusiness = {
   name: string;
@@ -1090,6 +1093,133 @@ function GuidePanel({ onBack }: { onBack: () => void }) {
           <Paperclip size={15} /> {tr(language, "اختيار ملف", "Choose file")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+function PaywallCard({ onClose }: { onClose: () => void }) {
+  const { language } = useLanguage();
+  const [config, setConfig] = useState<{ vodafoneCashNumber: string; vodafoneCashUrl?: string; instapayAddress?: string; instapayUrl?: string; packages: { tokens: number; priceEgp: number }[] } | null>(null);
+  const [packageTokens, setPackageTokens] = useState(100);
+  const [paymentMethod, setPaymentMethod] = useState<"vodafone_cash" | "instapay">("vodafone_cash");
+  const [screenshotData, setScreenshotData] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [successBridge, setSuccessBridge] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    trackFunnelEvent({ name: "paywall_view" });
+    fetch("/api/billing?action=config", { cache: "no-store" }).then(r => (r.ok ? r.json() : null)).then(d => { if (d) setConfig(d); }).catch(() => {});
+  }, []);
+  const packages = config?.packages ?? [{ tokens: 100, priceEgp: 100 }, { tokens: 500, priceEgp: 300 }, { tokens: 800, priceEgp: 440 }, { tokens: 1000, priceEgp: 500 }];
+  const selected = packages.find(p => p.tokens === packageTokens) ?? packages[0];
+  async function copyValue(value: string) {
+    try { await navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+  }
+  async function handleScreenshot(file?: File) {
+    setMessage("");
+    if (!file) { setScreenshotData(""); return; }
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) { setMessage(tr(language, "ارفع صورة PNG أو JPG أو WebP فقط.", "Upload a PNG, JPG or WebP image only.")); return; }
+    if (file.size > 15_000_000) { setMessage(tr(language, "حجم الصورة أكبر من اللازم (الحد 15 ميجابايت).", "The image is too large (15 MB max).")); return; }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const render = (maxDim: number, quality: number): string => {
+        const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("no-2d-context");
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", quality);
+      };
+      let dataUrl = render(1280, 0.82);
+      if (dataUrl.length > 280_000) dataUrl = render(1024, 0.68);
+      if (dataUrl.length > 900_000) throw new Error("still-too-large");
+      setScreenshotData(dataUrl);
+    } catch {
+      if (file.size > 700_000) { setMessage(tr(language, "حجم الصورة يجب ألا يتجاوز 700 كيلوبايت. قلّل حجم الصورة ثم أعد المحاولة.", "The image must not exceed 700 KB. Reduce its size and try again.")); return; }
+      const reader = new FileReader();
+      reader.onload = () => setScreenshotData(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => setMessage(tr(language, "تعذر قراءة الصورة. حاول بصورة أخرى.", "Could not read the image. Try another one."));
+      reader.readAsDataURL(file);
+    }
+  }
+  async function submitPayment() {
+    if (!screenshotData) { setMessage(tr(language, "ارفع صورة إثبات التحويل أولًا.", "Upload your transfer screenshot first.")); return; }
+    setBusy(true); setMessage("");
+    trackFunnelEvent({ name: "manual_payment_submit_started", metadata: { packageTokens, paymentMethod, source: "paywall" } });
+    try {
+      const response = await authFetch("/api/billing?action=payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ packageTokens, paymentMethod, screenshotData }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (payload.error === "login_required") { setMessage(tr(language, "يجب تسجيل الدخول قبل إرسال إثبات الدفع. سجّل الدخول ثم حاول مجددًا.", "You must log in before sending payment proof. Log in and try again.")); return; }
+        if (payload.error === "invalid_screenshot") throw new Error(tr(language, "الصورة دي مش مناسبة — جرّب صورة أوضح (PNG أو JPG وحجمها أقل من 700 كيلوبايت)، والدعم الفني معاك ٢٤ ساعة لو احتجت مساعدة.", "This image is not suitable — try a clearer one (PNG or JPG, under 700 KB), and support is with you 24/7 if you need help."));
+        if (payload.error === "screenshot_too_large") throw new Error(tr(language, "حجم صورة الإثبات كبير. اختر الصورة مرة أخرى ليتم تصغيرها تلقائيًا.", "The proof image is too large. Choose it again so it can be resized automatically."));
+        if (payload.error === "proof_upload_failed") throw new Error(tr(language, "تعذر حفظ صورة الإثبات في التخزين. أعد المحاولة، وإذا تكرر الخطأ تواصل مع الإدارة.", "Could not save the proof image. Try again, and if it repeats, contact support."));
+        if (payload.error === "invalid_package_or_method") throw new Error(tr(language, "اختر اشتراكًا وطريقة دفع صحيحة.", "Choose a valid subscription and payment method."));
+        throw new Error(tr(language, "تعذر إرسال طلب الدفع. تحقق من اتصالك وحاول مرة أخرى.", "Could not send the payment request. Check your connection and try again."));
+      }
+      trackFunnelEvent({ name: "manual_payment_proof_submitted", metadata: { packageTokens, paymentMethod, source: "paywall" } });
+      setSuccessBridge(String(payload.bridge || "none"));
+      setScreenshotData("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : tr(language, "حدث خطأ غير متوقع.", "An unexpected error occurred."));
+    } finally { setBusy(false); }
+  }
+  if (successBridge !== null) {
+    return (
+      <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="mx-auto mb-3 w-full max-w-[760px] rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] px-4 py-4 shadow-[0_14px_40px_rgba(0,0,0,.45)]">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Check size={18} /></span>
+          <div className="min-w-0 flex-1">
+            <strong className="block text-[15px] text-[#f3d27a]">{tr(language, "وصلنا إثباتك وطلبك اتسجل ✅", "Your proof arrived and your request is recorded ✅")}</strong>
+            <p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{successBridge === "granted" ? tr(language, "اتضاف لك ٥ توكن هدية عشان تكمّل شغلك دلوقتي. ولو إثباتك سليم، رصيد اشتراكك بيضاف فورًا — ولو محتاج مراجعة يدوية، التفعيل بيتم خلال دقائق.", "5 gift tokens were added so you can continue right now. If your proof is valid, your subscription balance is added instantly — if it needs a manual review, activation happens within minutes.") : tr(language, "لو إثباتك سليم، رصيد اشتراكك بيضاف فورًا — ولو محتاج مراجعة يدوية، التفعيل بيتم خلال دقائق.", "If your proof is valid, your subscription balance is added instantly — if it needs a manual review, activation happens within minutes.")}</p>
+            <button type="button" onClick={onClose} className="mt-3 rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-5 py-2 text-sm font-black text-[#231300] shadow-[0_8px_22px_rgba(232,160,32,.35)]">{tr(language, "كمّل شغلك", "Continue")}</button>
+          </div>
+          <button className="icon-button shrink-0" onClick={onClose} aria-label={tr(language, "إخفاء", "Dismiss")}><X size={15} /></button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div dir={language === "ar" ? "rtl" : "ltr"} role="alert" className="mx-auto mb-3 w-full max-w-[760px] rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] px-4 py-4 shadow-[0_14px_40px_rgba(0,0,0,.45)]">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Coins size={18} /></span>
+        <div className="min-w-0 flex-1">
+          <strong className="block text-[15px] text-[#f3d27a]">{tr(language, "رصيدك خلص — كمّل من هنا", "You're out of balance — continue from here")}</strong>
+          <p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{tr(language, "اشتراك شهري بيبدأ من ١٠٠ جنيه = ١٠٠ توكن، تكفي ١٠٠ إجابة عادية أو ٥ أدوات كاملة (فحص أمان، SEO، بناء موقع، استخراج عملاء، هندسة عكسية).", "A monthly subscription starting at 100 EGP = 100 tokens — enough for 100 regular answers or 5 full tools (security scan, SEO, site builder, lead extraction, reverse engineering).")}</p>
+        </div>
+        <button className="icon-button shrink-0" onClick={onClose} aria-label={tr(language, "إخفاء", "Dismiss")}><X size={15} /></button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {packages.map(p => (
+          <button key={p.tokens} type="button" onClick={() => setPackageTokens(p.tokens)} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${packageTokens === p.tokens ? "border-[#FBBF24] bg-[#FBBF24]/15 text-[#f3d27a]" : "border-white/15 text-slate-300 hover:border-white/35"}`}>{tr(language, `${p.tokens} توكن — ${p.priceEgp} جنيه`, `${p.tokens} tokens — ${p.priceEgp} EGP`)}</button>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={() => setPaymentMethod("vodafone_cash")} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${paymentMethod === "vodafone_cash" ? "border-[#FBBF24] bg-[#FBBF24]/15 text-[#f3d27a]" : "border-white/15 text-slate-300 hover:border-white/35"}`}>{tr(language, "فودافون كاش", "Vodafone Cash")}</button>
+        <button type="button" onClick={() => setPaymentMethod("instapay")} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${paymentMethod === "instapay" ? "border-[#FBBF24] bg-[#FBBF24]/15 text-[#f3d27a]" : "border-white/15 text-slate-300 hover:border-white/35"}`}>{tr(language, "انستا باي", "InstaPay")}</button>
+      </div>
+      {paymentMethod === "vodafone_cash" ? (
+        <div className="mt-3">
+          <a href={config?.vodafoneCashUrl ?? "https://vf.eg/vfcash?id=mt&qrId=G0gO2O"} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#e60000] px-5 py-3 text-center text-sm font-black text-white transition hover:brightness-110">{tr(language, "ادفع الآن — يفتح تطبيق فودافون كاش ↗", "Pay now — opens the Vodafone Cash app ↗")}</a>
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[.03] px-3 py-2 text-xs text-slate-300"><span>{tr(language, "أو اطلب كود التحويل الجاهز:", "Or dial the ready transfer code:")}</span><strong dir="ltr" className="text-sm tracking-wide text-white">*9*7*•••••••••••*{selected?.priceEgp ?? "—"}#</strong><button type="button" onClick={() => void copyValue(`*9*7*${config?.vodafoneCashNumber ?? "01063537686"}*${selected?.priceEgp ?? ""}#`)} className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] hover:bg-white/10">{copied ? <><Check size={12} /> {tr(language, "تم النسخ", "Copied")}</> : <><Copy size={12} /> {tr(language, "نسخ الكود", "Copy code")}</>}</button></div>
+        </div>
+      ) : (
+        <div className="mt-3">
+          <a href={config?.instapayUrl ?? "https://ipn.eg/S/wahedelfar/instapay/4LnUCo"} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#1d4ed8] px-5 py-3 text-center text-sm font-black text-white transition hover:brightness-110">{tr(language, "ادفع الآن — يفتح تطبيق انستا باي ↗", "Pay now — opens the InstaPay app ↗")}</a>
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[.03] px-3 py-2 text-xs text-slate-300"><span>{tr(language, "أو حوّل يدويًا إلى العنوان:", "Or transfer manually to:")}</span><strong dir="ltr" className="text-sm tracking-wide text-white">{config?.instapayAddress ?? "wahedelfar@instapay"}</strong><button type="button" onClick={() => void copyValue(config?.instapayAddress ?? "wahedelfar@instapay")} className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2.5 py-1 text-[11px] hover:bg-white/10">{copied ? <><Check size={12} /> {tr(language, "تم النسخ", "Copied")}</> : <><Copy size={12} /> {tr(language, "نسخ العنوان", "Copy address")}</>}</button></div>
+        </div>
+      )}
+      <p className="mt-3 text-xs leading-5 text-slate-400">{tr(language, `حوّل ${selected?.priceEgp ?? "—"} جنيه بالظبط، ثم ارفع صورة الإثبات هنا — من غير ما تسيب الصفحة.`, `Transfer exactly ${selected?.priceEgp ?? "—"} EGP, then upload the proof screenshot right here — without leaving this page.`)}</p>
+      <label className="mt-2 block text-xs font-bold text-[#f5e7c8]">{tr(language, "صورة إثبات التحويل (PNG/JPG/WebP)", "Transfer proof screenshot (PNG/JPG/WebP)")}<input className="mt-2 block w-full text-xs text-slate-300 file:me-3 file:rounded-lg file:border-0 file:bg-amber-400 file:px-3 file:py-2 file:font-bold file:text-[#1A0505]" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => void handleScreenshot(event.target.files?.[0])} /></label>
+      {screenshotData && <img src={screenshotData} alt={tr(language, "معاينة إثبات الدفع", "Payment proof preview")} className="mt-3 max-h-44 rounded-xl border border-white/10 object-contain" />}
+      <p className="mt-2 text-center text-[11px] font-bold leading-4" style={{ color: "#FBBF24" }}>{tr(language, "الموافقة آليًا وإضافة الرصيد فورًا لإثبات التحويل الصحيح، والغير صحيح يمر عبر مراجعة يدوية من فريق الدعم خلال دقائق.", "Correct transfer proofs are approved automatically and your balance is credited instantly. An incorrect proof goes through a manual review by the support team within minutes.")}</p>
+      <p className="mt-2 text-[11px] font-bold text-emerald-300">🔒 {tr(language, "لا يتم تخزين أي بيانات دفع في موقعنا", "No payment data is stored on our website")}</p>
+      <button type="button" disabled={busy || !screenshotData} onClick={() => void submitPayment()} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FBBF24] text-sm font-black text-[#1A0505] transition hover:bg-[#FBBF24] disabled:cursor-not-allowed disabled:opacity-50" style={{ backgroundColor: "#FBBF24", color: "#1A0505" }}><Upload size={16} />{busy ? tr(language, "جارٍ إرسال الطلب...", "Sending your request...") : tr(language, "إرسال إثبات الدفع", "Send payment proof")}</button>
+      {message && <p role="status" className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-xs leading-5 text-slate-200">{message}</p>}
+      <p className="mt-3 text-center text-[11px] text-slate-400">{tr(language, "عايز PayPal أو عملات رقمية أو تفاصيل أكتر؟", "Want PayPal, crypto or more details?")} <a href="/billing" className="font-bold text-[#f3d27a] underline underline-offset-2">{tr(language, "صفحة الاشتراك الكاملة", "The full subscription page")}</a></p>
     </div>
   );
 }
@@ -3087,7 +3217,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
             </div>
             {auth.isAuthenticated && walletBalance <= 1 && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="mx-auto mb-3 flex w-full max-w-[760px] flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,.45)]"><p className="min-w-0 flex-1 text-sm leading-6 text-[#f5e7c8]">{tr(language, "جرّب HotGPT بالاشتراك الشهري بـ100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with the monthly subscription for just $2 — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay.")}</p><a href="/billing?pack=100" className="shrink-0 rounded-full bg-gradient-to-b from-[#F6C453] via-[#E8A020] to-[#B97A0F] px-5 py-2 text-sm font-black text-[#231300] shadow-[0_8px_22px_rgba(232,160,32,.35)]">{tr(language, "اشتراك شهري بـ100 جنيه", "Subscribe monthly for $2")}</a></div>}
             {approvalNotice && <div dir={language === "ar" ? "rtl" : "ltr"} role="status" className="fixed left-1/2 top-24 z-[70] w-[min(92vw,430px)] -translate-x-1/2 rounded-2xl border border-[#d4af37]/60 bg-gradient-to-b from-[#3d0505] to-[#1c0000] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)]"><div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#d4af37]/15 text-[#e9c766]"><Coins size={18} /></span><div className="min-w-0 flex-1"><strong className="block text-[15px] text-[#f3d27a]">{tr(language, "تم شحن رصيدك بنجاح", "Your balance was topped up")}</strong><p className="mt-1 text-sm leading-6 text-[#f5e7c8]">{approvalNotice.count > 1 ? tr(language, `تمت الموافقة على ${approvalNotice.count} من طلبات الشحن، وأُضيف مجموع ${approvalNotice.totalBalance.toLocaleString("en-US")} رصيد إلى حسابك.`, `${approvalNotice.count} top-up requests were approved — a total of ${approvalNotice.totalBalance.toLocaleString("en-US")} balance was added to your account.`) : tr(language, `تمت الموافقة على طلب الشحن، وأُضيف ${approvalNotice.totalBalance.toLocaleString("en-US")} رصيد إلى حسابك.`, `Your top-up was approved — ${approvalNotice.totalBalance.toLocaleString("en-US")} balance were added to your account.`)}</p></div><button className="icon-button shrink-0" onClick={() => setApprovalNotice(null)} aria-label={tr(language, "إخفاء التنبيه", "Dismiss notification")}><X size={15} /></button></div></div>}
-            {requestError && <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفد رصيدك المجاني. لإجابات أكثر تطورًا استخدم نموذج الوحش — ضمن باقة الاشتراك الشهري ١٠٠ جنيه. اختر اشتراكك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر اشتراكك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("للمشتركين في الخطط المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الخطط المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الاشتراكات", "View subscriptions")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>}
+            {requestError && (isPaywallError(requestError) ? <PaywallCard onClose={() => setRequestError(null)} /> : <div role="alert" className="provider-notice"><div className="notice-icon"><CircleHelp size={16} /></div><div><strong>{tr(language, "تعذر إكمال الطلب", "Could not complete request")}</strong><p>{requestError === "لقد نفد رصيدك المجاني. لإجابات أكثر تطورًا استخدم نموذج الوحش — ضمن باقة الاشتراك الشهري ١٠٠ جنيه. اختر اشتراكك من هنا" ? <>لقد نفذ رصيدك المجاني. اختر اشتراكك من <a href="/billing" className="font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">هنا</a></> : requestError}</p>{(() => { const premiumGate = requestError.includes("Premium") || requestError.includes("HotLucky"); const planGate = requestError.includes("للمشتركين في الخطط المدفوعة") || requestError.includes("paid-plan members") || requestError.includes("الوحش PRO") || requestError.includes("الخطط المدفوعة"); if (!premiumGate && !planGate) return null; return (<span className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><a href="/billing" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "عرض الاشتراكات", "View subscriptions")}</a>{premiumGate && <a href="/rewards" className="inline-flex font-semibold text-cyan-300 underline underline-offset-2 hover:text-cyan-200">{tr(language, "صفحة الجوائز", "Rewards page")}</a>}</span>); })()}</div><button className="icon-button" onClick={() => setRequestError(null)} aria-label={tr(language, "إخفاء رسالة الخطأ", "Dismiss error")}><X size={15} /></button></div>)}
             <div className="composer-area">
               {botMode && (
                 <div className="bot-builder-panel">
