@@ -75,7 +75,7 @@ export default function BillingPage() {
   const t = (ar: string, en: string) => (language === "ar" ? ar : en);
   const [config, setConfig] = useState<BillingConfig | null>(null);
   const [account, setAccount] = useState<{ email: string; tokenBalance: number; welcomeGiftGranted?: boolean } | null>(null);
-  const [packageTokens, setPackageTokens] = useState(500);
+  const [packageTokens, setPackageTokens] = useState(100);
   const [paymentMethod, setPaymentMethod] = useState<"vodafone_cash" | "instapay" | "paypal" | "binance_pay" | "bybit_pay">("vodafone_cash");
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [publicRequests, setPublicRequests] = useState<PaymentRequest[]>([]);
@@ -92,6 +92,19 @@ export default function BillingPage() {
     } catch {}
   }, []);
   const [busy, setBusy] = useState(false);
+  // Intro light-show: on open, the highlight cycles across the pack cards
+  // once so visitors see they are tappable; any tap stops it immediately.
+  const [introStep, setIntroStep] = useState(-1);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    setIntroStep(0);
+    let step = 0;
+    const iv = window.setInterval(() => {
+      step += 1;
+      if (step >= 4) { window.clearInterval(iv); setIntroStep(-1); } else setIntroStep(step);
+    }, 550);
+    return () => window.clearInterval(iv);
+  }, []);
 
   async function load() {
     const [configResponse, accountResponse] = await Promise.all([
@@ -280,7 +293,7 @@ export default function BillingPage() {
         {t("لأي مشكلة أو صعوبة في الدفع: الدعم الفني معاك ٢٤ ساعة — تواصل معاه ", "For any problem or difficulty while paying: technical support is with you 24/7 — contact it ")}<a href="https://t.me/HOTGPTPro" target="_blank" rel="noreferrer" className="text-amber-300 underline decoration-2 underline-offset-4 hover:text-amber-200">{t("من هنا", "here")}</a>{t(" وسيتم حلها فورًا.", " and it will be resolved immediately.")}
       </div>
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT SUBSCRIPTION</p><h1 className="mt-2 text-3xl font-bold">{t("اشتراكك الشهري", "Your monthly subscription")}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{t("اشتراك شهري واحد يفتح لك كل الأدوات: سعر كل خدمة ثابت ومعروف قبل ما تبدأ — مفيش فواتير مفاجئة. واشتراكك بدأ بهدية ترحيب وصلت رصيدك تلقائيًا عند أول دخول.", "One monthly subscription unlocks every tool: each service has one flat price you know before you start — no surprise bills. And your subscription began with a welcome gift that landed in your balance automatically on your first visit.")}</p></div>
+        <div><p className="text-xs font-bold tracking-[.25em] text-amber-400">HOTGPT SUBSCRIPTION</p><h1 className="mt-2 text-3xl font-bold">{t("اشتراكك الشهري", "Your monthly subscription")}</h1></div>
         {account && <div className="rounded-2xl border border-[#C9A227]/50 bg-black/30 p-4 text-sm"><div className="text-slate-400">{account.email}</div><div className="mt-1 text-lg font-bold text-amber-400">{t("رصيد اشتراكك", "Subscription balance")}: {account.tokenBalance}</div>{account.welcomeGiftGranted && <div className="mt-1 text-xs font-bold text-amber-300">{language === "en" ? "🎁 The welcome gift was added to your subscription balance" : egEgp ? "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك" : "🎁 أُضيفت هدية الترحيب إلى رصيد اشتراكك"}</div>}</div>}
       </div>
       <div className="mt-6 rounded-2xl border border-amber-400/30 bg-black/30 px-5 py-4 text-center">
@@ -291,30 +304,22 @@ export default function BillingPage() {
         <a href="/models" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("اعرف نماذجنا", "Meet our models")}</a>
         <a href="/payment-guide" className="inline-block rounded-lg border border-amber-400/50 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10">{t("وسائل الدفع وطريقة الاشتراك", "Payment methods & how to subscribe")}</a>
       </div>
-      <section className="mt-4 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-7">
-        <h2 className="text-xl font-bold">{t("مقارنة سريعة — أي اشتراك شهري يناسبك؟", "Quick comparison — which monthly plan fits you?")}</h2>
-        <div className="mt-4 divide-y divide-white/5">
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">{t("اشتراك البداية", "Starter plan")} — {priceLabel(100, 100)} {t("شهريًا", "per month")}</span><span className="text-sm text-slate-400">{t("الأرخص", "The cheapest")}</span></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">{t("الاشتراك الأساسي", "Basic plan")} — {priceLabel(500, 300)} {t("شهريًا", "per month")}</span><span className="text-sm font-bold text-amber-300">{t("الأكثر توفيرًا", "Best value")}</span></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">{t("الاشتراك الأكبر", "Larger plan")} — {priceLabel(800, 440)} {t("شهريًا", "per month")}</span><span className="text-sm text-slate-400">{t("للمستخدم النشط", "For the active user")}</span></div>
-          <div className="flex flex-wrap items-center justify-between gap-2 py-3"><span className="font-bold">{t("الاشتراك الشامل", "Full plan")} — {priceLabel(1000, 500)} {t("شهريًا", "per month")}</span><span className="text-sm text-slate-400">{t("للاستخدام المستمر", "For continuous use")}</span></div>
-        </div>
-      </section>
-      <p className="mt-10 text-sm font-bold text-amber-300">{t("اضغط على كارت الاشتراك المناسب لك", "Tap the subscription card that suits you")}</p>
-      <div className="mt-4 rounded-2xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-center text-base font-bold leading-7 text-amber-200">{t("اشتراك شهري بسيط: يمكنك إعادة الشحن والتجديد في أي وقت — كل شحنة جديدة تبدأ شهرك الجديد من يوم الشحن، والرصيد الجديد يُضاف على رصيدك الحالي. اشتراك يبدأ من 100 جنيه في الشهر.", "A simple monthly subscription: top up and renew at any time — every new recharge starts your new month from the recharge day, and the new balance is added on top of your current balance. Plans start at the 100 EGP monthly plan.")}</div>
+      <p className="mt-8 text-sm font-bold text-amber-300">{t("اضغط على كارت الاشتراك المناسب لك", "Tap the subscription card that suits you")}</p>
       <a href="/hotlucky" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/60 bg-amber-400/[.07] p-5 transition hover:border-amber-300">
         <span><strong className="block text-lg">{t("باقة HotLucky", "HotLucky pack")}</strong><span className="mt-1 block text-sm text-slate-300">{t("بـ 50 جنيه خد من 25 لـ 100 رسالة", "For $1, get 25 to 100 messages")}</span></span>
         <span className="rounded-lg bg-[#FBBF24] px-4 py-2 text-sm font-black text-[#1A0505]">{t("ادخل لصفحة الجوائز", "Go to the prizes page")}</span>
       </a>
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {packages.map(item => {
+          const isLit = introStep >= 0 ? packages[introStep]?.tokens === item.tokens : packageTokens === item.tokens;
           const saving = Math.max(0, Math.round((1 - item.priceEgp / item.tokens) * 100));
           const usd = (config?.packagesUsd ?? []).find(p => p.tokens === item.tokens);
           const label = item.tokens === 100 ? t("اشتراك البداية", "Starter plan") : item.tokens === 500 ? t("الاشتراك الأساسي", "Basic plan") : item.tokens === 800 ? t("الأكثر طلبًا", "Most popular") : t("الاشتراك الأكبر", "Largest plan");
           const isPopular = item.tokens === 800;
           return (
-          <button key={item.tokens} onClick={() => { setPackageTokens(item.tokens); trackFunnelEvent({ name: "package_selected", metadata: { packageTokens: item.tokens, priceEgp: item.priceEgp } }); document.getElementById("payment-methods")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`relative rounded-2xl border p-6 text-start transition ${packageTokens === item.tokens ? "border-amber-400 bg-amber-400/10" : isPopular ? "border-amber-300/60 bg-amber-300/[.06] hover:border-amber-300" : "border-white/10 bg-white/[.03] hover:border-amber-400/50"}`}>
+          <button key={item.tokens} onClick={() => { setIntroStep(-1); setPackageTokens(item.tokens); trackFunnelEvent({ name: "package_selected", metadata: { packageTokens: item.tokens, priceEgp: item.priceEgp } }); document.getElementById("payment-methods")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={`relative rounded-2xl border p-6 text-start transition duration-300 ${isLit ? "border-[#FBBF24] bg-[#FBBF24]/15 shadow-[0_0_0_2px_#FBBF24,0_12px_34px_rgba(251,191,36,.28)] scale-[1.02]" : isPopular ? "border-amber-300/60 bg-amber-300/[.06] hover:border-amber-300" : "border-white/10 bg-white/[.03] hover:border-amber-400/50"}`}>
             {isPopular && <span className="absolute -top-3 start-4 rounded-full bg-amber-400 px-3 py-0.5 text-[11px] font-black text-black shadow">{t("الأكثر طلبًا ⭐", "Most popular ⭐")}</span>}
+            {introStep < 0 && packageTokens === item.tokens && <span className="absolute -top-3 end-4 rounded-full bg-[#FBBF24] px-3 py-0.5 text-[11px] font-black text-black shadow">{t("المختارة ✓", "Selected ✓")}</span>}
             <div className="text-sm text-slate-400">{label}</div>
             <div className="mt-3 text-3xl font-bold">{priceLabel(item.tokens, item.priceEgp)} <span className="text-base font-normal text-amber-400">{t("شهريًا", "per month")}</span></div>
             <div className="mt-2 text-sm font-normal text-slate-400">{usd ? <span>{language === "en" ? t(`أو ${item.priceEgp} جنيه بفودافون كاش أو انستا باي`, `or ${item.priceEgp} EGP via Vodafone Cash or InstaPay`) : t(`أو ما يعادل $${usd.priceUsd} بـ PayPal`, `or the equivalent of $${usd.priceUsd} via PayPal`)}</span> : <span>{t("اشتراك شهري — جدد واشحن في أي وقت", "Monthly plan — renew and top up anytime")}</span>}</div>
