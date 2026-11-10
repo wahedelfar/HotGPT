@@ -1927,7 +1927,7 @@ export default function Home() {
   };
 
   const sendMessage = async (value = draft) => {
-    const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : reverseMode && reverseFile ? `🧩 هندسة عكسية: ${reverseFile.name}` : "");
+    const trimmed = value.trim() || (attachment ? `لخص الملف المرفق "${attachment.name}" واذكر أهم النقاط.` : reverseMode && reverseFile ? tr(language, `🧩 هندسة عكسية: ${reverseFile.name}`, `🧩 Reverse Engineering: ${reverseFile.name}`) : "");
     if (!trimmed || isSending) return;
     if (auth.isAuthenticated && freeAnswersRemaining <= 0 && walletBalance <= 0) {
       setRequestError(tr(language, "جرّب HotGPT بالاشتراك الشهري بـ100 جنيه — ابدأ بتحليل كودك أو فحص موقعك، والدفع متاح عبر Vodafone Cash وInstaPay.", "Try HotGPT with the monthly subscription for just $2 — start by analyzing your code or scanning your site, and pay via Vodafone Cash or InstaPay."));
@@ -2103,7 +2103,7 @@ export default function Home() {
           reverseUploadBody.append("", reverseFile);
           const putResponse = await fetch(slot.uploadUrl, { method: "PUT", body: reverseUploadBody });
           if (!putResponse.ok) throw new Error(tr(language, "فشل رفع الملف إلى التخزين. حاول مرة أخرى — لم يُخصم شيء.", "Uploading the file to storage failed. Try again — nothing was charged."));
-          const reverseResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reverseMode: true, uploadPath: slot.path, fileName: reverseFile.name, conversationId, stream: true }) });
+          const reverseResponse = await authFetch("/api/model/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reverseMode: true, uploadPath: slot.path, fileName: reverseFile.name, language: language === "en" ? "en" : "ar", conversationId, stream: true }) });
           const reversePayload = await consumeReportResponse(reverseResponse);
           if (!reverseResponse.ok || !reversePayload.content) {
             const serverMsg = typeof reversePayload.message === "string" && reversePayload.message ? reversePayload.message : "";

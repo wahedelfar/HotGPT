@@ -1159,6 +1159,28 @@ const REVERSE_REPORT_PROMPT = `أنت خبير الهندسة العكسية ف�
 - علّم أثناء الشرح: كل مصطلح متخصص (مثل إنتروبيا أو TLS callback) اشرحه في نصف سطر أول مرة يظهر.
 - أي كود أو أوامر داخل بلوكات كود محاطة فقط. لا جداول عريضة؛ قوائم وفقرات قصيرة. الطول المستهدف 600-900 كلمة.`;
 
+// English mirror of REVERSE_REPORT_PROMPT (added 2026-11-10): the client
+// sends its UI language with the reverse request; until then the lab had
+// no language plumbing at all, so English-mode members got an Arabic
+// submission label, Arabic server errors and a fully Arabic report.
+const REVERSE_REPORT_PROMPT_EN = `You are the reverse-engineering expert in HotGPT's "Reverse Engineering Lab", writing a professional static-analysis report for a developer who paid to have their file taken apart and analyzed.
+The attachment is REAL automated extraction output from the platform's server (static analysis: identity and fingerprint, sections, imports/symbols, strings, entropy, packing indicators, and inferred capabilities tied to their evidence). The evidence labels may be in Arabic — write your report fully in English regardless. Strict rules:
+- Everything you write is based on this output only. Never invent a function, address, or behavior that is not in it, and never claim you ran the file or observed its runtime behavior — this is static analysis, not dynamic.
+- Always distinguish what the evidence confirms from what is inference, and state your confidence level for inferences.
+- Documentation/licensing links or domains (such as gnu.org) are NOT risk indicators; risk indicators need operational evidence (injection, persistence, anti-debugging, C2 contact).
+Report structure, in this order:
+1) A title line: "Reverse Engineering Report: <file name>" then your verdict in two lines: what this file most likely is and its apparent purpose.
+2) "Identity & fingerprint" — type, architecture, size, hash, and signing status exactly as given.
+3) "What this program can do" — explain each inferred capability tied to its evidence, in developer language, and what it means in practice.
+4) "Internal structure" — sections, imports, and packages: what the architecture suggests (likely language/compiler if the evidence supports it, the program's layers).
+5) "Protection & packing" — assess the packing and protection indicators: is full unpacking easy or obstructed, and what does the developer need to go deeper.
+6) "Risk indicators" — only if evidence exists: list them in a calm, professional tone, noting that many legitimate tools share the same indicators and that a final verdict needs dynamic analysis.
+7) "Work roadmap for the developer" — ordered practical steps: where to start in Ghidra/IDA/radare2 (which imports and strings to anchor on), what to rename first, suggested Frida hook points when needed, and for APKs: the jadx/apktool path.
+8) "What was not examined" — honestly: full decompilation to readable pseudocode, runtime behavior, and any compressed/encrypted payload that was not unpacked — these need a deeper runtime environment.
+9) Close with a "Next steps" section — 3 actions ordered by priority for the file's owner.
+- Teach as you explain: any specialized term (such as entropy or TLS callback) gets a half-line explanation the first time it appears.
+- Code or commands only inside fenced code blocks. No wide tables; short lists and paragraphs. Target length 600–900 words.`;
+
 async function handleReverseAnalysis(req: any, res: any, body: any) {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -1166,8 +1188,9 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
   const conversationId = String(body?.conversationId || "");
   const uploadPath = String(body?.uploadPath || "");
   const fileName = String(body?.fileName || "file").replace(/[\r\n]/g, " ").slice(0, 160) || "file";
+  const lang = body?.language === "en" ? "en" : "ar";
   if (!/^[0-9a-f-]{36}$/i.test(conversationId) || !uploadPath.startsWith(`${user.id}/`) || uploadPath.includes("..") || uploadPath.length > 220) {
-    res.status(400).json({ error: "invalid_reverse_request", message: "بيانات الرفع غير مكتملة — أعد رفع الملف وحاول مرة أخرى." });
+    res.status(400).json({ error: "invalid_reverse_request", message: lang === "en" ? "The upload data was incomplete — re-upload the file and try again." : "بيانات الرفع غير مكتملة — أعد رفع الملف وحاول مرة أخرى." });
     return;
   }
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
@@ -1186,21 +1209,21 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
       headers: { apikey: serviceKey(), authorization: `Bearer ${serviceKey()}` }, cache: "no-store",
     });
     if (!storageResponse.ok) {
-      res.status(400).json({ error: "reverse_file_missing", message: "لم نجد الملف المرفوع (قد يكون انقضت مدة الاحتفاظ به 3 أيام) — أعد رفعه وحاول مرة أخرى. لم يُخصم شيء." });
+      res.status(400).json({ error: "reverse_file_missing", message: lang === "en" ? "The uploaded file was not found (its 3-day retention may have expired) — upload it again and try again. Nothing was charged." : "لم نجد الملف المرفوع (قد يكون انقضت مدة الاحتفاظ به 3 أيام) — أعد رفعه وحاول مرة أخرى. لم يُخصم شيء." });
       return;
     }
     bytes = Buffer.from(await storageResponse.arrayBuffer());
   } catch {
-    res.status(502).json({ error: "reverse_read_failed", message: "تعذّرت قراءة الملف المرفوع — حاول مرة أخرى. لم يُخصم شيء." });
+    res.status(502).json({ error: "reverse_read_failed", message: lang === "en" ? "The uploaded file could not be read — please try again. Nothing was charged." : "تعذّرت قراءة الملف المرفوع — حاول مرة أخرى. لم يُخصم شيء." });
     return;
   }
   if (bytes.length > RE_MAX_BYTES) {
-    res.status(413).json({ error: "file_too_large", message: "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء." });
+    res.status(413).json({ error: "file_too_large", message: lang === "en" ? "The file exceeds 50 MB — nothing was charged." : "حجم الملف يتجاوز 50 ميجابايت — لم يُخصم شيء." });
     return;
   }
   const evidence = analyzeBinary(bytes, fileName);
   if (!evidence) {
-    res.status(422).json({ error: "unsupported_binary", message: "الملف لا يبدو برنامجًا أو تطبيقًا قابلًا للتحليل الثابت (ندعم Windows PE وELF وAPK وDEX وMach-O) — لم يُخصم شيء." });
+    res.status(422).json({ error: "unsupported_binary", message: lang === "en" ? "This file does not look like a program or app that can be statically analyzed (we support Windows PE, ELF, APK, DEX and Mach-O) — nothing was charged." : "الملف لا يبدو برنامجًا أو تطبيقًا قابلًا للتحليل الثابت (ندعم Windows PE وELF وAPK وDEX وMach-O) — لم يُخصم شيء." });
     return;
   }
   let debited = false;
@@ -1208,7 +1231,7 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
   try {
     debited = await debitWalletTokens(user.id, REVERSE_COST);
     if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
-    const userContent = `بيانات الفك والتحليل الثابت الآلي من مختبر الهندسة العكسية:\n${evidence.evidenceText}`;
+    const userContent = lang === "en" ? `Automated disassembly and static-analysis data from the Reverse Engineering Lab:\n${evidence.evidenceText}` : `بيانات الفك والتحليل الثابت الآلي من مختبر الهندسة العكسية:\n${evidence.evidenceText}`;
     const models = [
       (process.env.OPENROUTER_SCAN_MODEL || "moonshotai/kimi-k2-0905").trim(),
       (process.env.OPENROUTER_SCAN_BACKUP_MODEL || process.env.OPENROUTER_BACKUP_MODEL || "qwen/qwen3-235b-a22b-2507").trim(),
@@ -1229,7 +1252,7 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: REVERSE_REPORT_PROMPT },
+              { role: "system", content: lang === "en" ? REVERSE_REPORT_PROMPT_EN : REVERSE_REPORT_PROMPT },
               { role: "user", content: userContent },
             ],
             max_tokens: 3500,
@@ -1271,7 +1294,7 @@ async function handleReverseAnalysis(req: any, res: any, body: any) {
     }
     if (!report && bestReport.length >= 400) report = bestReport;
     if (!report) throw new Error("reverse_report_failed");
-    await saveMessage(user.id, conversationId, "user", `🧩 هندسة عكسية: ${fileName}`);
+    await saveMessage(user.id, conversationId, "user", lang === "en" ? `🧩 Reverse Engineering: ${fileName}` : `🧩 هندسة عكسية: ${fileName}`);
     await saveMessage(user.id, conversationId, "assistant", report);
     const wallet = await getWallet(user.id).catch(() => null);
     const reversePayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: REVERSE_COST, format: evidence.format, fileName };
