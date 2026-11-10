@@ -427,7 +427,7 @@ export default function LuckyPage() {
           </div>
 
           {method === "vodafone_cash" && <div className="mt-5">
-            <a href={config?.vodafoneCashUrl ?? "https://vf.eg/vfcash?id=mt&qrId=G0gO2O"} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#e60000] px-5 py-3.5 text-center font-black text-white transition hover:brightness-110">{t("ادفع الآن — يفتح تطبيق فودافون كاش ↗", "Pay now — opens the Vodafone Cash app ↗")}</a>
+            <a href={`tel:*9*7*${config?.vodafoneCashNumber ?? "01063537686"}*${price}%23`} className="block rounded-xl bg-[#e60000] px-5 py-3.5 text-center font-black text-white transition hover:brightness-110">{t("ادفع الآن — هيفتح لوحة الاتصال بالكود جاهز ↗", "Pay now — opens your dialer with the code ready ↗")}</a>
           </div>}
           {method === "instapay" && <div className="mt-5">
             <a href={config?.instapayUrl ?? "https://ipn.eg/S/wahedelfar/instapay/4LnUCo"} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#1d4ed8] px-5 py-3.5 text-center font-black text-white transition hover:brightness-110">{t("ادفع الآن — يفتح تطبيق انستا باي ↗", "Pay now — opens the InstaPay app ↗")}</a>
