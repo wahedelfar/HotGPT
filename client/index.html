@@ -8,7 +8,7 @@
       (function () {
         try {
           var saved = localStorage.getItem("theme") || localStorage.getItem("hotgpt-theme");
-          var theme = "dark";
+          var theme = saved === "blood" ? "blood" : "dark";
           localStorage.setItem("theme", theme);
           localStorage.setItem("hotgpt-theme", theme);
           document.documentElement.dataset.theme = theme;
