@@ -12,7 +12,12 @@ const LanguageContext = createContext<LanguageContextValue>({ language: "ar", to
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<AppLanguage>(() => {
     if (typeof window === "undefined") return "ar";
-    return localStorage.getItem("hotgpt-language") === "en" ? "en" : "ar";
+    const saved = localStorage.getItem("hotgpt-language");
+    if (saved === "en" || saved === "ar") return saved;
+    // First paint follows the browser language (Tor Browser always reports
+    // en-US, so foreign visitors no longer open on an Arabic interface);
+    // the country detection below still refines it once it resolves.
+    return (navigator.language || "").toLowerCase().startsWith("ar") ? "ar" : "en";
   });
   const [country, setCountry] = useState<string | null>(null);
   const toggleLanguage = useCallback(() => {

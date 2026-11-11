@@ -13,6 +13,11 @@
           localStorage.setItem("hotgpt-theme", theme);
           document.documentElement.dataset.theme = theme;
           document.documentElement.style.colorScheme = "dark";
+          var savedLang = localStorage.getItem("hotgpt-language");
+          var lang = savedLang === "en" || savedLang === "ar" ? savedLang : ((navigator.language || "").toLowerCase().indexOf("ar") === 0 ? "ar" : "en");
+          document.documentElement.lang = lang;
+          document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+          document.documentElement.dataset.lang = lang;
         } catch (_) {
           document.documentElement.dataset.theme = "dark";
         }
@@ -27,6 +32,9 @@
     <style>
       html, body, #root { min-height: 100%; background: var(--bg, #000000); color: #FFFFFF; }
       html[data-session="1"] .hg-welcome { display: none; }
+      html .hg-welcome-en { display: none; }
+      html[data-lang="en"]:not([data-session="1"]) .hg-welcome-en { display: flex; }
+      html[data-lang="en"] .hg-welcome-ar { display: none; }
       html[data-theme="dark"] { --bg: #000000; --card: #111111; --text: #FFFFFF; --accent: #FFFFFF; }
       html[data-theme="blood"] { --bg: #2B0000; --card: #400000; --text: #FFFFFF; --accent: #FF1E2E; }
       html[data-theme="dark"] body, html[data-theme="blood"] body { background: var(--bg); color: var(--text); }
@@ -106,7 +114,7 @@
   </head>
   <body>
     <div id="root">
-      <section class="hg-welcome" aria-label="HotGPT">
+      <section class="hg-welcome hg-welcome-ar" aria-label="HotGPT">
         <div class="hg-welcome-inner">
           <span class="hg-welcome-close" aria-hidden="true">×</span>
           <h1>HotGPT</h1>
@@ -119,6 +127,21 @@
             <li><b>✓</b> رد فوري خلال ثوانٍ</li>
           </ul>
           <p class="hg-welcome-cheap">⚡ اشتراك شهري يبدأ من 100 جنيه فقط · الدفع فودافون كاش - إنستاباي - بايبال</p>
+        </div>
+      </section>
+      <section class="hg-welcome hg-welcome-en" aria-label="HotGPT" dir="ltr">
+        <div class="hg-welcome-inner">
+          <span class="hg-welcome-close" aria-hidden="true">×</span>
+          <h1>HotGPT</h1>
+          <p class="hg-welcome-tag">AI for developers, marketers and website builders</p>
+          <p class="hg-welcome-desc">HotGPT is a complete AI workspace: smart chat, code writing and debugging, file analysis, image and CGI generation, website security and SEO scans, live search, and lead extraction — every tool in one place.</p>
+          <a class="hg-welcome-cta" href="/auth?mode=signup">Start free ↗</a>
+          <ul class="hg-welcome-points">
+            <li><b>✓</b> 5 free welcome tokens when you sign up</li>
+            <li><b>✓</b> Full chat interface in English and Arabic</li>
+            <li><b>✓</b> Instant replies within seconds</li>
+          </ul>
+          <p class="hg-welcome-cheap">⚡ Monthly subscription from just $2 · PayPal · Vodafone Cash · InstaPay</p>
         </div>
       </section>
       <section class="hg-seo" aria-label="عن منصة HotGPT وأدواتها">
