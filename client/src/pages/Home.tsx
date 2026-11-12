@@ -3480,7 +3480,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
               </div>
             </div>
               <div style={{ padding: "8px 2px 0" }}>
-                <button type="button" onClick={() => setModeSheetOpen(true)} aria-haspopup="dialog" style={{ width: "100%", padding: "12px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 900, fontSize: 15, border: "none", cursor: "pointer", boxShadow: "0 8px 22px rgba(232,160,32,.30), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>
+                <button type="button" onClick={() => setModeSheetOpen(true)} aria-haspopup="dialog" style={{ width: "100%", padding: "8px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 900, fontSize: 14, border: "none", cursor: "pointer", boxShadow: "0 8px 22px rgba(232,160,32,.30), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>
                   {tr(language, "إختار الوضع المناسب لعملك", "Choose the right mode for your work")}
                 </button>
               </div>
