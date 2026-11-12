@@ -162,12 +162,10 @@ function ReferralCapture() {
       if (ref && /^[A-Za-z0-9]{6,12}$/.test(ref.trim())) {
         const code = ref.trim().toUpperCase();
         localStorage.setItem("hotgpt-ref-code", code);
-        // Invite links shared before the signup-landing change point at
-        // the homepage: send guests straight to the signup form with
-        // their invite applied. Members keep browsing where they are.
-        if (window.location.pathname === "/" && !localStorage.getItem("hotgpt.supabase.session")) {
-          window.location.replace(`/auth?mode=signup&ref=${code}`);
-        }
+        // No auto-redirect to signup (Wahid, 2026-11-13): the old
+        // location.replace() hijack trapped guests on the signup page —
+        // the back arrow had no homepage entry left to return to. The
+        // code stays stored; the signup form picks it up from storage.
       }
     } catch { /* storage unavailable */ }
   }, []);
