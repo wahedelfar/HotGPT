@@ -40,6 +40,13 @@ footer a{color:#c9c9c9;text-decoration:none;margin:0 6px}
 </style>
 </head>
 <body>
+<div id="followBanner" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#1A0505;border-bottom:1px solid rgba(201,162,39,.45);padding:8px 10px;text-align:center">
+<p style="margin:0;color:#fff;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">زوّد صفحاتك — <span style="color:#cbd5e1;font-weight:600">متابعين ولايكات ومشاهدات</span> <span style="color:#FBBF24;font-weight:900">من ٥٠ جنيه</span></p>
+<a href="https://hotgpt.pro/follow" style="flex:0 0 auto;background:#FBBF24;color:#1A0505;font-size:12px;font-weight:900;padding:4px 10px;border-radius:6px;text-decoration:none">افتح المتجر</a>
+<button type="button" aria-label="إغلاق" onclick="try{sessionStorage.setItem('hotgpt-follow-banner-dismissed','1')}catch(e){};document.getElementById('followBanner').style.display='none'" style="flex:0 0 auto;background:none;border:0;color:rgba(255,255,255,.45);font-size:13px;cursor:pointer;padding:0 2px;line-height:1">✕</button>
+</div>
+<script>try{if(sessionStorage.getItem('hotgpt-follow-banner-dismissed')==='1'){document.getElementById('followBanner').style.display='none'}}catch(e){}</script>
+
 <header class="hero">
 <a class="brand" href="https://hotgpt.pro/">HotGPT</a>
 <nav class="top">

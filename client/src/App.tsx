@@ -22,6 +22,7 @@ import FaqPage from "./pages/Faq";
 import PaymentGuidePage from "./pages/PaymentGuide";
 import AboutPage from "./pages/About";
 import InstallAppButton from "@/components/InstallAppButton";
+import FollowBanner from "./components/FollowBanner";
 
 
 // ONE-LINE DOMAIN SWAP: when the paid domain is connected to Vercel, change
@@ -180,9 +181,14 @@ export default function App() {
         <ThemeProvider defaultTheme="dark" switchable>
           <TooltipProvider>
             <Toaster />
-            <ReferralCapture />
-            <Router />
-            <InstallAppButton />
+            <div className="flex h-dvh flex-col">
+              <FollowBanner />
+              <div className="flex min-h-0 flex-1 flex-col">
+                <ReferralCapture />
+                <Router />
+                <InstallAppButton />
+              </div>
+            </div>
           </TooltipProvider>
         </ThemeProvider>
       </LanguageProvider>
