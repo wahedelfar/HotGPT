@@ -11,9 +11,12 @@ export const PACKAGES: Record<number, number> = { 100: 100, 500: 300, 800: 440, 
 // PayPal cannot live in its own api file. Prices live ONLY on the server;
 // packs are EGP-priced and PayPal charges the USD equivalent at today's
 // live rate (see server/fxRate.ts), rounded up to the next whole dollar.
-// Fulfillment rule: credit exactly once, inside the same request that
-// receives a fresh CAPTURE success from PayPal; PayPal rejects a second
-// capture of the same order, so double-crediting is impossible.
+// Fulfillment rule: credit exactly once per capture. Two doors exist —
+// the request that receives a fresh CAPTURE success from PayPal, and
+// (since 2026-11-12) the CAPTURE.COMPLETED webhook for captures PayPal
+// held as PENDING during that request — and both share the
+// db.claimPaypalCaptureCredit marker, so a capture is paid out at most
+// once no matter which door fires first.
 function paypalBase() {
   return process.env.PAYPAL_MODE === "sandbox" ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
 }
@@ -55,15 +58,18 @@ function paypalError(res: any, error: unknown) {
 
 
 // --- PayPal webhook (action "paypal-webhook"): PayPal POSTs capture
-// refunds, reversals and dispute events to this function's URL
-// (https://hotgpt.pro/api/billing?action=paypal-webhook). No member
-// session exists on these calls — authenticity comes from PayPal's
-// verify-webhook-signature API, checked before anything is stored or
-// processed. Purpose (Wahid, 2026-10-28): foreign buyers can dispute
-// or charge back AFTER receiving tokens; the webhook claws the tokens
-// back automatically and keeps a full audit trail in
-// paypal_webhook_events. Requires PAYPAL_WEBHOOK_ID in the environment
-// and the paypal_webhook_events table (rollout SQL).
+// completions, refunds, reversals and dispute events to this
+// function's URL (https://hotgpt.pro/api/billing?action=paypal-webhook).
+// No member session exists on these calls — authenticity comes from
+// PayPal's verify-webhook-signature API, checked before anything is
+// stored or processed. Purpose (Wahid, 2026-10-28): foreign buyers can
+// dispute or charge back AFTER receiving tokens; the webhook claws the
+// tokens back automatically and keeps a full audit trail in
+// paypal_webhook_events. Since 2026-11-12 it also CREDITS captures
+// that completed after the buyer's synchronous verify had already
+// failed on their PENDING status (see the CAPTURE.COMPLETED branch).
+// Requires PAYPAL_WEBHOOK_ID in the environment and the
+// paypal_webhook_events table (rollout SQL).
 function paypalHeader(req: any, name: string) {
   const value = req.headers?.[name];
   return typeof value === "string" ? value : "";
@@ -193,6 +199,73 @@ async function handlePaypalWebhook(req: any, res: any) {
           }
         } else {
           note = "clawback_unmatched_purchase";
+        }
+      }
+    } else if (type === "PAYMENT.CAPTURE.COMPLETED") {
+      // Credit path (added 2026-11-12, after the Ethan Anderson case):
+      // a capture PayPal held as PENDING while the buyer was in the
+      // synchronous flow fails that flow's verify (422), and the order
+      // can never be captured again (ORDER_ALREADY_CAPTURED) — so this
+      // event is the only remaining door to the buyer's tokens. Fetch
+      // the order back from PayPal and run the SAME verification the
+      // paypal-capture action runs, then credit through the shared
+      // capture claim so the two paths can never both pay out. Money
+      // that cannot be verified is never credited; the stored event
+      // payload stays as the audit for a manual replay.
+      const completedCaptureId = typeof event.resource?.id === "string" && event.resource.id ? event.resource.id : captureId;
+      if (!completedCaptureId || !orderId) {
+        note = "credit_skipped_missing_ids";
+      } else {
+        const token = await paypalAccessToken();
+        const { ok, payload } = await paypalApi(token, `/v2/checkout/orders/${encodeURIComponent(orderId)}`);
+        if (!ok || !payload?.id) {
+          note = "credit_deferred_order_fetch_failed";
+        } else {
+          const unit = payload?.purchase_units?.[0];
+          const captures = Array.isArray(unit?.payments?.captures) ? unit.payments.captures : [];
+          const cap = captures.find((c: any) => String(c?.id || "") === completedCaptureId) || captures[0];
+          const customId = String(unit?.custom_id || "");
+          const [buyerId, tokensText] = customId.split("|");
+          const packTokens = Number(tokensText);
+          const priceEgp = PACKAGES[packTokens];
+          const expectedNow = priceEgp ? (await usdForEgp(priceEgp)).usd : NaN;
+          const paid = Number(cap?.amount?.value);
+          const orderAmount = String(unit?.amount?.value ?? "");
+          const verified = payload?.status === "COMPLETED"
+            && cap?.status === "COMPLETED"
+            && String(cap?.id || "") === completedCaptureId
+            && priceEgp !== undefined
+            && cap?.amount?.currency_code === "USD"
+            && cap?.amount?.value === orderAmount
+            && Number.isFinite(paid)
+            && Math.abs(paid - expectedNow) <= 1;
+          if (!verified) {
+            console.error("[PayPal Webhook] Capture verification failed for order", orderId);
+            note = "credit_failed_verification";
+          } else {
+            const member = await db.findMemberById(buyerId);
+            if (!member) {
+              note = "credit_skipped_unknown_member";
+            } else {
+              matchedUserId = member.id;
+              const claimed = await db.claimPaypalCaptureCredit(completedCaptureId, { orderId, source: "webhook_completed" });
+              if (!claimed) {
+                note = "credit_skipped_already_credited";
+              } else {
+                try {
+                  await db.creditPurchasedTokens(member.id, packTokens, {
+                    email: member.email,
+                    captureId: completedCaptureId,
+                    amountUsd: orderAmount,
+                  });
+                  note = `credited:${packTokens}`;
+                } catch (error) {
+                  await db.releasePaypalCaptureCredit(completedCaptureId).catch(() => {});
+                  throw error;
+                }
+              }
+            }
+          }
         }
       }
     } else if (type === "CUSTOMER.DISPUTE.CREATED") {
@@ -997,12 +1070,28 @@ export default async function handler(req: any, res: any) {
         console.error("[PayPal] Capture verification failed for order", orderId);
         return res.status(422).json({ error: "verification_failed" });
       }
-      const tokenBalance = await db.creditPurchasedTokens(user.id, tokens, {
-        email: user.email!,
-        captureId: String(capture.id),
-        amountUsd: orderAmount,
-      });
-      return res.status(200).json({ success: true, tokensAdded: tokens, tokenBalance });
+      // Exactly-once across BOTH credit paths: this action and the
+      // paypal-webhook CAPTURE.COMPLETED branch share the capture claim
+      // (db.claimPaypalCaptureCredit). Whoever claims first owns the
+      // credit; if the webhook already credited this capture, report
+      // success with the current balance instead of paying out twice.
+      const captureId = String(capture.id);
+      const claimed = await db.claimPaypalCaptureCredit(captureId, { orderId, source: "sync_capture" });
+      if (!claimed) {
+        const wallet = await db.getWallet(user.id);
+        return res.status(200).json({ success: true, tokensAdded: tokens, tokenBalance: wallet.tokenBalance, alreadyCredited: true });
+      }
+      try {
+        const tokenBalance = await db.creditPurchasedTokens(user.id, tokens, {
+          email: user.email!,
+          captureId,
+          amountUsd: orderAmount,
+        });
+        return res.status(200).json({ success: true, tokensAdded: tokens, tokenBalance });
+      } catch (error) {
+        await db.releasePaypalCaptureCredit(captureId).catch(() => {});
+        throw error;
+      }
     } catch (error) { return paypalError(res, error); }
   }
   return res.status(404).json({ error: "unknown_billing_action" });

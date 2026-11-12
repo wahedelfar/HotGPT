@@ -617,6 +617,41 @@ export async function findProcessedClawback(resourceId: string) {
   return rows?.[0] || null;
 }
 
+export async function findMemberById(userId: string) {
+  const rows = await rest(`profiles?id=eq.${encodeURIComponent(userId)}&select=id,email&limit=1`);
+  const row = rows?.[0];
+  return row ? { id: String(row.id), email: String(row.email) } : null;
+}
+
+// Exactly-once credit claim for a PayPal capture, shared by BOTH credit
+// paths (the synchronous paypal-capture action and the paypal-webhook
+// CAPTURE.COMPLETED branch). Stored in paypal_webhook_events under the
+// synthetic event id "capture-credit:<captureId>" and inserted with the
+// same unique-event_id + ignore-duplicates semantics as
+// recordPaypalWebhookEvent: exactly one caller wins the insert and owns
+// the credit; every other caller (the second path, a redelivery, a race)
+// gets an empty result and must NOT credit. Release on credit failure so
+// a later redelivery can retry.
+export async function claimPaypalCaptureCredit(captureId: string, detail: { orderId: string; source: string }): Promise<boolean> {
+  const rows = await rest("paypal_webhook_events", {
+    method: "POST",
+    headers: { Prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify({
+      event_id: `capture-credit:${captureId}`,
+      event_type: "INTERNAL.CAPTURE_CREDIT",
+      resource_id: captureId,
+      payload: { orderId: detail.orderId, source: detail.source },
+    }),
+  });
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+export async function releasePaypalCaptureCredit(captureId: string) {
+  await rest(`paypal_webhook_events?event_id=eq.${encodeURIComponent(`capture-credit:${captureId}`)}`, {
+    method: "DELETE", headers: { Prefer: "return=minimal" },
+  });
+}
+
 export async function findPaypalPackPurchase(captureId: string) {
   // Billing-pack purchases are audited in payment_requests by
   // creditPurchasedTokens with transfer_reference "paypal:<captureId>:$<usd>".
