@@ -1310,7 +1310,30 @@ export default function Home() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeGiftJustGranted, setWelcomeGiftJustGranted] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
+  // One-time welcome greeting (Wahid, 2026-11-12): for a terms-accepted member
+  // it appears 5 seconds after entry, hides by itself after ~7 seconds, and
+  // never shows again for that member. No buttons, purely a greeting.
+  useEffect(() => {
+    if (auth.loading || !auth.isAuthenticated || !termsAccepted) return;
+    let key = "hotgpt-greeting-shown";
+    try {
+      const uid = auth.user?.id || (auth.user as any)?.email || "";
+      if (uid) key += ":" + uid;
+      if (localStorage.getItem(key) === "1") return;
+    } catch { return; }
+    const showTimer = window.setTimeout(() => {
+      try { localStorage.setItem(key, "1"); } catch {}
+      setShowGreeting(true);
+    }, 5000);
+    return () => window.clearTimeout(showTimer);
+  }, [auth.loading, auth.isAuthenticated, termsAccepted, auth.user?.id]);
+  useEffect(() => {
+    if (!showGreeting) return;
+    const hideTimer = window.setTimeout(() => setShowGreeting(false), 7000);
+    return () => window.clearTimeout(hideTimer);
+  }, [showGreeting]);
   const [termsBusy, setTermsBusy] = useState(false);
   const [showAuthGateModal, setShowAuthGateModal] = useState(false);
   // Terms acceptance (Wahid, 2026-11-03): recorded server-side from the
@@ -1768,7 +1791,7 @@ export default function Home() {
           const wallet = await walletResponse.json();
           if (!cancelled) {
             const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
-            if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); setShowWelcomeModal(true); }
+            if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); }
             if ((wallet as any).termsAccepted === false) { setTermsAccepted(false); setShowWelcomeModal(true); }
             const freeRemaining = Math.max(0, Number(wallet.freeAnswersRemaining) || 0);
             setWalletBalance(balance);
@@ -1812,7 +1835,7 @@ export default function Home() {
       const wallet = await response.json();
       if (!cancelled) {
         const balance = Math.max(0, Number(wallet.tokenBalance) || 0);
-        if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); setShowWelcomeModal(true); }
+        if ((wallet as any).welcomeGiftGranted) { setWelcomeGiftJustGranted(true); }
         if ((wallet as any).termsAccepted === false) { setTermsAccepted(false); setShowWelcomeModal(true); }
         setWalletBalance(balance);
         setFreeAnswersRemaining(Math.max(0, Number(wallet.freeAnswersRemaining) || 0));
@@ -3393,57 +3416,9 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     <button type="button" onClick={() => setFreshDesignNext(v => !v)} style={{ color: "#F6C453", fontWeight: 700 }}>{freshDesignNext ? tr(language, "لا — عدّل على آخر صورة", "No — edit the last image") : tr(language, "تصميم جديد من الصفر", "New design from scratch")}</button>
                   </div>
                 )}
-                <div className="composer-mode-row" role="group" aria-label={tr(language, "أوضاع المحادثة", "Chat modes")}>
-                  <button type="button" className="composer-mode pro-mode" onClick={() => setModeSheetOpen(true)} aria-haspopup="dialog" title={tr(language, "كل الأوضاع والأدوات في مكان واحد", "All modes & tools in one place")} style={{ borderColor: "rgba(232,160,32,.65)", color: "#F6C453" }}>
-                    <SlidersHorizontal size={16} /><span>{tr(language, "الأوضاع", "Modes")}</span>
-                  </button>
-                  <button type="button" id="hm-chip-search" className={webSearchEnabled ? "composer-mode pro-mode active" : "composer-mode pro-mode"} onClick={() => toggleProMode("search")} aria-pressed={webSearchEnabled} title={tr(language, "البحث المتقدم مفعّل", "Advanced search enabled")}>
-                    <span>{tr(language, "بحث", "Search")}</span><span>PRO</span>
-                  </button>
-                  <button type="button" id="hm-chip-scan" className={scanMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setReverseMode(false); setReverseFile(null); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode} title={tr(language, "فحص رابط — تقرير أمني كامل · 20 رصيد", "Scan a URL — full security report · 20 balance")}>
-                    <Radar size={16} /><span>{tr(language, "فحص", "Scan")}</span>
-                  </button>
-                  <button type="button" id="hm-chip-image" className={imageMode ? "composer-mode image-mode active" : "composer-mode image-mode"} onClick={event => { if (imageMode) { setImageMode(false); setImageMenuPos(null); return; } const rect = event.currentTarget.getBoundingClientRect(); setImageMenuPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 208)), bottom: window.innerHeight - rect.top + 8 }); }} aria-pressed={imageMode} aria-haspopup="menu" aria-expanded={Boolean(imageMenuPos)} title={tr(language, "توليد صورة", "Generate an image")}>
-                    <ImageIcon size={16} /><span>{tr(language, "صورة", "Image")}</span>{imageMode && imageKind === "cgi" && <span style={{ fontSize: 9, fontWeight: 800, color: "#FBBF24", border: "1px solid rgba(251,191,36,.6)", borderRadius: 6, padding: "0 3px", lineHeight: 1.4 }}>CGI</span>}
-                  </button>
-                  {imageMenuPos && (
-                    <>
-                      <div onClick={() => setImageMenuPos(null)} style={{ position: "fixed", inset: 0, zIndex: 900 }} />
-                      <div role="menu" dir={language === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", left: imageMenuPos.left, bottom: imageMenuPos.bottom, zIndex: 901, minWidth: 200, background: "#1A0505", border: "1px solid rgba(201,162,39,.55)", borderRadius: 12, padding: 6, boxShadow: "0 18px 50px rgba(0,0,0,.55)" }}>
-                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 3) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough.")); return; } setRequestError(null); setImageKind("normal"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
-                          <ImageIcon size={15} /><span>{tr(language, "صورة عادية", "Normal image")}</span>
-                        </button>
-                        <button type="button" role="menuitem" onClick={() => { setImageMenuPos(null); if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الاشتراك — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from the Subscription page — prices are on the Models page.")); return; } setRequestError(null); setImageKind("cgi"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "start", padding: "9px 10px", borderRadius: 8, color: "#fff", background: "transparent", fontWeight: 700 }}>
-                          <Sparkles size={15} style={{ color: "#FBBF24" }} /><span>{tr(language, "صورة CGI", "CGI image")}</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  <button type="button" id="hm-chip-beast" className={selectedModel === "dadgpt-beast" ? "composer-mode pro-mode active beast-mode" : "composer-mode pro-mode beast-mode"} onClick={() => {
-                    setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false);
-                    if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; }
-                    if (!requireProFeature("beast")) return;
-                    if (walletBalance < 3) { setRequestError(tr(language, "تحتاج رصيد 3 على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 من رصيدك).", "A balance of at least 3 is required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 from your balance).")); return; }
-                    setRequestError(null); setSelectedModel("dadgpt-beast");
-                  }} aria-pressed={selectedModel === "dadgpt-beast"} title={tr(language, "الوحش PRO", "الوحش PRO")}>
-                    <span>{tr(language, "الوحش", "Beast")}</span><span>PRO</span>
-                  </button>
-                </div>
-                <div className="composer-mode-row" role="group" aria-label={tr(language, "خدمات إضافية", "Additional services")} style={{ marginTop: 0 }}>
-                  <button type="button" id="hm-chip-dark" className={darkWebEnabled ? "composer-mode darkweb-mode active" : "composer-mode darkweb-mode"} onClick={() => toggleProMode("darkweb")} aria-pressed={darkWebEnabled} title="تتبع تسريبات الدارك ويب - Breaches & Ransomware" aria-label="Dark" style={{ color: "#DC2626", ...(darkWebEnabled ? { borderColor: "#DC2626", background: "rgba(220,38,38,.12)", boxShadow: "0 0 10px rgba(220,38,38,.28)" } : {}) }}>
-                    <Skull size={16} /><span className="darkweb-mode-label">Dark</span>
-                  </button>
-                  <button type="button" id="hm-chip-seo" className={seoMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setReverseMode(false); setReverseFile(null); setLeakMode(false); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode} title={tr(language, "فحص SEO — تقرير كامل بخطة نمو · 20 رصيد", "SEO audit — full report with a growth plan · 20 balance")} style={{ color: "#22C55E", ...(seoMode ? { borderColor: "#22C55E", background: "rgba(34,197,94,.12)", boxShadow: "0 0 10px rgba(34,197,94,.28)" } : {}) }}>
-                    <TrendingUp size={16} /><span>{tr(language, "SEO", "SEO")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
-                  </button>
-                  <button type="button" id="hm-chip-leak" className={leakMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode} title={tr(language, "كشف التسريب — هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 رصيد", "Leak check — did your email or domain appear in data breaches? · 20 balance")} style={{ color: "#F87171", ...(leakMode ? { borderColor: "#F87171", background: "rgba(248,113,113,.12)", boxShadow: "0 0 10px rgba(248,113,113,.28)" } : {}) }}>
-                    <ShieldAlert size={16} /><span style={{ fontSize: 11 }}>{tr(language, "التسريبات", "Leaks")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
-                  </button>
-                  <button type="button" id="hm-chip-leads" className={leadsMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode} title={tr(language, "العملاء — بيانات شركات من خرائط جوجل · 20 رصيد", "Leads — business data from Google Maps · 20 balance")} style={{ color: "#F59E0B", ...(leadsMode ? { borderColor: "#F59E0B", background: "rgba(245,158,11,.12)", boxShadow: "0 0 10px rgba(245,158,11,.28)" } : {}) }}>
-                    <Users size={16} /><span style={{ fontSize: 11 }}>{tr(language, "العملاء", "Leads")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
-                  </button>
-                  <button type="button" id="hm-chip-reverse" className={reverseMode ? "composer-mode active" : "composer-mode"} onClick={() => { if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setReverseMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={reverseMode} title={tr(language, "هندسة عكسية — ارفع برنامجك أو تطبيقك والمنصة تفكّه وتحلّله · 20 رصيد", "Reverse engineering — upload your program or app and the platform takes it apart · 20 balance")} style={{ color: "#A78BFA", ...(reverseMode ? { borderColor: "#A78BFA", background: "rgba(167,139,250,.12)", boxShadow: "0 0 10px rgba(167,139,250,.28)" } : {}) }}>
-                    <span style={{ fontSize: 11 }}>{tr(language, "العكسية", "Reverse")}</span>{walletBalance < 20 && <Lock size={12} style={{ opacity: .85 }} />}
+                <div style={{ padding: "6px 10px 2px" }}>
+                  <button type="button" onClick={() => setModeSheetOpen(true)} aria-haspopup="dialog" style={{ width: "100%", padding: "11px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 900, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 8px 22px rgba(232,160,32,.30), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>
+                    {tr(language, "إختار الوضع المناسب لعملك", "Choose the right mode for your work")}
                   </button>
                 </div>
                 {modeSheetOpen && (
@@ -3461,15 +3436,15 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                           <span className="hm-ic"><MessageSquare size={17} /></span>
                           <span><span className="hm-name">{tr(language, "المحادثة العادية", "Regular chat")}<span className="hm-tag">{tr(language, "محادثة", "Chat")}</span></span><span className="hm-desc">{tr(language, "وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة", "Free code & research mode — ask about code & programming")}</span></span>
                         </button>
-                        <button type="button" className={selectedModel === "dadgpt-beast" ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-beast")?.click(); }} aria-pressed={selectedModel === "dadgpt-beast"}>
+                        <button type="button" className={selectedModel === "dadgpt-beast" ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; } if (!requireProFeature("beast")) return; if (walletBalance < 3) { setRequestError(tr(language, "تحتاج رصيد 3 على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 من رصيدك).", "A balance of at least 3 is required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 from your balance).")); return; } setRequestError(null); setSelectedModel("dadgpt-beast"); }} aria-pressed={selectedModel === "dadgpt-beast"}>
                           <span className="hm-ic"><Crown size={17} /></span>
                           <span><span className="hm-name">{tr(language, "الوحش PRO", "Beast PRO")}<span className="hm-tag">{tr(language, "نموذج محادثة", "Chat model")}</span></span><span className="hm-desc">{tr(language, "أعمق إجابات البرمجة والتحليل — التكلفة حسب العمق (3 أو 5 أو 9 رصيد)", "The deepest coding & analysis answers — cost by depth (3, 5 or 9 balance)")}</span></span>
                         </button>
-                        <button type="button" className={webSearchEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-search")?.click(); }} aria-pressed={webSearchEnabled}>
+                        <button type="button" className={webSearchEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); toggleProMode("search"); }} aria-pressed={webSearchEnabled}>
                           <span className="hm-ic"><Search size={17} /></span>
                           <span><span className="hm-name">{tr(language, "بحث PRO", "Search PRO")}<span className="hm-tag">{tr(language, "بحث", "Search")}</span></span><span className="hm-desc">{tr(language, "بحث ويب متقدم — إجابات من أحدث المصادر الموثوقة", "Advanced web search — answers from the latest trusted sources")}</span></span>
                         </button>
-                        <button type="button" className={darkWebEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-dark")?.click(); }} aria-pressed={darkWebEnabled}>
+                        <button type="button" className={darkWebEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); toggleProMode("darkweb"); }} aria-pressed={darkWebEnabled}>
                           <span className="hm-ic"><Skull size={17} /></span>
                           <span><span className="hm-name">Dark<span className="hm-tag">{tr(language, "دارك ويب", "Dark web")}</span></span><span className="hm-desc">{tr(language, "تتبع تسريبات الدارك ويب — Breaches & Ransomware", "Dark-web breach tracking — breaches & ransomware")}</span></span>
                         </button>
@@ -3477,30 +3452,34 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                           <span className="hm-ic"><Radio size={17} /></span>
                           <span><span className="hm-name">{tr(language, "البحث الحي في الدارك ويب", "Live dark-web search")}<span className="hm-tag">{tr(language, "دارك ويب · بريميوم", "Dark web · Premium")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "بحث حي ومباشر في مصادر الدارك ويب · 20 رصيد", "Live search across dark-web sources · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={scanMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-scan")?.click(); }} aria-pressed={scanMode}>
+                        <button type="button" className={scanMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setScanMode(true); setReverseMode(false); setReverseFile(null); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setAttachment(null); }} aria-pressed={scanMode}>
                           <span className="hm-ic"><Radar size={17} /></span>
                           <span><span className="hm-name">{tr(language, "فحص رابط", "URL Scan")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "فحص أمني كامل لأي موقع من رابطه — تقرير ثغرات · 20 رصيد", "A full security scan of any site from its URL — vulnerability report · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={seoMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-seo")?.click(); }} aria-pressed={seoMode}>
+                        <button type="button" className={seoMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setSeoMode(true); setReverseMode(false); setReverseFile(null); setLeakMode(false); setScanMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={seoMode}>
                           <span className="hm-ic"><TrendingUp size={17} /></span>
                           <span><span className="hm-name">{tr(language, "فحص SEO", "SEO Audit")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "تقرير SEO كامل بخطة نمو لأي موقع · 20 رصيد", "A full SEO report with a growth plan for any site · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={leakMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-leak")?.click(); }} aria-pressed={leakMode}>
+                        <button type="button" className={leakMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeakMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leakMode}>
                           <span className="hm-ic"><ShieldAlert size={17} /></span>
                           <span><span className="hm-name">{tr(language, "كشف التسريبات", "Leak Check")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 رصيد", "Did your email or domain appear in data breaches? · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={leadsMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-leads")?.click(); }} aria-pressed={leadsMode}>
+                        <button type="button" className={leadsMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setLeadsMode(true); setReverseMode(false); setReverseFile(null); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={leadsMode}>
                           <span className="hm-ic"><Users size={17} /></span>
                           <span><span className="hm-name">{tr(language, "استخراج العملاء", "Lead Extraction")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "بيانات شركات حقيقية من خرائط جوجل — اسم وتليفون وعنوان · 20 رصيد", "Real business data from Google Maps — name, phone & address · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={reverseMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-reverse")?.click(); }} aria-pressed={reverseMode}>
+                        <button type="button" className={reverseMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); setReverseMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setImageMode(false); setLeadsMode(false); setSiteMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={reverseMode}>
                           <span className="hm-ic"><Terminal size={17} /></span>
                           <span><span className="hm-name">{tr(language, "الهندسة العكسية", "Reverse Engineering")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "ارفع برنامجك أو تطبيقك والمنصة تفكّه وتحلّله · 20 رصيد", "Upload your program or app and the platform takes it apart · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={imageMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); document.getElementById("hm-chip-image")?.click(); }} aria-pressed={imageMode}>
+                        <div className={imageMode ? "hm-card active" : "hm-card"} style={{ cursor: "default" }}>
                           <span className="hm-ic"><ImageIcon size={17} /></span>
-                          <span><span className="hm-name">{tr(language, "توليد صورة", "Image Generation")}<span className="hm-tag">{tr(language, "صور", "Images")}</span></span><span className="hm-desc">{tr(language, "ولّد صورة من وصف بسيط — عادية بـ3 رصيد أو CGI بـ10", "Generate an image from a simple description — normal for 3 balance or CGI for 10")}</span></span>
-                        </button>
+                          <span style={{ flex: 1 }}><span className="hm-name">{tr(language, "توليد صورة", "Image Generation")}<span className="hm-tag">{tr(language, "صور", "Images")}</span></span><span className="hm-desc">{tr(language, "ولّد صورة من وصف بسيط — اختر النوع:", "Generate an image from a simple description — pick a type:")}</span>
+                          <span style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button type="button" onClick={() => { setModeSheetOpen(false); if (walletBalance < 3) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough.")); return; } setRequestError(null); setImageKind("normal"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ flex: 1, padding: "8px 6px", borderRadius: 10, border: "1px solid rgba(246,196,83,.5)", background: imageMode && imageKind === "normal" ? "rgba(232,160,32,.25)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{tr(language, "صورة عادية · 3 رصيد", "Normal image · 3")}</button>
+                            <button type="button" onClick={() => { setModeSheetOpen(false); if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الاشتراك — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from the Subscription page — prices are on the Models page.")); return; } setRequestError(null); setImageKind("cgi"); setImageMode(true); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setSelectedModel("dadgpt-default"); setAttachment(null); }} style={{ flex: 1, padding: "8px 6px", borderRadius: 10, border: "1px solid rgba(246,196,83,.5)", background: imageMode && imageKind === "cgi" ? "rgba(232,160,32,.25)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{tr(language, "صورة CGI · 10 رصيد", "CGI image · 10")}</button>
+                          </span></span>
+                        </div>
                         <button type="button" className={siteMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (walletBalance < 10) { setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج رصيد 20 والتعديل 10. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Website building is Premium: a new build needs a balance of 20 and an edit 10. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); startNew(); setSiteMode(true); setScanMode(false); setSeoMode(false); setImageMode(false); setLeadsMode(false); setDarkWebEnabled(false); setDarkLiveMode(false); setAttachment(null); }} aria-pressed={siteMode}>
                           <span className="hm-ic"><Sparkles size={17} /></span>
                           <span><span className="hm-name">{tr(language, "بناء موقع", "Website Builder")}<span className="hm-tag">{tr(language, "خدمة بريميوم", "Premium service")}</span>{walletBalance < 10 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "موقع كامل من وصف بسيط — بناء جديد بـ20 رصيد والتعديل بـ10", "A complete website from a simple description — new build 20 balance, edits 10")}</span></span>
@@ -3648,12 +3627,17 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 </button>
               </div>
             )}
-            {termsAccepted && (
-            <div className="post-login-welcome-actions">
-              <a href="/rewards" className="post-login-rewards-cta">{tr(language, "🎁 صفحة الجوائز", "🎁 Rewards")}</a>
-              <a href="/billing" className="post-login-plans-cta">{tr(language, "💎 صفحة الاشتراك", "💎 Subscription")}</a>
-            </div>
-            )}
+          </section>
+        </div>
+      )}
+      {showGreeting && !auth.loading && auth.isAuthenticated && termsAccepted && (
+        <div className="welcome-modal-backdrop post-login-welcome-backdrop" style={{ pointerEvents: "none" }}>
+          <section className="welcome-modal post-login-welcome-card" role="dialog" aria-modal="true" aria-labelledby="greeting-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
+            <div className="welcome-modal-brand"><BrandMark compact /></div>
+            <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
+            <h2 id="greeting-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
+            {welcomeGiftJustGranted && <p className="welcome-modal-lead">{language === "en" ? "🎁 Congratulations! A welcome gift balance of 5 just landed in your account — try 5 full chats and discover what the platform can do." : egEgp ? "🎁 مبروك! كسبت هدية اشتراك ٥ جنيه وصلت رصيدك: جرّب ٥ محادثات كاملة واكتشف قوة المنصة." : "🎁 مبروك! كسبت هدية اشتراك: رصيد ٥ وصل رصيدك: جرّب ٥ محادثات كاملة واكتشف قوة المنصة."}</p>}
+            <CheapestLine />
           </section>
         </div>
       )}
