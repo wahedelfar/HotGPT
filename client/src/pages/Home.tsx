@@ -3394,11 +3394,6 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     <button type="button" onClick={() => setFreshDesignNext(v => !v)} style={{ color: "#F6C453", fontWeight: 700 }}>{freshDesignNext ? tr(language, "لا — عدّل على آخر صورة", "No — edit the last image") : tr(language, "تصميم جديد من الصفر", "New design from scratch")}</button>
                   </div>
                 )}
-                <div style={{ padding: "6px 10px 2px" }}>
-                  <button type="button" onClick={() => setModeSheetOpen(true)} aria-haspopup="dialog" style={{ width: "100%", padding: "11px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 900, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 8px 22px rgba(232,160,32,.30), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>
-                    {tr(language, "إختار الوضع المناسب لعملك", "Choose the right mode for your work")}
-                  </button>
-                </div>
                 {modeSheetOpen && (
                   <>
                     <style>{`.hm-card{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:start;padding:12px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.10);cursor:pointer;color:#fff;font-family:inherit}.hm-card.active{border-color:#E8A020;background:rgba(232,160,32,.12);box-shadow:0 0 12px rgba(232,160,32,.25)}.hm-card .hm-name{font-weight:800;font-size:14.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}.hm-card .hm-desc{display:block;font-size:12.5px;opacity:.82;line-height:1.7;margin-top:2px}.hm-tag{font-size:10px;font-weight:800;padding:1px 7px;border-radius:999px;border:1px solid rgba(246,196,83,.55);color:#F6C453;background:rgba(246,196,83,.10);white-space:nowrap}.hm-ic{flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);color:#F6C453}`}</style>
@@ -3484,6 +3479,11 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 <span>{tr(language, "Enter للإرسال · Shift + Enter لسطر جديد", "Enter to send · Shift + Enter for a new line")}</span>
               </div>
             </div>
+              <div style={{ padding: "8px 2px 0" }}>
+                <button type="button" onClick={() => setModeSheetOpen(true)} aria-haspopup="dialog" style={{ width: "100%", padding: "12px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 900, fontSize: 15, border: "none", cursor: "pointer", boxShadow: "0 8px 22px rgba(232,160,32,.30), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>
+                  {tr(language, "إختار الوضع المناسب لعملك", "Choose the right mode for your work")}
+                </button>
+              </div>
           </section>
         )}
         <footer className="home-site-footer">
