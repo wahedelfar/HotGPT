@@ -399,6 +399,15 @@ export default function BillingPage() {
           </div>
         </div>}
       </section>
+      <section className="mt-8 rounded-2xl border border-[#C9A227]/50 bg-[#1A0505] p-5 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold">{t("زوّد صفحاتك وحساباتك", "Grow your pages")}</h2>
+            <p className="mt-1 text-sm text-slate-300">{t("متابعين ولايكات ومشاهدات لفيسبوك وانستجرام وتليجرام وتيك توك — من ٥٠ جنيه، والتنفيذ بيبدأ بعد تأكيد الدفع", "Followers, likes & views for Facebook, Instagram, Telegram & TikTok — from EGP 50, execution starts once payment is confirmed")}</p>
+          </div>
+          <a href="/follow" className="inline-flex items-center justify-center rounded-lg bg-[#FBBF24] px-4 py-2 text-sm font-black text-[#1A0505]">{t("افتح المتجر", "Open the store")}</a>
+        </div>
+      </section>
       {publicRequests.length > 0 && <section className="mt-8 rounded-2xl border border-white/10 bg-white/[.03] p-5 md:p-7">
         <p className="text-xs font-bold tracking-[.2em] text-amber-400">PLATFORM ACTIVITY</p>
         <h2 className="mt-2 text-xl font-bold">{t("أحدث عمليات الدفع على المنصة", "Latest payment activity on the platform")}</h2>
