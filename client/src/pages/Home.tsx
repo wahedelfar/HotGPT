@@ -794,7 +794,7 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage, onBot, onStart }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage, onBot, onStart, onDismiss }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
@@ -807,6 +807,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
   onImage: () => void;
   onBot: () => void;
   onStart: () => void;
+  onDismiss: () => void;
 }) {
   const { language } = useLanguage();
   // Unified welcome grid (Wahid, 2026-10-27): slightly smaller cards,
@@ -861,7 +862,8 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
     );
   };
   return (
-    <div className="welcome-state hotgpt-welcome">
+    <div className="welcome-state hotgpt-welcome" style={{ position: "relative" }}>
+      <button type="button" onClick={onDismiss} aria-label={tr(language, "إخفاء شاشة الترحيب", "Hide the welcome screen")} style={{ position: "absolute", top: 4, insetInlineEnd: 6, width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", color: "#E7BFC3", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 5 }}><X size={16} /></button>
       <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit" aria-hidden="true">
         <BrandMark compact />
       </div>
@@ -871,36 +873,10 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
       </div>
       <h2 style={{ margin: "12px 0 0", textAlign: "center", fontWeight: 900, fontSize: "clamp(22px, 4.6vw, 34px)", lineHeight: 1.5, color: "#FFFFFF" }}>{language === "ar" ? <>ذكاء اصطناعي قوي <span style={{ color: "#FF1E2E" }}>للمبرمجين والباحثين الأمنيين</span></> : <>Powerful AI for <span style={{ color: "#FF1E2E" }}>programmers &amp; security researchers</span></>}</h2>
       <p style={{ margin: "8px auto 0", maxWidth: 580, textAlign: "center", fontWeight: 700, fontSize: "clamp(12.5px, 1.8vw, 15.5px)", lineHeight: 1.9, color: "#E7BFC3" }}>{language === "ar" ? "مساعدك الاحترافي للبرمجة والتحليل والأمن السيبراني — ابدأ مجانًا، ثم أكمل بالاشتراك الشهري بـ100 جنيه فقط." : "Your professional assistant for programming, analysis & cybersecurity — start free, then continue for just $2/month via PayPal."}</p>
-      <div style={{ display: "flex", justifyContent: "center", marginTop: 14, marginBottom: 18 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 18 }}>
         <button type="button" onClick={onStart} style={{ padding: "12px 46px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 900, fontSize: 16, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "ابدأ الآن", "Start now")}</button>
+        <a href="/follow" style={{ padding: "10px 26px", borderRadius: 999, background: "transparent", color: "#F6C453", fontWeight: 800, fontSize: 14, border: "1px solid rgba(246,196,83,.65)", textDecoration: "none", whiteSpace: "nowrap" }}>{tr(language, "زيادة متابعين صفحاتك", "Grow your page followers")}</a>
       </div>
-      <div className="starter-grid hotgpt-starter-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", width: "100%", maxWidth: 720 }}>
-        {starterCard(starters[0])}
-        {premiumCard("leads")}
-        {imageCard()}
-        {premiumCard("scan")}
-        {starterCard(starters[2])}
-        {starterCard(starters[3])}
-        {premiumCard("seo")}
-        {premiumCard("leak")}
-      </div>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, maxWidth: 430, marginInline: "auto" }}>
-        <button type="button" onClick={onSite} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "بناء موقع إحترافي", "Build a professional website")}</button>
-        <button type="button" onClick={onReverse} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "هندسة عكسية", "Reverse Engineering")}</button>
-      </div>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", alignItems: "center", marginTop: 10, maxWidth: 430, marginInline: "auto" }}>
-        <button type="button" onClick={onBot} style={{ flex: "1 1 0", padding: "11px 8px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 14.5, border: "none", cursor: "pointer", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)", whiteSpace: "nowrap" }}>{tr(language, "صانع بوتات تليجرام", "Telegram Bot Builder")}</button>
-        <a href="/billing" onClick={() => trackFunnelEvent({ name: "starter_cta_click", metadata: { pack: 100 } })} style={{ display: "inline-block", padding: "8px 14px", borderRadius: 999, background: "linear-gradient(135deg, #F6C453 0%, #E8A020 55%, #B97A0F 100%)", color: "#231300", fontWeight: 800, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 10px 28px rgba(232,160,32,.35), inset 0 1px 0 rgba(255,255,255,.45)" }}>{tr(language, "اشتراك شهري 100 جنيه", "Monthly subscription — $2")}</a>
-      </div>
-      <p style={{ textAlign: "center", fontSize: 12.5, margin: "10px 0 18px", opacity: 0.9 }}>{language === "ar" ? <>اشتراك الـ<span style={{ color: "#F6C453", fontWeight: 800 }}>100 جنيه</span> = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> محادثة - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> صورة - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> مواقع - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> استخراج عملاء</> : <>The <span style={{ color: "#F6C453", fontWeight: 800 }}>$2</span> monthly plan = <span style={{ color: "#F6C453", fontWeight: 800 }}>100</span> chats - <span style={{ color: "#F6C453", fontWeight: 800 }}>20</span> images - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> websites - <span style={{ color: "#F6C453", fontWeight: 800 }}>5</span> lead extractions</>}<br />{language === "ar" ? <>الدفع <span style={{ color: "#FF1E2E", fontWeight: 800 }}>فودافون كاش</span> - <span style={{ color: "#38BDF8", fontWeight: 800 }}>إنستاباي</span> بصورة التحويل فقط.</> : <>Pay by <span style={{ color: "#FF1E2E", fontWeight: 800 }}>Vodafone Cash</span> or <span style={{ color: "#38BDF8", fontWeight: 800 }}>InstaPay</span> with just a transfer screenshot.</>}</p>
-      {walletBalance < 20 && (
-        <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10, opacity: 0.9 }}>
-          🔒 {tr(language, "الكروت اللي عليها ⭐ بريميوم تُفتح برصيد اشتراك 20 أو أكثر —", "Cards marked ⭐ Premium unlock with a subscription balance of 20+ —")}{" "}
-          <a href="/billing" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "اشحن رصيدك", "top up")}</a>{" "}
-          {tr(language, "أو", "or")}{" "}
-          <a href="/hotlucky" style={{ color: "#FBBF24", fontWeight: 800 }}>{tr(language, "باقة HotLucky: بـ 50 جنيه خد من 25 لـ 100 رسالة", "HotLucky pack: 50 EGP gets you 25 to 100 messages")}</a>
-        </p>
-      )}
     </div>
   );
 }
@@ -1311,6 +1287,7 @@ export default function Home() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeGiftJustGranted, setWelcomeGiftJustGranted] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
   // One-time welcome greeting (Wahid, 2026-11-12): for a terms-accepted member
   // it appears 5 seconds after entry, hides by itself after ~7 seconds, and
@@ -3046,7 +3023,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   : "messages-scroll"
               }
             >
-              {messages.length === 0 ? (
+              {messages.length === 0 && !welcomeDismissed ? (
                 routeConversationId && !requestError ? (
                   <div className="welcome-state" role="status" aria-live="polite">
                     <p className="welcome-copy">{tr(language, "جارٍ فتح المحادثة...", "Opening your conversation...")}</p>
@@ -3060,6 +3037,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       document.querySelector(".composer")?.scrollIntoView({ behavior: "smooth", block: "center" });
                     }, 0);
                   }}
+                  onDismiss={() => { setWelcomeDismissed(true); setTimeout(() => textareaRef.current?.focus(), 0); }}
                   onStarter={(text, mode) => {
                     setDraft(text);
                     setImageMode(false);
