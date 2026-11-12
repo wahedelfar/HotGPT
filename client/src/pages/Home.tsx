@@ -794,7 +794,7 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage, onBot, onStart, onDismiss }: {
+function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage, onBot, onStart }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
   onScan: () => void;
@@ -807,7 +807,6 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
   onImage: () => void;
   onBot: () => void;
   onStart: () => void;
-  onDismiss: () => void;
 }) {
   const { language } = useLanguage();
   // Unified welcome grid (Wahid, 2026-10-27): slightly smaller cards,
@@ -862,8 +861,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
     );
   };
   return (
-    <div className="welcome-state hotgpt-welcome" style={{ position: "relative" }}>
-      <button type="button" onClick={onDismiss} aria-label={tr(language, "إخفاء شاشة الترحيب", "Hide the welcome screen")} style={{ position: "absolute", top: 4, insetInlineEnd: 6, width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.16)", color: "#E7BFC3", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 5 }}><X size={16} /></button>
+    <div className="welcome-state hotgpt-welcome">
       <div className="welcome-orbit hotgpt-orbit brand-welcome-orbit" aria-hidden="true">
         <BrandMark compact />
       </div>
@@ -1287,7 +1285,6 @@ export default function Home() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeGiftJustGranted, setWelcomeGiftJustGranted] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
-  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
   // One-time welcome greeting (Wahid, 2026-11-12): for a terms-accepted member
   // it appears 5 seconds after entry, hides by itself after ~7 seconds, and
@@ -3023,7 +3020,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   : "messages-scroll"
               }
             >
-              {messages.length === 0 && !welcomeDismissed ? (
+              {messages.length === 0 ? (
                 routeConversationId && !requestError ? (
                   <div className="welcome-state" role="status" aria-live="polite">
                     <p className="welcome-copy">{tr(language, "جارٍ فتح المحادثة...", "Opening your conversation...")}</p>
@@ -3037,7 +3034,6 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       document.querySelector(".composer")?.scrollIntoView({ behavior: "smooth", block: "center" });
                     }, 0);
                   }}
-                  onDismiss={() => { setWelcomeDismissed(true); setTimeout(() => textareaRef.current?.focus(), 0); }}
                   onStarter={(text, mode) => {
                     setDraft(text);
                     setImageMode(false);
@@ -3372,7 +3368,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   value={draft}
                   onChange={event => setDraft(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : reverseMode ? tr(language, "من أيقونة المشبك 📎 اختر ملف البرنامج أو التطبيق ثم اضغط إرسال…", "Use the paperclip 📎 to choose the program or app file, then press send…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : botMode ? tr(language, "اكتب وصف البوت اللي عايزه: هيعمل إيه ولمين…", "Describe the bot you want: what it does and who it is for…") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
+                  placeholder={siteMode ? tr(language, "صف موقعك: نوع النشاط واسمه والأقسام والألوان…", "Describe your site: business type and name, sections and colors…") : leadsMode ? tr(language, "اكتب نوع النشاط والمنطقة… مثال: مطاعم في مدينة نصر", "Type the business type and area… e.g. restaurants in Nasr City") : scanMode ? tr(language, "الصق رابط الموقع هنا (https://example.com)…", "Paste the website URL here (https://example.com)…") : leakMode ? tr(language, "اكتب الإيميل أو الدومين أو الصق رابط موقعك… مثال: name@company.com أو company.com", "Type the email or domain, or paste your site URL… e.g. name@company.com or company.com") : seoMode ? tr(language, "الصق رابط موقعك هنا لفحص SEO (https://example.com)…", "Paste your website URL here for an SEO audit (https://example.com)…") : reverseMode ? tr(language, "من أيقونة المشبك 📎 اختر ملف البرنامج أو التطبيق ثم اضغط إرسال…", "Use the paperclip 📎 to choose the program or app file, then press send…") : imageMode ? tr(language, "اكتب وصف التصميم التالي…", "Describe the next design…") : botMode ? tr(language, "اكتب وصف البوت اللي عايزه: هيعمل إيه ولمين…", "Describe the bot you want: what it does and who it is for…") : selectedModel === "dadgpt-beast" ? tr(language, "👹 الوحش PRO مفعّل — اكتب سؤالك وهتاخد أعمق إجابة برمجة وتحليل...", "👹 Beast PRO is on — ask and get the deepest coding & analysis answer...") : webSearchEnabled ? tr(language, "🔍 بحث PRO مفعّل — اسأل وهيتم البحث في أحدث المصادر الموثوقة...", "🔍 Search PRO is on — ask and we will search the latest trusted sources...") : darkLiveMode ? tr(language, "📡 البحث الحي في الدارك ويب مفعّل — اكتب كلمة أو عبارة البحث...", "📡 Live dark-web search is on — type your search term...") : darkWebEnabled ? tr(language, "💀 وضع Dark مفعّل — تتبع تسريبات الدارك ويب… اكتب بالإنجليزية لأفضل نتيجة", "💀 Dark mode is on — dark-web breach tracking… write in English for the best result") : tr(language, "💻 وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة...", "💻 Free code & research mode — ask about code and programming...")}
                   rows={1}
                 />
                 <button
@@ -3611,6 +3607,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
       {showGreeting && !auth.loading && auth.isAuthenticated && termsAccepted && (
         <div className="welcome-modal-backdrop post-login-welcome-backdrop" style={{ pointerEvents: "none" }}>
           <section className="welcome-modal post-login-welcome-card" role="dialog" aria-modal="true" aria-labelledby="greeting-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
+            <button type="button" className="welcome-modal-close" onClick={() => setShowGreeting(false)} aria-label={tr(language, "إغلاق", "Close")} style={{ pointerEvents: "auto" }}><X size={19} /></button>
             <div className="welcome-modal-brand"><BrandMark compact /></div>
             <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
             <h2 id="greeting-modal-title">{tr(language, "أهلا بك في الحرية المطلقة HOT GPT", "Welcome to absolute freedom HOT GPT")}</h2>
