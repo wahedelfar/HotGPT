@@ -1,5 +1,12 @@
 {
   "outputDirectory": "dist/public",
+  "redirects": [
+    {
+      "source": "/follow",
+      "destination": "/follow/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/platform/config",
@@ -16,6 +23,14 @@
     {
       "source": "/s/:slug",
       "destination": "/api/model/chat?action=share_page&slug=:slug"
+    },
+    {
+      "source": "/follow/",
+      "destination": "https://hotgpt-follow.vercel.app/"
+    },
+    {
+      "source": "/follow/:path*",
+      "destination": "https://hotgpt-follow.vercel.app/:path*"
     },
     {
       "source": "/((?!api/).*)",
