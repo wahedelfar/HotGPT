@@ -414,6 +414,48 @@ async function creditWalletTokens(userId: string, amount: number): Promise<void>
   }).catch(() => null);
 }
 
+// Free first SEO audit (owner decision, 2026-11-13, on Boardy's advice):
+// every member gets ONE complete SEO report free — claimed exactly once,
+// at the paywall moment (balance below the 20-token price). The claim is
+// an insert-first marker row in analytics_events (the same table that
+// audits image charges), so no schema change is needed: the first claim
+// wins, a failed run releases its claim (the free run is only consumed
+// by a delivered report, mirroring the paid path's refund discipline),
+// and the paid path is untouched whenever the balance covers the price.
+const FREE_SEO_CLAIM_EVENT = "free_seo_claim";
+async function claimFreeSeo(userId: string): Promise<string | null> {
+  const existing = await supabaseRest(`analytics_events?user_id=eq.${encodeURIComponent(userId)}&event_name=eq.${FREE_SEO_CLAIM_EVENT}&select=id&limit=1`).catch(() => null);
+  if (!Array.isArray(existing) || existing.length > 0) return null;
+  const inserted = await supabaseRest("analytics_events", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ user_id: userId, event_name: FREE_SEO_CLAIM_EVENT, path: "/api/model/chat", metadata: { cost: SEO_COST, kind: "free_first_seo" } }),
+  }).catch(() => null);
+  if (!Array.isArray(inserted) || !inserted[0]?.id) return null;
+  const claimId = String(inserted[0].id);
+  // Race guard: if a parallel request claimed first, the earliest claim
+  // wins and this one releases itself.
+  const all = await supabaseRest(`analytics_events?user_id=eq.${encodeURIComponent(userId)}&event_name=eq.${FREE_SEO_CLAIM_EVENT}&select=id&order=created_at.asc&limit=2`).catch(() => null);
+  if (Array.isArray(all) && all.length > 1 && String(all[0].id) !== claimId) {
+    await releaseFreeSeoClaim(claimId);
+    return null;
+  }
+  return claimId;
+}
+async function releaseFreeSeoClaim(claimId: string): Promise<void> {
+  await supabaseRest(`analytics_events?id=eq.${encodeURIComponent(claimId)}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=minimal" },
+  }).catch(() => null);
+}
+async function logFreeSeoUsed(userId: string, target: string): Promise<void> {
+  await supabaseRest("analytics_events", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ user_id: userId, event_name: "free_seo_used", path: "/api/model/chat", metadata: { cost: 0, kind: "free_first_seo", target: String(target || "").slice(0, 200) } }),
+  }).catch(() => null);
+}
+
 // Last-resort topic map for Arabic dark-web requests, used only
 // when both the translated query and its shorter variants miss.
 function arabicDarkKeywordMap(text: string): string | null {
@@ -682,9 +724,18 @@ async function handleSeoAudit(req: any, res: any, body: any) {
   const orKey = (process.env.OPENROUTER_API_KEY || "").trim();
   if (!orKey && !(process.env.APINEX_API_KEY || "").trim()) { res.status(503).json({ error: "seo_not_configured" }); return; }
   const walletBefore = await getWallet(user.id).catch(() => null);
+  // Below the price, the member may still hold their one free audit:
+  // claim it insert-first; no claim (already used, or storage failed)
+  // keeps the exact old 402 behavior.
+  let freeSeo = false;
+  let freeSeoClaimId: string | null = null;
   if (!walletBefore || walletBefore.tokenBalance < SEO_COST) {
-    res.status(402).json({ error: "insufficient_credits", wallet: walletBefore });
-    return;
+    freeSeoClaimId = await claimFreeSeo(user.id).catch(() => null);
+    if (!freeSeoClaimId) {
+      res.status(402).json({ error: "insufficient_credits", wallet: walletBefore });
+      return;
+    }
+    freeSeo = true;
   }
   // Keep wallet debit and the entire SEO transaction inside one guarded block.
   // A thrown debit must still produce JSON, and only a confirmed debit is refunded.
@@ -692,12 +743,20 @@ async function handleSeoAudit(req: any, res: any, body: any) {
   const seoRequestStartedAt = Date.now();
   const seoRequestDeadline = seoRequestStartedAt + 54000;
   try {
-    debited = await debitWalletTokens(user.id, SEO_COST);
-    if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+    if (!freeSeo) {
+      debited = await debitWalletTokens(user.id, SEO_COST);
+      if (!debited) { res.status(402).json({ error: "insufficient_credits" }); return; }
+    }
     const audit = await runSeoAudit(rawUrl);
     if (!audit.reachable) {
-      await creditWalletTokens(user.id, SEO_COST);
-      debited = false;
+      if (debited) {
+        await creditWalletTokens(user.id, SEO_COST);
+        debited = false;
+      }
+      if (freeSeoClaimId) {
+        await releaseFreeSeoClaim(freeSeoClaimId);
+        freeSeoClaimId = null;
+      }
       const unreachable = audit.fatal === "target_not_public" ? "seo_target_not_public" : audit.fatal === "invalid_url" ? "invalid_url" : "seo_target_unreachable";
       res.status(422).json({ error: unreachable });
       return;
@@ -860,8 +919,9 @@ async function handleSeoAudit(req: any, res: any, body: any) {
     }
     await saveMessage(user.id, conversationId, "user", lang === "en" ? `📈 SEO audit for URL: ${audit.target}` : `📈 فحص SEO للرابط: ${audit.target}`);
     await saveMessage(user.id, conversationId, "assistant", report);
+    if (freeSeo) await logFreeSeoUsed(user.id, audit.target);
     const wallet = await getWallet(user.id).catch(() => null);
-    const seoPayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: SEO_COST, score: audit.score, grade: audit.grade };
+    const seoPayload = { content: report, report, conversationId, tokenBalance: wallet?.tokenBalance, cost: freeSeo ? 0 : SEO_COST, ...(freeSeo ? { freeSeo: true } : {}), score: audit.score, grade: audit.grade };
     if (!rs.done(seoPayload)) res.status(200).json(seoPayload);
   } catch (error) {
     if (debited) {
@@ -871,6 +931,10 @@ async function handleSeoAudit(req: any, res: any, body: any) {
       } catch (refundError) {
         console.error("[SEO] Refund failed", refundError instanceof Error ? refundError.message : "unknown");
       }
+    }
+    if (freeSeoClaimId) {
+      await releaseFreeSeoClaim(freeSeoClaimId).catch(() => null);
+      freeSeoClaimId = null;
     }
     const reason = error instanceof Error ? error.message : "unknown";
     console.error("[SEO] SEO audit failed", reason);

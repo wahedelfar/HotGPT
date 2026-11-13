@@ -111,6 +111,15 @@ export async function getWallet(userId: string) {
   return { freeAnswersUsed: Number(row.free_answers_used), tokenBalance, freeAnswersRemaining: 0, welcomeGiftGranted };
 }
 
+// Free first SEO audit (2026-11-13): the claim marker lives in
+// analytics_events (written by the chat handler's claimFreeSeo). This
+// read only drives the client's gate display — the handler re-checks
+// authoritatively at send time.
+export async function hasUsedFreeSeo(userId: string): Promise<boolean> {
+  const rows = await rest(`analytics_events?user_id=eq.${encodeURIComponent(userId)}&event_name=eq.free_seo_claim&select=id&limit=1`);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 export async function consumeAnswerCredit(userId: string): Promise<"free" | "paid" | null> {
   const result = await rest("rpc/hotgpt_consume_answer_credit", { method: "POST", body: JSON.stringify({ p_user_id: userId }) });
   return result === "free" || result === "paid" ? result : null;

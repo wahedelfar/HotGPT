@@ -883,7 +883,9 @@ export default async function handler(req: any, res: any) {
       } catch { /* referral storage not ready yet */ }
       let termsAccepted = true;
       try { termsAccepted = await db.hasAcceptedTerms(user.id); } catch { /* fail open: never break billing on the audit read */ }
-      return res.status(200).json({ email: user.email, name: user.name, ...wallet, termsAccepted });
+      let freeSeoAvailable = false;
+      try { freeSeoAvailable = !(await db.hasUsedFreeSeo(user.id)); } catch { /* fail closed: the picker keeps its paid gate */ }
+      return res.status(200).json({ email: user.email, name: user.name, ...wallet, termsAccepted, freeSeoAvailable });
     }
     catch (error) {
       console.error("[Billing] Wallet lookup failed", error instanceof Error ? error.message : "unknown");
