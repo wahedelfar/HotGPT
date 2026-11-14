@@ -1287,6 +1287,17 @@ export default function Home() {
   const [welcomeGiftJustGranted, setWelcomeGiftJustGranted] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(true);
+  // Guest first-visit popup (Wahid, 2026-11-14): shown once to a logged-out
+  // visitor — «أنت لست عضوًا معنا» with a register CTA and a close button.
+  const [guestPopupOpen, setGuestPopupOpen] = useState(false);
+  useEffect(() => {
+    if (auth.loading || auth.isAuthenticated) return;
+    try { if (!localStorage.getItem("hotgpt-guest-popup-seen")) setGuestPopupOpen(true); } catch { /* storage unavailable */ }
+  }, [auth.loading, auth.isAuthenticated]);
+  const closeGuestPopup = () => {
+    try { localStorage.setItem("hotgpt-guest-popup-seen", "1"); } catch { /* ignore */ }
+    setGuestPopupOpen(false);
+  };
   // One-time welcome greeting (Wahid, 2026-11-12): for a terms-accepted member
   // it appears 5 seconds after entry, hides by itself after ~7 seconds, and
   // never shows again for that member. No buttons, purely a greeting.
@@ -2734,6 +2745,11 @@ export default function Home() {
     finally { setIsSending(false); if (activeConversation) { try { await loadConversationMessages(activeConversation); } catch {} } }
   };
 
+  // Guest routing (Wahid, 2026-11-14): a logged-out visitor tapping Start,
+  // Beast, SEO or anything costing 5 tokens or less goes to signup; locked
+  // Premium tools go to the subscription page.
+  const isGuest = !auth.loading && !auth.isAuthenticated;
+  const guestGo = (dest: "signup" | "billing") => { window.location.href = dest === "signup" ? "/auth?mode=signup" : "/billing"; };
   const requireProFeature = (feature: "search" | "darkweb" | "beast") => {
     const featureName = feature === "search"
       ? tr(language, "البحث على الإنترنت", "Internet Search")
@@ -3051,12 +3067,14 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                   walletBalance={walletBalance}
                   freeSeoAvailable={freeSeoAvailable}
                   onStart={() => {
+                    if (isGuest) { guestGo("signup"); return; }
                     setTimeout(() => {
                       textareaRef.current?.focus();
                       document.querySelector(".composer")?.scrollIntoView({ behavior: "smooth", block: "center" });
                     }, 0);
                   }}
                   onStarter={(text, mode) => {
+                    if (isGuest) { guestGo("signup"); return; }
                     setDraft(text);
                     setImageMode(false);
                     setScanMode(false);
@@ -3073,6 +3091,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onScan={() => {
+                    if (isGuest) { guestGo("billing"); return; }
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3086,6 +3105,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onSeo={() => {
+                    if (isGuest) { guestGo("signup"); return; }
                     if (walletBalance < 20 && !freeSeoAvailable) {
                       setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3100,6 +3120,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onLeak={() => {
+                    if (isGuest) { guestGo("billing"); return; }
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3114,6 +3135,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onSite={() => {
+                    if (isGuest) { guestGo("billing"); return; }
                     if (walletBalance < 10) {
                       setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج رصيد 20 والتعديل 10. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Website building is Premium: a new build needs a balance of 20 and an edit 10. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3130,6 +3152,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setAttachment(null);
                   }}
                   onReverse={() => {
+                    if (isGuest) { guestGo("billing"); return; }
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3149,6 +3172,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onBot={() => {
+                    if (isGuest) { guestGo("billing"); return; }
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "صانع البوتات خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "The bot builder is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3170,6 +3194,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onLeads={() => {
+                    if (isGuest) { guestGo("billing"); return; }
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3186,6 +3211,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onImage={() => {
+                    if (isGuest) { guestGo("signup"); return; }
                     if (walletBalance < 3) {
                       setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough."));
                       return;
@@ -3205,6 +3231,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onDarkLive={() => {
+                    if (isGuest) { guestGo("billing"); return; }
                     if (walletBalance < 20) {
                       setRequestError(tr(language, "البحث الحي في الدارك ويب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Live dark-web search is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
@@ -3423,39 +3450,39 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                       </div>
                       <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#CBD5E1" }}>{tr(language, "أوضاع المحادثة والأدوات الاحترافية — اختر وضعًا وهيتفعّل فورًا.", "Chat modes & professional tools — pick one and it activates instantly.")}</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        <button type="button" className={selectedModel === "dadgpt-default" && !webSearchEnabled && !darkWebEnabled && !darkLiveMode && !scanMode && !seoMode && !leakMode && !leadsMode && !reverseMode && !siteMode && !botMode && !imageMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); setRequestError(null); setSelectedModel("dadgpt-default"); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setReverseMode(false); setReverseFile(null); setSiteMode(false); setBotMode(false); setImageMode(false); }}>
+                        <button type="button" className={selectedModel === "dadgpt-default" && !webSearchEnabled && !darkWebEnabled && !darkLiveMode && !scanMode && !seoMode && !leakMode && !leadsMode && !reverseMode && !siteMode && !botMode && !imageMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("signup"); return; } setRequestError(null); setSelectedModel("dadgpt-default"); setWebSearchEnabled(false); setDarkWebEnabled(false); setDarkLiveMode(false); setScanMode(false); setSeoMode(false); setLeakMode(false); setLeadsMode(false); setReverseMode(false); setReverseFile(null); setSiteMode(false); setBotMode(false); setImageMode(false); }}>
                           <span className="hm-ic"><MessageSquare size={17} /></span>
                           <span><span className="hm-name">{tr(language, "المحادثة العادية", "Regular chat")}<span className="hm-tag">{tr(language, "محادثة", "Chat")}</span></span><span className="hm-desc">{tr(language, "وضع البرمجة والبحث الحر — اسأل في الكود والبرمجة", "Free code & research mode — ask about code & programming")}</span></span>
                         </button>
-                        <button type="button" className={selectedModel === "dadgpt-beast" ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; } if (!requireProFeature("beast")) return; if (walletBalance < 3) { setRequestError(tr(language, "تحتاج رصيد 3 على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 من رصيدك).", "A balance of at least 3 is required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 from your balance).")); return; } setRequestError(null); resetAllModes(); setSelectedModel("dadgpt-beast"); }} aria-pressed={selectedModel === "dadgpt-beast"}>
+                        <button type="button" className={selectedModel === "dadgpt-beast" ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("signup"); return; } setImageMode(false); setScanMode(false); setSeoMode(false); setLeadsMode(false); if (selectedModel === "dadgpt-beast") { setSelectedModel("dadgpt-default"); return; } if (!requireProFeature("beast")) return; if (walletBalance < 3) { setRequestError(tr(language, "تحتاج رصيد 3 على الأقل لتشغيل الوحش PRO. تُحسب التكلفة النهائية حسب طول الإجابة وعمقها (3 أو 5 أو 9 من رصيدك).", "A balance of at least 3 is required for الوحش PRO. Final cost depends on answer length and depth (3, 5, or 9 from your balance).")); return; } setRequestError(null); resetAllModes(); setSelectedModel("dadgpt-beast"); }} aria-pressed={selectedModel === "dadgpt-beast"}>
                           <span className="hm-ic"><Crown size={17} /></span>
                           <span><span className="hm-name">{tr(language, "الوحش PRO", "Beast PRO")}<span className="hm-tag">{tr(language, "نموذج محادثة", "Chat model")}</span></span><span className="hm-desc">{tr(language, "أعمق إجابات البرمجة والتحليل — التكلفة حسب العمق (3 أو 5 أو 9 رصيد)", "The deepest coding & analysis answers — cost by depth (3, 5 or 9 balance)")}</span></span>
                         </button>
-                        <button type="button" className={webSearchEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); toggleProMode("search"); }} aria-pressed={webSearchEnabled}>
+                        <button type="button" className={webSearchEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("signup"); return; } toggleProMode("search"); }} aria-pressed={webSearchEnabled}>
                           <span className="hm-ic"><Search size={17} /></span>
                           <span><span className="hm-name">{tr(language, "بحث PRO", "Search PRO")}<span className="hm-tag">{tr(language, "بحث", "Search")}</span></span><span className="hm-desc">{tr(language, "بحث ويب متقدم — إجابات من أحدث المصادر الموثوقة", "Advanced web search — answers from the latest trusted sources")}</span></span>
                         </button>
-                        <button type="button" className={darkWebEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); toggleProMode("darkweb"); }} aria-pressed={darkWebEnabled}>
+                        <button type="button" className={darkWebEnabled ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("signup"); return; } toggleProMode("darkweb"); }} aria-pressed={darkWebEnabled}>
                           <span className="hm-ic"><Skull size={17} /></span>
                           <span><span className="hm-name">Dark<span className="hm-tag">{tr(language, "دارك ويب", "Dark web")}</span></span><span className="hm-desc">{tr(language, "تتبع تسريبات الدارك ويب — Breaches & Ransomware", "Dark-web breach tracking — breaches & ransomware")}</span></span>
                         </button>
-                        <button type="button" className={scanMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setScanMode(true); setAttachment(null); }} aria-pressed={scanMode}>
+                        <button type="button" className={scanMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("billing"); return; } if (scanMode) { setScanMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "فحص الروابط خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "URL scanning is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setScanMode(true); setAttachment(null); }} aria-pressed={scanMode}>
                           <span className="hm-ic"><Radar size={17} /></span>
                           <span><span className="hm-name">{tr(language, "فحص رابط", "URL Scan")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "فحص أمني كامل لأي موقع من رابطه — تقرير ثغرات · 20 رصيد", "A full security scan of any site from its URL — vulnerability report · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={seoMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20 && !freeSeoAvailable) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setSeoMode(true); setAttachment(null); }} aria-pressed={seoMode}>
+                        <button type="button" className={seoMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("signup"); return; } if (seoMode) { setSeoMode(false); return; } if (walletBalance < 20 && !freeSeoAvailable) { setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setSeoMode(true); setAttachment(null); }} aria-pressed={seoMode}>
                           <span className="hm-ic"><TrendingUp size={17} /></span>
                           <span><span className="hm-name">{tr(language, "فحص SEO", "SEO Audit")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && !freeSeoAvailable && <Lock size={13} />}</span><span className="hm-desc">{freeSeoAvailable && walletBalance < 20 ? tr(language, "🎁 فحصك الأول مجانًا — تقرير SEO كامل بخطة نمو", "🎁 Your first audit is free — a full SEO report with a growth plan") : tr(language, "تقرير SEO كامل بخطة نمو لأي موقع · 20 رصيد", "A full SEO report with a growth plan for any site · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={leakMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setLeakMode(true); setAttachment(null); }} aria-pressed={leakMode}>
+                        <button type="button" className={leakMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("billing"); return; } if (leakMode) { setLeakMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "كشف التسريب خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Leak check is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setLeakMode(true); setAttachment(null); }} aria-pressed={leakMode}>
                           <span className="hm-ic"><ShieldAlert size={17} /></span>
                           <span><span className="hm-name">{tr(language, "كشف التسريبات", "Leak Check")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "هل إيميلك أو دومينك ظهر في تسريبات البيانات؟ · 20 رصيد", "Did your email or domain appear in data breaches? · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={leadsMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setLeadsMode(true); setAttachment(null); }} aria-pressed={leadsMode}>
+                        <button type="button" className={leadsMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("billing"); return; } if (leadsMode) { setLeadsMode(false); return; } if (walletBalance < 20) { setRequestError(tr(language, "استخراج العملاء خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Lead extraction is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setLeadsMode(true); setAttachment(null); }} aria-pressed={leadsMode}>
                           <span className="hm-ic"><Users size={17} /></span>
                           <span><span className="hm-name">{tr(language, "استخراج العملاء", "Lead Extraction")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "بيانات شركات حقيقية من خرائط جوجل — اسم وتليفون وعنوان · 20 رصيد", "Real business data from Google Maps — name, phone & address · 20 balance")}</span></span>
                         </button>
-                        <button type="button" className={reverseMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setReverseMode(true); setAttachment(null); }} aria-pressed={reverseMode}>
+                        <button type="button" className={reverseMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("billing"); return; } if (reverseMode) { setReverseMode(false); setReverseFile(null); return; } if (walletBalance < 20) { setRequestError(tr(language, "الهندسة العكسية خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Reverse engineering is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setReverseMode(true); setAttachment(null); }} aria-pressed={reverseMode}>
                           <span className="hm-ic"><Terminal size={17} /></span>
                           <span><span className="hm-name">{tr(language, "الهندسة العكسية", "Reverse Engineering")}<span className="hm-tag">{tr(language, "أداة بريميوم", "Premium tool")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "ارفع برنامجك أو تطبيقك والمنصة تفكّه وتحلّله · 20 رصيد", "Upload your program or app and the platform takes it apart · 20 balance")}</span></span>
                         </button>
@@ -3463,15 +3490,15 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                           <span className="hm-ic"><ImageIcon size={17} /></span>
                           <span style={{ flex: 1 }}><span className="hm-name">{tr(language, "توليد صورة", "Image Generation")}<span className="hm-tag">{tr(language, "صور", "Images")}</span></span><span className="hm-desc">{tr(language, "ولّد صورة من وصف بسيط — اختر النوع:", "Generate an image from a simple description — pick a type:")}</span>
                           <span style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                            <button type="button" onClick={() => { setModeSheetOpen(false); if (walletBalance < 3) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough.")); return; } setRequestError(null); resetAllModes(); setImageKind("normal"); setImageMode(true); setAttachment(null); }} style={{ flex: 1, padding: "8px 6px", borderRadius: 10, border: "1px solid rgba(246,196,83,.5)", background: imageMode && imageKind === "normal" ? "rgba(232,160,32,.25)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{tr(language, "صورة عادية · 3 رصيد", "Normal image · 3")}</button>
-                            <button type="button" onClick={() => { setModeSheetOpen(false); if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الاشتراك — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from the Subscription page — prices are on the Models page.")); return; } setRequestError(null); resetAllModes(); setImageKind("cgi"); setImageMode(true); setAttachment(null); }} style={{ flex: 1, padding: "8px 6px", borderRadius: 10, border: "1px solid rgba(246,196,83,.5)", background: imageMode && imageKind === "cgi" ? "rgba(232,160,32,.25)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{tr(language, "صورة CGI · 10 رصيد", "CGI image · 10")}</button>
+                            <button type="button" onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("signup"); return; } if (walletBalance < 3) { setRequestError(tr(language, "توليد الصورة يحتاج إلى 3 رصيد. رصيدك غير كافٍ؛ اختر اشتراكًا مناسبًا.", "Image generation costs 3 balance. Your balance is not enough.")); return; } setRequestError(null); resetAllModes(); setImageKind("normal"); setImageMode(true); setAttachment(null); }} style={{ flex: 1, padding: "8px 6px", borderRadius: 10, border: "1px solid rgba(246,196,83,.5)", background: imageMode && imageKind === "normal" ? "rgba(232,160,32,.25)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{tr(language, "صورة عادية · 3 رصيد", "Normal image · 3")}</button>
+                            <button type="button" onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("billing"); return; } if (walletBalance < 10) { setRequestError(tr(language, "رصيدك غير كافٍ لتوليد صورة CGI. اشحن من صفحة الاشتراك — الأسعار في صفحة النماذج.", "Your balance is not enough for a CGI image. Top up from the Subscription page — prices are on the Models page.")); return; } setRequestError(null); resetAllModes(); setImageKind("cgi"); setImageMode(true); setAttachment(null); }} style={{ flex: 1, padding: "8px 6px", borderRadius: 10, border: "1px solid rgba(246,196,83,.5)", background: imageMode && imageKind === "cgi" ? "rgba(232,160,32,.25)" : "rgba(255,255,255,.05)", color: "#fff", fontWeight: 800, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{tr(language, "صورة CGI · 10 رصيد", "CGI image · 10")}</button>
                           </span></span>
                         </div>
-                        <button type="button" className={siteMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (walletBalance < 10) { setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج رصيد 20 والتعديل 10. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Website building is Premium: a new build needs a balance of 20 and an edit 10. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); startNew(); resetAllModes(); setSiteMode(true); setAttachment(null); }} aria-pressed={siteMode}>
+                        <button type="button" className={siteMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("billing"); return; } if (walletBalance < 10) { setRequestError(tr(language, "بناء المواقع خدمة Premium: البناء الجديد يحتاج رصيد 20 والتعديل 10. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "Website building is Premium: a new build needs a balance of 20 and an edit 10. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); startNew(); resetAllModes(); setSiteMode(true); setAttachment(null); }} aria-pressed={siteMode}>
                           <span className="hm-ic"><Sparkles size={17} /></span>
                           <span><span className="hm-name">{tr(language, "بناء موقع", "Website Builder")}<span className="hm-tag">{tr(language, "خدمة بريميوم", "Premium service")}</span>{walletBalance < 10 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "موقع كامل من وصف بسيط — بناء جديد بـ20 رصيد والتعديل بـ10", "A complete website from a simple description — new build 20 balance, edits 10")}</span></span>
                         </button>
-                        <button type="button" className={botMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (walletBalance < 20) { setRequestError(tr(language, "صانع البوتات خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "The bot builder is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setBotMode(true); setAttachment(null); setDraft(""); setTimeout(() => textareaRef.current?.focus(), 0); }} aria-pressed={botMode}>
+                        <button type="button" className={botMode ? "hm-card active" : "hm-card"} onClick={() => { setModeSheetOpen(false); if (isGuest) { guestGo("billing"); return; } if (walletBalance < 20) { setRequestError(tr(language, "صانع البوتات خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "The bot builder is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2.")); return; } setRequestError(null); resetAllModes(); setBotMode(true); setAttachment(null); setDraft(""); setTimeout(() => textareaRef.current?.focus(), 0); }} aria-pressed={botMode}>
                           <span className="hm-ic"><Bot size={17} /></span>
                           <span><span className="hm-name">{tr(language, "صانع بوتات تليجرام", "Telegram Bot Builder")}<span className="hm-tag">{tr(language, "خدمة بريميوم", "Premium service")}</span>{walletBalance < 20 && <Lock size={13} />}</span><span className="hm-desc">{tr(language, "بوت تليجرام شغال على سيرفراتنا من وصف بسيط — النشر بـ20 رصيد", "A working Telegram bot on our servers from a simple description — publishing costs 20 balance")}</span></span>
                         </button>
@@ -3619,6 +3646,18 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 </button>
               </div>
             )}
+          </section>
+        </div>
+      )}
+      {guestPopupOpen && !auth.loading && !auth.isAuthenticated && (
+        <div className="welcome-modal-backdrop">
+          <section className="welcome-modal post-login-welcome-card" role="dialog" aria-modal="true" aria-labelledby="guest-modal-title" dir={language === "ar" ? "rtl" : "ltr"}>
+            <button type="button" className="welcome-modal-close" onClick={closeGuestPopup} aria-label={tr(language, "إغلاق", "Close")}><X size={19} /></button>
+            <div className="welcome-modal-brand"><BrandMark compact /></div>
+            <p className="welcome-modal-eyebrow">HOTGPT · AI WORKSPACE</p>
+            <h2 id="guest-modal-title">{tr(language, "أنت لست عضوًا معنا", "You're not a member yet")}</h2>
+            <p className="welcome-modal-lead">{tr(language, "سجّل الآن وابدأ مجانًا — هدية ترحيب 5 توكين عند التسجيل، وفحص SEO الأول مجانًا.", "Register now and start free — a 5-token welcome gift when you sign up, and your first SEO audit is free.")}</p>
+            <a href="/auth?mode=signup" onClick={() => { try { localStorage.setItem("hotgpt-guest-popup-seen", "1"); } catch { /* ignore */ } }} style={{ display: "block", borderRadius: 11, padding: "13px 16px", background: "#FBBF24", color: "#1A0505", fontWeight: 900, textDecoration: "none", marginTop: 14 }}>{tr(language, "سجّل الآن", "Register now")}</a>
           </section>
         </div>
       )}
