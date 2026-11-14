@@ -794,9 +794,10 @@ function CheapestLine() {
   );
 }
 
-function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage, onBot, onStart }: {
+function Welcome({ onStarter, walletBalance, freeSeoAvailable, onScan, onDarkLive, onSeo, onLeak, onSite, onReverse, onLeads, onImage, onBot, onStart }: {
   onStarter: (text: string, mode: StarterMode) => void;
   walletBalance: number;
+  freeSeoAvailable: boolean;
   onScan: () => void;
   onDarkLive: () => void;
   onSeo: () => void;
@@ -845,7 +846,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
     const data = {
       leads: { cls: "spec", Icon: Users, label: "LEAD_EXTRACT", ar: "استخراج عملاء حقيقيين من خرائط جوجل — الاسم والتليفون والعنوان والتقييم · 20 شركة بـ20 رصيد", en: "Real customer leads from Google Maps — name, phone, address & rating · 20 businesses for 20 from your balance", action: onLeads },
       scan: { cls: "free", Icon: Radar, label: "URL_SCAN", ar: "فحص أمني حقيقي لأي موقع من رابطه — تقرير ثغرات كامل · 20 رصيد للتقرير", en: "A real security scan of any website from its URL — a full vulnerability report · 20 from your balance per report", action: onScan },
-      seo: { cls: "spec", Icon: TrendingUp, label: "SEO_AUDIT", ar: "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 رصيد للتقرير", en: "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 from your balance per report", action: onSeo },
+      seo: { cls: "spec", Icon: TrendingUp, label: "SEO_AUDIT", ar: freeSeoAvailable && walletBalance < 20 ? "🎁 فحصك الأول مجانًا — تقرير SEO كامل بخطة نمو" : "فحص SEO حقيقي لأي موقع من رابطه — تقرير كامل بخطة نمو عملية · 20 رصيد للتقرير", en: freeSeoAvailable && walletBalance < 20 ? "🎁 Your first audit is free — a full SEO report with a growth plan" : "A real SEO audit of any website from its URL — a full report with a practical growth plan · 20 from your balance per report", action: onSeo },
       leak: { cls: "spec", Icon: ShieldAlert, label: "LEAK_CHECK", ar: "كشف التسريب: هل إيميلك أو دومين شركتك ظهر في تسريبات البيانات؟ فحص فوري في فهارس عالمية وتقرير بالخطوات · 20 رصيد للتقرير", en: "Leak check: did your email or company domain appear in data breaches? An instant check across global indexes with an actions report · 20 from your balance per report", action: onLeak },
     }[kind];
     const PIcon = data.Icon;
@@ -853,7 +854,7 @@ function Welcome({ onStarter, walletBalance, onScan, onDarkLive, onSeo, onLeak, 
       <button type="button" className="starter-card hotgpt-starter-card premium-card" key={data.label} style={cardStyle} onClick={data.action}>
         <span className="starter-icon hotgpt-starter-icon"><PIcon size={19} /></span>
         <span className="starter-copy">
-          <strong>{data.label}{premiumBadge} {walletBalance < 20 && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
+          <strong>{data.label}{premiumBadge} {walletBalance < 20 && !(kind === "seo" && freeSeoAvailable) && <Lock size={13} style={{ verticalAlign: "-2px" }} />}</strong>
           <small>{tr(language, data.ar, data.en)}</small>
           {data.cls === "free" ? <small style={{ marginTop: 2 }}><strong style={{ color: "#F6C453" }}>{tr(language, "نماذج حرة بدون قيود", "Free, unrestricted models")}</strong> <span style={{ opacity: 0.75 }}>{tr(language, "— لكتابة أي كود برمجي", "— for writing any programming code")}</span></small> : <small style={{ marginTop: 2, color: "#CBD5E1", fontWeight: 700 }}>{tr(language, "نموذج متخصص", "Specialized model")}</small>}
         </span>
@@ -3048,6 +3049,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                 ) : (
                 <Welcome
                   walletBalance={walletBalance}
+                  freeSeoAvailable={freeSeoAvailable}
                   onStart={() => {
                     setTimeout(() => {
                       textareaRef.current?.focus();
@@ -3084,7 +3086,7 @@ html[data-theme="dark"] .new-chat-button:hover{background:#333!important}
                     setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
                   onSeo={() => {
-                    if (walletBalance < 20) {
+                    if (walletBalance < 20 && !freeSeoAvailable) {
                       setRequestError(tr(language, "فحص SEO خدمة Premium تحتاج رصيد اشتراك 20 أو أكثر. اشحن من صفحة الاشتراك أو خد باقة HotLucky. عندنا اشتراك شهري بيبدأ بـ100 جنيه فقط أو 2 دولار.", "SEO auditing is a Premium service that needs a subscription balance of 20+. Top up from the Subscription page or grab the HotLucky pack. Our monthly subscription starts at just 100 EGP or $2."));
                       return;
                     }
